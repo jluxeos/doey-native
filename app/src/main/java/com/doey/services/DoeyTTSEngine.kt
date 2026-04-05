@@ -66,7 +66,7 @@ object DoeyTTSEngine {
     suspend fun speakAndWait(text: String, language: String = "en-US") {
         val uid = "tts_${System.currentTimeMillis()}_${(Math.random() * 10000).toInt()}"
         suspendCancellableCoroutine<Unit> { cont ->
-            val doSpeak = {
+            val doSpeak: () -> Unit = {   // ✅ FIX AQUÍ
                 setLang(language)
                 pendingCallbacks[uid] = { if (cont.isActive) cont.resume(Unit) }
                 val result = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, uid)
@@ -80,7 +80,7 @@ object DoeyTTSEngine {
     }
 
     fun speakAsync(text: String, language: String = "en-US") {
-        val doSpeak = {
+        val doSpeak: () -> Unit = {   // 🔥 también lo dejamos correcto aquí
             setLang(language)
             tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "async_${System.currentTimeMillis()}")
         }
