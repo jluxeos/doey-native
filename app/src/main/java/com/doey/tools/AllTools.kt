@@ -405,7 +405,7 @@ class QueryCallLogTool : Tool {
 
 // ── HttpTool ──────────────────────────────────────────────────────────────────
 
-class HttpTool : Tool {
+class HttpTool(private val settings: com.doey.agent.SettingsStore) : Tool {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
@@ -433,6 +433,22 @@ class HttpTool : Tool {
         val url       = args["url"]        as? String ?: return@withContext errorResult("url required")
         val bodyStr   = args["body"]       as? String
         val authToken = args["auth_token"] as? String
+
+        // Bloqueo en Modo Básico si no hay credenciales configuradas
+        val expert = settings.getExpertMode()
+        if (!expert) {
+            val hasAuth = authToken != null || (args["headers"] as? List<Map<String, String>>)?.any { 
+                it["key"]?.contains("Authorization", ignoreCase = true) == true || 
+                it["key"]?.contains("X-API-Key", ignoreCase = true) == true 
+            } == true
+            
+            // Permitir solo clima (wttr.in / open-meteo) en modo básico sin auth
+            val isPublicWeather = url.contains("wttr.in") || url.contains("open-meteo")
+            if (!hasAuth && !isPublicWeather) {
+                return@withContext errorResult("HTTP requests are restricted in Basic Mode for privacy. Use accessibility tools instead or enable Expert Mode in settings.")
+            }
+        }
+
         try {
             val rb = Request.Builder().url(url)
             authToken?.let { rb.addHeader("Authorization", "Bearer $it") }
@@ -618,7 +634,10 @@ class AppSearchTool : Tool {
 
 // ── SkillDetailTool ───────────────────────────────────────────────────────────
 
-class SkillDetailTool(private val skillLoader: SkillLoader) : Tool {
+class SkillDetailTool(
+    private val skillLoader: SkillLoader,
+    private val settings: com.doey.agent.SettingsStore
+) : Tool {
     override fun name()        = "skill_detail"
     override fun description() = "Get full instructions for a skill. ALWAYS call this before using any skill."
     override fun systemHint()  = "Call this FIRST, before executing any skill task."
@@ -632,6 +651,20 @@ class SkillDetailTool(private val skillLoader: SkillLoader) : Tool {
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
         val name  = args["skill_name"] as? String ?: return errorResult("skill_name required")
         val skill = skillLoader.getSkill(name)    ?: return errorResult("Skill not found: $name")
+
+        val expert = settings.getExpertMode()
+        if (!expert && skill.credentials.isNotEmpty()) {
+            val hasKeys = skill.credentials.all { cred ->
+                settings.getCredential(cred.id).isNotBlank() || settings.getApiKey(cred.id).isNotBlank()
+            }
+            if (!hasKeys) {
+                return successResult("# Skill: ${skill.name}\n\n" +
+                    "**NOTICE**: This skill requires API keys or credentials that are not configured. " +
+                    "Since you are in Basic Mode, please use the `accessibility` and `intent` tools " +
+                    "to interact with the ${skill.name} app directly on the screen instead of using this skill's API methods.")
+            }
+        }
+
         return successResult("# Skill: ${skill.name}\n\n${skill.content}")
     }
 }
