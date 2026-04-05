@@ -1,0 +1,140 @@
+package com.doey.agent
+
+import android.util.Log
+import com.doey.llm.LLMProvider
+import com.doey.llm.Message
+import com.doey.tools.ToolRegistry
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+private const val TAG = "Pipeline"
+
+enum class PipelineState { IDLE, LISTENING, PROCESSING, SPEAKING, ERROR }
+
+class ConversationPipeline(
+    private var provider: LLMProvider,
+    private val tools: ToolRegistry,
+    private val skillLoader: SkillLoader,
+    private var drivingMode: Boolean = false,
+    private var language: String = "en",
+    private var soul: String = "",
+    private var personalMemory: String = "",
+    private var maxIterations: Int = 10,
+    private var maxHistoryMessages: Int = 20
+) {
+    private val _state = MutableStateFlow(PipelineState.IDLE)
+    val state: StateFlow<PipelineState> = _state.asStateFlow()
+
+    private val history = mutableListOf<Message>()
+    private var enabledSkillNames: List<String> = emptyList()
+
+    var onTranscript: ((role: String, text: String) -> Unit)? = null
+    var onError: ((error: String) -> Unit)? = null
+
+    fun setEnabledSkills(names: List<String>) { enabledSkillNames = names }
+    fun setDrivingMode(v: Boolean)           { drivingMode = v }
+    fun setLanguage(v: String)               { language = v }
+    fun setSoul(v: String)                   { soul = v }
+    fun setPersonalMemory(v: String)         { personalMemory = v }
+    fun setProvider(p: LLMProvider)          { provider = p }
+    fun clearHistory()                       { history.clear() }
+    fun exportHistory(): List<Message>       = history.toList()
+    fun importHistory(msgs: List<Message>)   { history.clear(); history.addAll(msgs) }
+    fun appendToHistory(msgs: List<Message>) { history.addAll(msgs); trimHistory() }
+    fun setIdle()                            { _state.value = PipelineState.IDLE }
+
+    fun startListening() {
+        if (_state.value == PipelineState.IDLE || _state.value == PipelineState.SPEAKING) {
+            _state.value = PipelineState.LISTENING
+        }
+    }
+
+    fun stopListening() {
+        if (_state.value == PipelineState.LISTENING) _state.value = PipelineState.IDLE
+    }
+
+    suspend fun processUtterance(
+        userText: String,
+        silent: Boolean = false,
+        onSpeak: (suspend (text: String, lang: String) -> Unit)? = null
+    ): String {
+        when (_state.value) {
+            PipelineState.LISTENING -> _state.value = PipelineState.PROCESSING
+            PipelineState.IDLE      -> _state.value = PipelineState.PROCESSING
+            else                    -> return ""
+        }
+
+        return try {
+            if (!silent) onTranscript?.invoke("user", userText)
+            Log.d(TAG, "Processing: ${userText.take(80)}")
+
+            val systemPrompt = SystemPromptBuilder.build(
+                skillLoader        = skillLoader,
+                toolRegistry       = tools,
+                enabledSkillNames  = enabledSkillNames,
+                drivingMode        = drivingMode,
+                language           = language,
+                soul               = soul,
+                personalMemory     = personalMemory
+            )
+
+            val systemMsg = Message(role = "system", content = systemPrompt)
+            val userMsg   = Message(role = "user",   content = userText)
+            val messages  = listOf(systemMsg) + history + listOf(userMsg)
+
+            history.add(userMsg)
+
+            val result = runToolLoop(
+                provider      = provider,
+                tools         = tools,
+                messages      = messages,
+                maxIterations = maxIterations
+            )
+
+            val assistantText = result.content.ifBlank { "Done." }
+            val isSilent = assistantText.contains("__SILENT__")
+
+            history.addAll(result.newMessages)
+            history.add(Message(role = "assistant", content = assistantText))
+            trimHistory()
+
+            if (isSilent) {
+                _state.value = PipelineState.IDLE
+                return ""
+            }
+
+            onTranscript?.invoke("assistant", assistantText)
+
+            if (drivingMode && onSpeak != null) {
+                _state.value = PipelineState.SPEAKING
+                try { onSpeak(assistantText, language.ifBlank { "en-US" }) }
+                catch (e: Exception) { Log.e(TAG, "TTS error: ${e.message}") }
+                if (_state.value != PipelineState.LISTENING) _state.value = PipelineState.IDLE
+            } else {
+                if (_state.value != PipelineState.LISTENING) _state.value = PipelineState.IDLE
+            }
+
+            assistantText
+        } catch (e: Exception) {
+            Log.e(TAG, "Pipeline error: ${e.message}")
+            _state.value = PipelineState.ERROR
+            onError?.invoke(e.message ?: "Unknown error")
+            history.add(Message(role = "assistant", content = "[Error: ${e.message}]"))
+            _state.value = PipelineState.IDLE
+            ""
+        }
+    }
+
+    private fun trimHistory() {
+        if (history.size <= maxHistoryMessages) return
+        var start = history.size - maxHistoryMessages
+        while (start < history.size) {
+            val msg = history[start]
+            if (msg.role == "tool")                                   { start++; continue }
+            if (msg.role == "assistant" && !msg.toolCalls.isNullOrEmpty()) { start++; continue }
+            break
+        }
+        repeat(start) { if (history.isNotEmpty()) history.removeAt(0) }
+    }
+}

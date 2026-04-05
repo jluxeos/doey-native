@@ -1,0 +1,712 @@
+package com.doey.tools
+
+import android.content.ContentResolver
+import android.content.Context
+import android.content.Intent
+import android.location.Location
+import android.media.AudioManager
+import android.media.ToneGenerator
+import android.net.Uri
+import android.os.BatteryManager
+import android.provider.CallLog
+import android.provider.ContactsContract
+import android.provider.Telephony
+import android.telephony.SmsManager
+import android.util.Log
+import com.doey.DoeyApplication
+import com.doey.agent.SkillLoader
+import com.doey.services.DoeyAccessibilityService
+import com.doey.services.DoeyTTSEngine
+import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.text.SimpleDateFormat
+import java.util.*
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.math.*
+
+// ── IntentTool ────────────────────────────────────────────────────────────────
+
+class IntentTool : Tool {
+    private val ctx get() = DoeyApplication.instance
+    override fun name()        = "intent"
+    override fun description() = "Control Android apps via Intents. Opens apps, starts navigation, makes calls, etc."
+    override fun systemHint()  = "General-purpose app launcher. Prefer specific tools when available; use intent as fallback."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "action"  to mapOf("type" to "string", "description" to "Intent action, e.g. android.intent.action.VIEW"),
+            "uri"     to mapOf("type" to "string", "description" to "URI for the intent"),
+            "package" to mapOf("type" to "string", "description" to "Optional target package"),
+            "extras"  to mapOf("type" to "array",
+                "items" to mapOf("type" to "object",
+                    "properties" to mapOf(
+                        "key"   to mapOf("type" to "string"),
+                        "value" to mapOf("type" to "string")
+                    ), "required" to listOf("key", "value")))
+        ),
+        "required" to listOf("action")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        val action = args["action"] as? String ?: return errorResult("action required")
+        val uri    = args["uri"]     as? String
+        val pkg    = args["package"] as? String
+        return withContext(Dispatchers.Main) {
+            try {
+                val intent: Intent = if (action == Intent.ACTION_MAIN && !pkg.isNullOrBlank() && uri.isNullOrBlank()) {
+                    ctx.packageManager.getLaunchIntentForPackage(pkg)
+                        ?: return@withContext errorResult("App not found: $pkg")
+                } else {
+                    Intent(action).apply {
+                        if (!uri.isNullOrBlank())  data = Uri.parse(uri)
+                        if (!pkg.isNullOrBlank())  setPackage(pkg)
+                    }
+                }
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                @Suppress("UNCHECKED_CAST")
+                (args["extras"] as? List<Map<String, String>>)?.forEach { e ->
+                    intent.putExtra(e["key"], e["value"])
+                }
+                ctx.startActivity(intent)
+                successResult("Intent executed: $action${if (uri != null) " → $uri" else ""}")
+            } catch (e: Exception) {
+                errorResult("Intent failed: ${e.message}")
+            }
+        }
+    }
+}
+
+// ── SmsTool ───────────────────────────────────────────────────────────────────
+
+class SmsTool : Tool {
+    override fun name()        = "send_sms"
+    override fun description() = "Send an SMS text message directly."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "phone_number" to mapOf("type" to "string"),
+            "message"      to mapOf("type" to "string")
+        ),
+        "required" to listOf("phone_number", "message")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
+        val phone   = args["phone_number"] as? String ?: return@withContext errorResult("phone_number required")
+        val message = args["message"]      as? String ?: return@withContext errorResult("message required")
+        try {
+            @Suppress("DEPRECATION")
+            val sms = SmsManager.getDefault()
+            if (message.length > 160) {
+                sms.sendMultipartTextMessage(phone, null, sms.divideMessage(message), null, null)
+            } else {
+                sms.sendTextMessage(phone, null, message, null, null)
+            }
+            successResult("SMS sent to $phone")
+        } catch (e: Exception) { errorResult("SMS failed: ${e.message}") }
+    }
+}
+
+// ── BeepTool ──────────────────────────────────────────────────────────────────
+
+class BeepTool : Tool {
+    override fun name()        = "beep"
+    override fun description() = "Play a short beep or tone to alert the user."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "tone"  to mapOf("type" to "string",  "enum" to listOf("default", "success", "error", "warning")),
+            "count" to mapOf("type" to "integer", "description" to "Number of beeps 1-5")
+        )
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
+        val count    = (args["count"] as? Number)?.toInt()?.coerceIn(1, 5) ?: 1
+        val toneType = when (args["tone"] as? String) {
+            "success" -> ToneGenerator.TONE_PROP_ACK
+            "error"   -> ToneGenerator.TONE_PROP_NACK
+            "warning" -> ToneGenerator.TONE_SUP_ERROR
+            else      -> ToneGenerator.TONE_PROP_BEEP
+        }
+        try {
+            val tg = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80)
+            repeat(count) { tg.startTone(toneType, 300); Thread.sleep(500) }
+            tg.release()
+            successResult("Played $count beep(s)")
+        } catch (e: Exception) { errorResult("Beep failed: ${e.message}") }
+    }
+}
+
+// ── DateTimeTool ──────────────────────────────────────────────────────────────
+
+class DateTimeTool : Tool {
+    override fun name()        = "datetime"
+    override fun description() = "Get current date/time, convert timezones, calculate date differences."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "action"   to mapOf("type" to "string", "enum" to listOf("now", "convert_timezone", "diff_days")),
+            "timezone" to mapOf("type" to "string"),
+            "date1"    to mapOf("type" to "string"),
+            "date2"    to mapOf("type" to "string")
+        ),
+        "required" to listOf("action")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        return when (args["action"] as? String) {
+            "now" -> {
+                val tz      = (args["timezone"] as? String)?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()
+                val now     = Date()
+                val iso     = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ENGLISH).also { it.timeZone = tz }
+                val human   = SimpleDateFormat("EEEE, MMMM d, yyyy HH:mm:ss z", Locale.ENGLISH).also { it.timeZone = tz }
+                successResult("Time: ${human.format(now)}\nISO: ${iso.format(now)}\nTimestamp: ${now.time}\nTimezone: ${tz.id}")
+            }
+            "diff_days" -> {
+                val d1s = args["date1"] as? String ?: return errorResult("date1 required")
+                val d2s = args["date2"] as? String ?: return errorResult("date2 required")
+                val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
+                val diff = kotlin.math.abs((fmt.parse(d2s)?.time ?: 0) - (fmt.parse(d1s)?.time ?: 0)) / 86_400_000
+                successResult("Difference: $diff days")
+            }
+            else -> errorResult("Unknown action: ${args["action"]}")
+        }
+    }
+}
+
+// ── DeviceTool ────────────────────────────────────────────────────────────────
+
+class DeviceTool : Tool {
+    private val ctx get() = DoeyApplication.instance
+    override fun name()        = "device"
+    override fun description() = "Query device state: GPS location, battery, volume, Wi-Fi, Bluetooth. Calculate GPS distance."
+    override fun systemHint()  = "Fetch GPS location before weather or navigation requests."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "action"     to mapOf("type" to "string",
+                "enum" to listOf("get_location","get_battery","get_volume","set_volume","get_wifi_status","get_bluetooth_status","calculate_distance")),
+            "volume"     to mapOf("type" to "number"),
+            "latitude1"  to mapOf("type" to "number"),
+            "longitude1" to mapOf("type" to "number"),
+            "latitude2"  to mapOf("type" to "number"),
+            "longitude2" to mapOf("type" to "number")
+        ),
+        "required" to listOf("action")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        return when (args["action"] as? String) {
+            "get_location"          -> getLocation()
+            "get_battery"           -> getBattery()
+            "get_volume"            -> getVolume()
+            "set_volume"            -> setVolume((args["volume"] as? Number)?.toDouble() ?: 50.0)
+            "get_wifi_status"       -> getWifiStatus()
+            "get_bluetooth_status"  -> getBluetoothStatus()
+            "calculate_distance"    -> calcDistance(args)
+            else                    -> errorResult("Unknown action: ${args["action"]}")
+        }
+    }
+
+    private suspend fun getLocation(): ToolResult = withContext(Dispatchers.IO) {
+        try {
+            val client = LocationServices.getFusedLocationProviderClient(ctx)
+            val loc    = suspendCancellableCoroutine<Location?> { cont ->
+                @Suppress("MissingPermission")
+                client.lastLocation
+                    .addOnSuccessListener { cont.resume(it) }
+                    .addOnFailureListener { cont.resumeWithException(it) }
+            }
+            if (loc != null)
+                successResult("lat=${loc.latitude}, lon=${loc.longitude}, accuracy=${loc.accuracy}m")
+            else
+                errorResult("Location unavailable – GPS may be off or cold start")
+        } catch (e: Exception) { errorResult("Location error: ${e.message}") }
+    }
+
+    private fun getBattery(): ToolResult {
+        val bm  = ctx.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        val pct = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        return successResult("Battery: $pct%")
+    }
+
+    private fun getVolume(): ToolResult {
+        val am  = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val cur = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        return successResult("Volume: ${if (max > 0) cur * 100 / max else 0}% ($cur/$max)")
+    }
+
+    private fun setVolume(pct: Double): ToolResult {
+        val am     = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val max    = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        am.setStreamVolume(AudioManager.STREAM_MUSIC, (pct.coerceIn(0.0, 100.0) * max / 100).toInt(), 0)
+        return successResult("Volume set to ${pct.toInt()}%")
+    }
+
+    private fun getWifiStatus(): ToolResult {
+        val cm        = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val connected = cm.activeNetworkInfo?.isConnected == true
+        return successResult("WiFi: ${if (connected) "connected" else "disconnected"}")
+    }
+
+    private fun getBluetoothStatus(): ToolResult {
+        @Suppress("DEPRECATION")
+        val bt      = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+        val enabled = bt?.isEnabled == true
+        return successResult("Bluetooth: ${if (enabled) "on" else "off"}")
+    }
+
+    private fun calcDistance(args: Map<String, Any?>): ToolResult {
+        val lat1 = (args["latitude1"]  as? Number)?.toDouble() ?: return errorResult("latitude1 required")
+        val lon1 = (args["longitude1"] as? Number)?.toDouble() ?: return errorResult("longitude1 required")
+        val lat2 = (args["latitude2"]  as? Number)?.toDouble() ?: return errorResult("latitude2 required")
+        val lon2 = (args["longitude2"] as? Number)?.toDouble() ?: return errorResult("longitude2 required")
+        val R    = 6371.0
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a    = sin(dLat / 2).pow(2) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2)
+        val km   = R * 2 * atan2(sqrt(a), sqrt(1 - a))
+        return successResult("Distance: ${"%.2f".format(km)} km (${"%.1f".format(km * 0.621371)} mi)")
+    }
+}
+
+// ── QueryContactsTool ─────────────────────────────────────────────────────────
+
+class QueryContactsTool : Tool {
+    override fun name()        = "query_contacts"
+    override fun description() = "Search device contacts by name."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "query" to mapOf("type" to "string"),
+            "limit" to mapOf("type" to "integer")
+        ),
+        "required" to listOf("query")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
+        val ctx   = DoeyApplication.instance
+        val query = args["query"] as? String ?: return@withContext errorResult("query required")
+        val limit = (args["limit"] as? Number)?.toInt() ?: 10
+        val list  = mutableListOf<String>()
+        ctx.contentResolver.query(
+            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+            arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER),
+            "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ?",
+            arrayOf("%$query%"),
+            "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC LIMIT $limit"
+        )?.use { c ->
+            val ni = c.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+            val pi = c.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+            while (c.moveToNext()) list.add("${c.getString(ni)}: ${c.getString(pi)}")
+        }
+        if (list.isEmpty()) successResult("No contacts for \"$query\"")
+        else successResult("Contacts:\n${list.joinToString("\n")}")
+    }
+}
+
+// ── QuerySmsTool ──────────────────────────────────────────────────────────────
+
+class QuerySmsTool : Tool {
+    override fun name()        = "query_sms"
+    override fun description() = "Read SMS inbox messages."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "contact" to mapOf("type" to "string"),
+            "limit"   to mapOf("type" to "integer")
+        )
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
+        val ctx     = DoeyApplication.instance
+        val contact = args["contact"] as? String
+        val limit   = (args["limit"] as? Number)?.toInt() ?: 10
+        val list    = mutableListOf<String>()
+        ctx.contentResolver.query(
+            Telephony.Sms.Inbox.CONTENT_URI,
+            arrayOf(Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE),
+            if (contact != null) "${Telephony.Sms.ADDRESS} LIKE ?" else null,
+            if (contact != null) arrayOf("%$contact%") else null,
+            "${Telephony.Sms.DATE} DESC LIMIT $limit"
+        )?.use { c ->
+            val ai = c.getColumnIndex(Telephony.Sms.ADDRESS)
+            val bi = c.getColumnIndex(Telephony.Sms.BODY)
+            val di = c.getColumnIndex(Telephony.Sms.DATE)
+            while (c.moveToNext()) {
+                val d = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).format(Date(c.getLong(di)))
+                list.add("From: ${c.getString(ai)} [$d]\n${c.getString(bi)}")
+            }
+        }
+        if (list.isEmpty()) successResult("No SMS found") else successResult(list.joinToString("\n\n---\n\n"))
+    }
+}
+
+// ── QueryCallLogTool ──────────────────────────────────────────────────────────
+
+class QueryCallLogTool : Tool {
+    override fun name()        = "query_call_log"
+    override fun description() = "Read recent call history."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "limit" to mapOf("type" to "integer"),
+            "type"  to mapOf("type" to "string", "enum" to listOf("all","incoming","outgoing","missed"))
+        )
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
+        val ctx    = DoeyApplication.instance
+        val limit  = (args["limit"] as? Number)?.toInt() ?: 10
+        val tf     = args["type"] as? String ?: "all"
+        val sel    = when (tf) {
+            "incoming" -> "${CallLog.Calls.TYPE} = ${CallLog.Calls.INCOMING_TYPE}"
+            "outgoing" -> "${CallLog.Calls.TYPE} = ${CallLog.Calls.OUTGOING_TYPE}"
+            "missed"   -> "${CallLog.Calls.TYPE} = ${CallLog.Calls.MISSED_TYPE}"
+            else       -> null
+        }
+        val list   = mutableListOf<String>()
+        ctx.contentResolver.query(
+            CallLog.Calls.CONTENT_URI,
+            arrayOf(CallLog.Calls.NUMBER, CallLog.Calls.CACHED_NAME, CallLog.Calls.TYPE, CallLog.Calls.DATE, CallLog.Calls.DURATION),
+            sel, null, "${CallLog.Calls.DATE} DESC LIMIT $limit"
+        )?.use { c ->
+            val ni = c.getColumnIndex(CallLog.Calls.NUMBER)
+            val oi = c.getColumnIndex(CallLog.Calls.CACHED_NAME)
+            val ti = c.getColumnIndex(CallLog.Calls.TYPE)
+            val di = c.getColumnIndex(CallLog.Calls.DATE)
+            val ri = c.getColumnIndex(CallLog.Calls.DURATION)
+            while (c.moveToNext()) {
+                val tp   = when (c.getInt(ti)) { CallLog.Calls.INCOMING_TYPE -> "in"; CallLog.Calls.OUTGOING_TYPE -> "out"; CallLog.Calls.MISSED_TYPE -> "missed"; else -> "?" }
+                val date = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).format(Date(c.getLong(di)))
+                val name = c.getString(oi)?.takeIf { it.isNotBlank() } ?: c.getString(ni)
+                list.add("$name [$tp, $date, ${c.getLong(ri)}s]")
+            }
+        }
+        if (list.isEmpty()) successResult("No calls found") else successResult(list.joinToString("\n"))
+    }
+}
+
+// ── HttpTool ──────────────────────────────────────────────────────────────────
+
+class HttpTool : Tool {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .build()
+
+    override fun name()        = "http"
+    override fun description() = "Make REST API requests (GET/POST/PUT/PATCH/DELETE) with optional headers and body."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "method"     to mapOf("type" to "string", "enum" to listOf("GET","POST","PUT","PATCH","DELETE")),
+            "url"        to mapOf("type" to "string"),
+            "headers"    to mapOf("type" to "array",
+                "items" to mapOf("type" to "object",
+                    "properties" to mapOf("key" to mapOf("type" to "string"), "value" to mapOf("type" to "string")))),
+            "body"       to mapOf("type" to "string"),
+            "auth_token" to mapOf("type" to "string", "description" to "Bearer token")
+        ),
+        "required" to listOf("method", "url")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
+        val method    = args["method"]     as? String ?: return@withContext errorResult("method required")
+        val url       = args["url"]        as? String ?: return@withContext errorResult("url required")
+        val bodyStr   = args["body"]       as? String
+        val authToken = args["auth_token"] as? String
+        try {
+            val rb = Request.Builder().url(url)
+            authToken?.let { rb.addHeader("Authorization", "Bearer $it") }
+            @Suppress("UNCHECKED_CAST")
+            (args["headers"] as? List<Map<String, String>>)?.forEach { h ->
+                rb.addHeader(h["key"] ?: "", h["value"] ?: "")
+            }
+            val bodyObj = (bodyStr ?: "{}").toRequestBody("application/json".toMediaType())
+            val req = when (method) {
+                "GET"    -> rb.get().build()
+                "DELETE" -> rb.delete().build()
+                "POST"   -> rb.post(bodyObj).build()
+                "PUT"    -> rb.put(bodyObj).build()
+                "PATCH"  -> rb.patch(bodyObj).build()
+                else     -> return@withContext errorResult("Unknown method: $method")
+            }
+            val resp     = client.newCall(req).execute()
+            val respBody = resp.body?.string() ?: ""
+            val truncated = if (respBody.length > 8000) respBody.take(8000) + "\n[truncated]" else respBody
+            if (resp.isSuccessful) successResult("HTTP ${resp.code}\n$truncated")
+            else errorResult("HTTP ${resp.code}: $truncated")
+        } catch (e: Exception) { errorResult("HTTP failed: ${e.message}") }
+    }
+}
+
+// ── TTSTool ───────────────────────────────────────────────────────────────────
+
+class TTSTool : Tool {
+    override fun name()        = "tts"
+    override fun description() = "Speak text aloud using text-to-speech."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "text"     to mapOf("type" to "string"),
+            "language" to mapOf("type" to "string")
+        ),
+        "required" to listOf("text")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        val text = args["text"]     as? String ?: return errorResult("text required")
+        val lang = args["language"] as? String ?: "en-US"
+        return try {
+            DoeyTTSEngine.speakAndWait(text, lang)
+            successResult("Spoken: ${text.take(60)}")
+        } catch (e: Exception) { errorResult("TTS failed: ${e.message}") }
+    }
+}
+
+// ── AccessibilityTool ─────────────────────────────────────────────────────────
+
+class AccessibilityTool : Tool {
+    override fun name()        = "accessibility"
+    override fun description() = "Read and control any app's UI. Get screen content, click, type, scroll, swipe."
+    override fun systemHint()  = "Use to automate UI tasks in other apps when no direct API is available."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "action"       to mapOf("type" to "string",
+                "enum" to listOf("get_tree","click","long_click","type","scroll","swipe","wait_for_app","is_running","back","home","paste","clipboard_set","clipboard_get")),
+            "node_id"      to mapOf("type" to "string"),
+            "text"         to mapOf("type" to "string"),
+            "package_name" to mapOf("type" to "string"),
+            "direction"    to mapOf("type" to "string", "enum" to listOf("up","down","left","right")),
+            "x1"           to mapOf("type" to "number"),
+            "y1"           to mapOf("type" to "number"),
+            "x2"           to mapOf("type" to "number"),
+            "y2"           to mapOf("type" to "number"),
+            "duration_ms"  to mapOf("type" to "integer"),
+            "timeout_ms"   to mapOf("type" to "integer")
+        ),
+        "required" to listOf("action")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        val action = args["action"] as? String ?: return errorResult("action required")
+
+        if (action == "is_running") {
+            return successResult("Accessibility service running: ${DoeyAccessibilityService.isRunning()}")
+        }
+
+        val svc = DoeyAccessibilityService.instance
+            ?: return errorResult("Accessibility service not enabled. Enable in Android Settings → Accessibility → Doey.")
+
+        return when (action) {
+            "get_tree"   -> withContext(Dispatchers.Main) {
+                val tree = svc.buildAccessibilityTree()
+                successResult(tree.ifBlank { "Screen is empty or not readable" })
+            }
+            "click"      -> {
+                val nodeId = args["node_id"] as? String ?: return errorResult("node_id required")
+                withContext(Dispatchers.Main) {
+                    if (svc.performNodeAction("click", nodeId, null))
+                        successResult("Clicked $nodeId")
+                    else errorResult("Click failed on $nodeId")
+                }
+            }
+            "long_click" -> {
+                val nodeId = args["node_id"] as? String ?: return errorResult("node_id required")
+                withContext(Dispatchers.Main) {
+                    if (svc.performNodeAction("long_click", nodeId, null))
+                        successResult("Long-clicked $nodeId")
+                    else errorResult("Long-click failed on $nodeId")
+                }
+            }
+            "type"       -> {
+                val nodeId = args["node_id"] as? String ?: return errorResult("node_id required")
+                val text   = args["text"]    as? String ?: return errorResult("text required")
+                withContext(Dispatchers.Main) {
+                    if (svc.performNodeAction("type", nodeId, text))
+                        successResult("Typed into $nodeId")
+                    else errorResult("Type failed on $nodeId")
+                }
+            }
+            "scroll"     -> {
+                val nodeId = args["node_id"] as? String ?: return errorResult("node_id required")
+                val dir    = args["direction"] as? String ?: "down"
+                withContext(Dispatchers.Main) {
+                    if (svc.performNodeAction("scroll_$dir", nodeId, null))
+                        successResult("Scrolled $dir")
+                    else errorResult("Scroll failed")
+                }
+            }
+            "swipe"      -> {
+                val x1  = (args["x1"] as? Number)?.toFloat() ?: return errorResult("x1 required")
+                val y1  = (args["y1"] as? Number)?.toFloat() ?: return errorResult("y1 required")
+                val x2  = (args["x2"] as? Number)?.toFloat() ?: return errorResult("x2 required")
+                val y2  = (args["y2"] as? Number)?.toFloat() ?: return errorResult("y2 required")
+                val dur = (args["duration_ms"] as? Number)?.toLong() ?: 300L
+                withContext(Dispatchers.Main) {
+                    if (svc.performSwipe(x1, y1, x2, y2, dur))
+                        successResult("Swiped from ($x1,$y1) to ($x2,$y2)")
+                    else errorResult("Swipe failed")
+                }
+            }
+            "wait_for_app" -> {
+                val pkg     = args["package_name"] as? String ?: return errorResult("package_name required")
+                val timeout = (args["timeout_ms"] as? Number)?.toLong() ?: 5000L
+                val ok      = withContext(Dispatchers.IO) { svc.waitForPackage(pkg, timeout) }
+                if (ok) successResult("$pkg is in foreground") else errorResult("Timed out waiting for $pkg")
+            }
+            "back"  -> withContext(Dispatchers.Main) { svc.performNodeAction("back",  null, null); successResult("Back pressed") }
+            "home"  -> withContext(Dispatchers.Main) { svc.performNodeAction("home",  null, null); successResult("Home pressed") }
+            "paste" -> withContext(Dispatchers.Main) { svc.performNodeAction("paste", null, null); successResult("Paste executed") }
+            "clipboard_set" -> {
+                val text = args["text"] as? String ?: return errorResult("text required")
+                withContext(Dispatchers.Main) { svc.performNodeAction("clipboard_set", null, text); successResult("Clipboard set") }
+            }
+            "clipboard_get" -> {
+                withContext(Dispatchers.Main) { svc.performNodeAction("clipboard_get", null, null); successResult("Clipboard retrieved") }
+            }
+            else -> errorResult("Unknown action: $action")
+        }
+    }
+}
+
+// ── AppSearchTool ─────────────────────────────────────────────────────────────
+
+class AppSearchTool : Tool {
+    override fun name()        = "app_search"
+    override fun description() = "Search for installed apps on the device."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf("query" to mapOf("type" to "string")),
+        "required" to listOf("query")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
+        val ctx   = DoeyApplication.instance
+        val query = (args["query"] as? String)?.lowercase() ?: return@withContext errorResult("query required")
+        val pm    = ctx.packageManager
+        val apps  = pm.getInstalledApplications(0)
+            .filter { pm.getApplicationLabel(it).toString().lowercase().contains(query) || it.packageName.lowercase().contains(query) }
+            .take(10)
+            .map { "${pm.getApplicationLabel(it)} → ${it.packageName}" }
+        if (apps.isEmpty()) successResult("No apps found for \"$query\"")
+        else successResult("Apps:\n${apps.joinToString("\n")}")
+    }
+}
+
+// ── SkillDetailTool ───────────────────────────────────────────────────────────
+
+class SkillDetailTool(private val skillLoader: SkillLoader) : Tool {
+    override fun name()        = "skill_detail"
+    override fun description() = "Get full instructions for a skill. ALWAYS call this before using any skill."
+    override fun systemHint()  = "Call this FIRST, before executing any skill task."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf("skill_name" to mapOf("type" to "string")),
+        "required" to listOf("skill_name")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        val name  = args["skill_name"] as? String ?: return errorResult("skill_name required")
+        val skill = skillLoader.getSkill(name)    ?: return errorResult("Skill not found: $name")
+        return successResult("# Skill: ${skill.name}\n\n${skill.content}")
+    }
+}
+
+// ── PersonalMemoryTool ────────────────────────────────────────────────────────
+
+class PersonalMemoryTool : Tool {
+    private val store get() = DoeyApplication.instance.settingsStore
+    override fun name()        = "memory_personal_upsert"
+    override fun description() = "Store personal facts about the user for future context."
+    override fun systemHint()  = "Call FIRST when you detect any stable personal fact in the user's message."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "facts" to mapOf("type" to "array",
+                "items" to mapOf("type" to "object",
+                    "properties" to mapOf(
+                        "fact"     to mapOf("type" to "string"),
+                        "category" to mapOf("type" to "string")
+                    ),
+                    "required" to listOf("fact")))
+        ),
+        "required" to listOf("facts")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        @Suppress("UNCHECKED_CAST")
+        val facts    = args["facts"] as? List<Map<String, String>> ?: return errorResult("facts required")
+        val existing = store.getPersonalMemory()
+        val sb       = StringBuilder(existing)
+        facts.forEach { f ->
+            val fact = f["fact"] ?: return@forEach
+            val cat  = f["category"] ?: "general"
+            sb.append("\n- [$cat] $fact")
+        }
+        store.setPersonalMemory(sb.toString().trim())
+        return successResult("Stored ${facts.size} fact(s)")
+    }
+}
+
+// ── FileStorageTool ───────────────────────────────────────────────────────────
+
+class FileStorageTool : Tool {
+    private val prefs get() = DoeyApplication.instance.getSharedPreferences("doey_files", Context.MODE_PRIVATE)
+    override fun name()        = "file_storage"
+    override fun description() = "Read/write text files to persistent storage (notes, lists, data)."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "action"  to mapOf("type" to "string", "enum" to listOf("read","write","append","delete","list")),
+            "key"     to mapOf("type" to "string"),
+            "content" to mapOf("type" to "string")
+        ),
+        "required" to listOf("action", "key")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        val action = args["action"] as? String ?: return errorResult("action required")
+        val key    = "file_${args["key"] as? String ?: return errorResult("key required")}"
+        return when (action) {
+            "read"   -> prefs.getString(key, null)?.let { successResult(it) } ?: errorResult("File not found")
+            "write"  -> { prefs.edit().putString(key, args["content"] as? String ?: "").apply(); successResult("Written") }
+            "append" -> {
+                val existing = prefs.getString(key, "") ?: ""
+                prefs.edit().putString(key, "$existing\n${args["content"] ?: ""}").apply()
+                successResult("Appended")
+            }
+            "delete" -> { prefs.edit().remove(key).apply(); successResult("Deleted") }
+            "list"   -> {
+                val keys = prefs.all.keys.filter { it.startsWith("file_") }.map { it.removePrefix("file_") }
+                successResult("Files: ${keys.joinToString(", ").ifBlank { "(none)" }}")
+            }
+            else -> errorResult("Unknown action: $action")
+        }
+    }
+}
