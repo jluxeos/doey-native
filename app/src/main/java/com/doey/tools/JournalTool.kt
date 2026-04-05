@@ -1,15 +1,11 @@
 package com.doey.tools
 
-// Clase simple que maneja "journaling"
-class JournalTool {
-
-    fun logEntry(entry: String) {
-        // Aquí podrías guardar la entrada en base de datos o archivo
-        println("Journal entry: $entry")
-    }
-
-    fun getAllEntries(): List<String> {
-        // Devuelve una lista de ejemplo
-        return listOf("Entrada 1", "Entrada 2")
+class JournalTool : Tool {
+    override fun name() = "journal"
+    override fun description() = "Keep a personal journal or notes."
+    override fun parameters() = mapOf("type" to "object", "properties" to mapOf("entry" to mapOf("type" to "string")), "required" to listOf("entry"))
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        val entry = args["entry"] as? String ?: return errorResult("entry required")
+        return successResult("Logged: $entry")
     }
 }
