@@ -32,7 +32,7 @@ fun HomeScreen(vm: MainViewModel) {
         if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.size - 1)
     }
 
-    Column(Modifier.fillMaxSize().background(Surface0)) {
+    Column(Modifier.fillMaxSize().background(Surface0Light)) {
 
         // ── Barra superior ────────────────────────────────────────────────────
         TopAppBar(
@@ -40,11 +40,11 @@ fun HomeScreen(vm: MainViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("🤖", fontSize = 20.sp)
                     Spacer(Modifier.width(8.dp))
-                    Text("Doey", fontWeight = FontWeight.Bold, color = Label1)
+                    Text("Doey", fontWeight = FontWeight.Bold, color = Label1Light)
                     if (state.isWakeWordActive) {
                         Spacer(Modifier.width(6.dp))
-                        Surface(shape = RoundedCornerShape(50), color = Color(0xFF1D3A1D)) {
-                            Text("  ● wake  ", fontSize = 10.sp, color = Color(0xFF79FF79),
+                        Surface(shape = RoundedCornerShape(50), color = Color(0xFFDCF5DC)) {
+                            Text("  ● activo  ", fontSize = 10.sp, color = Color(0xFF1A7A1A),
                                 modifier = Modifier.padding(vertical = 2.dp))
                         }
                     }
@@ -54,29 +54,29 @@ fun HomeScreen(vm: MainViewModel) {
                 IconButton(onClick = { vm.toggleDrivingMode() }) {
                     Icon(
                         Icons.Default.DirectionsCar,
-                        contentDescription = "Driving",
-                        tint = if (state.isDrivingMode) Purple else Label3
+                        contentDescription = "Conducción",
+                        tint = if (state.isDrivingMode) Purple else Label3Light
                     )
                 }
                 IconButton(onClick = { vm.clearHistory() }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Clear", tint = Label3)
+                    Icon(Icons.Default.Delete, contentDescription = "Borrar", tint = Label3Light)
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1)
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light)
         )
 
         // ── Banner modo conducción ────────────────────────────────────────────
         AnimatedVisibility(state.isDrivingMode) {
-            Surface(Modifier.fillMaxWidth(), color = PurpleDark) {
-                Text("🚗  Driving Mode – Voice responses active",
-                    Modifier.padding(8.dp), color = Color(0xFFEADDFF),
+            Surface(Modifier.fillMaxWidth(), color = Color(0xFFEADDFF)) {
+                Text("🚗  Modo conducción – Respuestas por voz activas",
+                    Modifier.padding(8.dp), color = Color(0xFF21005D),
                     fontSize = 12.sp, textAlign = TextAlign.Center)
             }
         }
 
         // ── Banner de error ───────────────────────────────────────────────────
         state.errorMessage?.let { err ->
-            Surface(Modifier.fillMaxWidth(), color = Color(0xFF93000A)) {
+            Surface(Modifier.fillMaxWidth(), color = Color(0xFFF9DEDC)) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(err, color = ErrorRed, modifier = Modifier.weight(1f), fontSize = 13.sp)
                     IconButton(onClick = { vm.clearError() }, modifier = Modifier.size(24.dp)) {
@@ -111,16 +111,16 @@ fun HomeScreen(vm: MainViewModel) {
             state.pipelineState == PipelineState.SPEAKING
         ) {
             Surface(Modifier.fillMaxWidth(),
-                color = if (state.pipelineState == PipelineState.LISTENING) Color(0xFF1D3A1D) else Surface1) {
+                color = if (state.pipelineState == PipelineState.LISTENING) Color(0xFFDCF5DC) else Surface1Light) {
                 Text(
-                    if (state.pipelineState == PipelineState.LISTENING) "🎙️  Listening…" else "🔊  Speaking…",
-                    Modifier.padding(8.dp), color = Label1, fontSize = 13.sp, textAlign = TextAlign.Center
+                    if (state.pipelineState == PipelineState.LISTENING) "🎙️  Escuchando…" else "🔊  Hablando…",
+                    Modifier.padding(8.dp), color = Label1Light, fontSize = 13.sp, textAlign = TextAlign.Center
                 )
             }
         }
 
         // ── Barra de input ────────────────────────────────────────────────────
-        Surface(color = Surface1) {
+        Surface(color = Surface1Light) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -129,12 +129,12 @@ fun HomeScreen(vm: MainViewModel) {
                     value       = input,
                     onValueChange = { input = it },
                     modifier    = Modifier.weight(1f),
-                    placeholder = { Text("Type a message…", color = Label3, fontSize = 14.sp) },
+                    placeholder = { Text("Escribe un mensaje…", color = Label3Light, fontSize = 14.sp) },
                     colors      = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor   = Purple,
-                        unfocusedBorderColor = Color(0xFF4A4458),
-                        focusedTextColor     = Label1,
-                        unfocusedTextColor   = Label1,
+                        unfocusedBorderColor = Label3Light,
+                        focusedTextColor     = Label1Light,
+                        unfocusedTextColor   = Label1Light,
                         cursorColor          = Purple
                     ),
                     singleLine = true,
@@ -155,8 +155,8 @@ fun HomeScreen(vm: MainViewModel) {
                     enabled = state.pipelineState != PipelineState.PROCESSING,
                     colors  = IconButtonDefaults.filledIconButtonColors(
                         containerColor = when {
-                            state.isListening -> Color(0xFF1D3A1D)
-                            state.pipelineState == PipelineState.SPEAKING -> Color(0xFF3A1D1D)
+                            state.isListening -> Color(0xFFDCF5DC)
+                            state.pipelineState == PipelineState.SPEAKING -> Color(0xFFF9DEDC)
                             else -> PurpleDark
                         }
                     )
@@ -167,7 +167,7 @@ fun HomeScreen(vm: MainViewModel) {
                             state.pipelineState == PipelineState.SPEAKING -> Icons.Default.Stop
                             else -> Icons.Default.Mic
                         },
-                        contentDescription = "Mic", tint = Label1
+                        contentDescription = "Micrófono", tint = OnPurple
                     )
                 }
 
@@ -179,7 +179,7 @@ fun HomeScreen(vm: MainViewModel) {
                     enabled  = input.isNotBlank() && state.pipelineState != PipelineState.PROCESSING,
                     colors   = IconButtonDefaults.filledIconButtonColors(containerColor = Purple)
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = "Send", tint = OnPurple)
+                    Icon(Icons.Default.Send, contentDescription = "Enviar", tint = OnPurple)
                 }
             }
         }
@@ -195,15 +195,15 @@ private fun ChatBubble(msg: ChatMessage) {
         if (!isUser) Text("🤖 ", fontSize = 16.sp, modifier = Modifier.padding(top = 6.dp))
         Surface(
             shape = RoundedCornerShape(
-                topStart = if (isUser) 16.dp else 4.dp,
-                topEnd   = if (isUser) 4.dp else 16.dp,
+                topStart    = if (isUser) 16.dp else 4.dp,
+                topEnd      = if (isUser) 4.dp else 16.dp,
                 bottomStart = 16.dp, bottomEnd = 16.dp
             ),
-            color = if (isUser) PurpleDark else Surface1,
+            color = if (isUser) Color(0xFFEADDFF) else Surface1Light,
             modifier = Modifier.widthIn(max = 300.dp)
         ) {
             Text(msg.text, Modifier.padding(12.dp),
-                color = if (isUser) Color(0xFFEADDFF) else Label1,
+                color = if (isUser) Color(0xFF21005D) else Label1Light,
                 fontSize = 14.sp, lineHeight = 20.sp)
         }
     }
@@ -212,9 +212,9 @@ private fun ChatBubble(msg: ChatMessage) {
 @Composable
 private fun PartialBubble(text: String) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-        Surface(shape = RoundedCornerShape(16.dp, 4.dp, 16.dp, 16.dp), color = Surface2,
+        Surface(shape = RoundedCornerShape(16.dp, 4.dp, 16.dp, 16.dp), color = Surface2Light,
             modifier = Modifier.widthIn(max = 280.dp)) {
-            Text(text, Modifier.padding(12.dp), color = Label3, fontSize = 14.sp, fontStyle = FontStyle.Italic)
+            Text(text, Modifier.padding(12.dp), color = Label3Light, fontSize = 14.sp, fontStyle = FontStyle.Italic)
         }
     }
 }
@@ -223,11 +223,11 @@ private fun PartialBubble(text: String) {
 private fun ThinkingBubble() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
         Text("🤖 ", fontSize = 16.sp)
-        Surface(shape = RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp), color = Surface1) {
+        Surface(shape = RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp), color = Surface1Light) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Purple)
                 Spacer(Modifier.width(8.dp))
-                Text("Thinking…", color = Label3, fontSize = 13.sp)
+                Text("Procesando…", color = Label3Light, fontSize = 13.sp)
             }
         }
     }
@@ -241,8 +241,8 @@ private fun EmptyState() {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text("🤖", fontSize = 48.sp)
-        Text("Hi, I'm Doey!", fontWeight = FontWeight.Bold, color = Label1, fontSize = 20.sp)
-        Text("Your personal AI assistant.\nTap the mic or type to get started.",
-            color = Label3, textAlign = TextAlign.Center, fontSize = 14.sp)
+        Text("¡Hola, soy Doey!", fontWeight = FontWeight.Bold, color = Label1Light, fontSize = 20.sp)
+        Text("Tu asistente de IA personal.\nToca el micrófono o escribe para comenzar.",
+            color = Label3Light, textAlign = TextAlign.Center, fontSize = 14.sp)
     }
 }

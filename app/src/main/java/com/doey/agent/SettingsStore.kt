@@ -70,8 +70,8 @@ class SettingsStore(private val context: Context) {
         encPrefs.edit().putString("custom_model_url", url).apply()
 
     // ── DataStore flows ───────────────────────────────────────────────────────
-    val provider: Flow<String>       = context.dataStore.data.map { it[KEY_PROVIDER] ?: "groq" }
-    val model: Flow<String>          = context.dataStore.data.map { it[KEY_MODEL] ?: "llama-3.3-70b-versatile" }
+    val provider: Flow<String>       = context.dataStore.data.map { it[KEY_PROVIDER] ?: "gemini" }
+    val model: Flow<String>          = context.dataStore.data.map { it[KEY_MODEL] ?: "gemini-2.5-flash-preview-04-17" }
     val language: Flow<String>       = context.dataStore.data.map { it[KEY_LANGUAGE] ?: "system" }
     val drivingMode: Flow<Boolean>   = context.dataStore.data.map { it[KEY_DRIVING_MODE] ?: false }
     val wakeWordEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_WAKE_WORD] ?: false }
