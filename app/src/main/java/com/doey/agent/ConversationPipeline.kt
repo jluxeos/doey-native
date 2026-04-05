@@ -20,6 +20,7 @@ class ConversationPipeline(
     private var language: String = "en",
     private var soul: String = "",
     private var personalMemory: String = "",
+    private var expertMode: Boolean = true,
     private var maxIterations: Int = 10,
     private var maxHistoryMessages: Int = 20
 ) {
@@ -37,6 +38,7 @@ class ConversationPipeline(
     fun setLanguage(v: String)               { language = v }
     fun setSoul(v: String)                   { soul = v }
     fun setPersonalMemory(v: String)         { personalMemory = v }
+    fun setExpertMode(v: Boolean)            { expertMode = v }
     fun setProvider(p: LLMProvider)          { provider = p }
     fun clearHistory()                       { history.clear() }
     fun exportHistory(): List<Message>       = history.toList()
@@ -76,7 +78,8 @@ class ConversationPipeline(
                 drivingMode        = drivingMode,
                 language           = language,
                 soul               = soul,
-                personalMemory     = personalMemory
+                personalMemory     = personalMemory,
+                expertMode         = expertMode
             )
 
             val systemMsg = Message(role = "system", content = systemPrompt)

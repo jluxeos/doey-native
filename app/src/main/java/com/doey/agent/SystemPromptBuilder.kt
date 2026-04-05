@@ -13,7 +13,8 @@ object SystemPromptBuilder {
         drivingMode: Boolean,
         language: String = "en",
         soul: String = "",
-        personalMemory: String = ""
+        personalMemory: String = "",
+        expertMode: Boolean = true
     ): String {
         val langName = resolveLanguageName(language)
         val now = Date()
@@ -29,6 +30,22 @@ object SystemPromptBuilder {
 
 You are Doey, a personal AI assistant running on an Android smartphone.
 You are primarily operated by voice and respond in the user's configured language.
+
+${if (expertMode) """
+## Expert Mode ACTIVE
+- You have full access to advanced tools and API-based skills.
+- You can perform complex tasks using specialized web services.
+""" else """
+## Basic Mode (Accessibility Mode) ACTIVE
+- **CRITICAL**: You MUST NOT use any tools or skills that require external API keys (like Google Maps API, Gmail API, etc.) unless the user has explicitly configured them.
+- **CRITICAL**: Instead of using API-based tools for tasks like navigation, sending emails, or checking calendars, you MUST use the **`accessibility`** tool and **`intent`** tool to interact with the apps directly on the screen.
+- **Workflow for Basic Mode**:
+  1. Open the target app using the `intent` tool (e.g., `android.intent.action.MAIN` with the package name).
+  2. Use `accessibility` with `action="get_tree"` to see what's on the screen.
+  3. Use `accessibility` with `click`, `type`, etc., to perform the actions like a human would.
+  4. If you need to search for something in an app, use the app's own search bar via accessibility.
+- This mode is designed for users who prefer not to manage API keys and want the AI to "use the phone" for them.
+"""}
 
 ## Current Time
 $dateStr
