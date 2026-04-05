@@ -30,111 +30,177 @@ fun SettingsScreen(vm: MainViewModel) {
     val settings = vm.getSettings()
     val scope    = rememberCoroutineScope()
 
-    var provider      by remember { mutableStateOf("groq") }
-    var apiKey        by remember { mutableStateOf("") }
-    var model         by remember { mutableStateOf("llama-3.3-70b-versatile") }
-    var customUrl     by remember { mutableStateOf("") }
-    var language      by remember { mutableStateOf("system") }
-    var picovoiceKey  by remember { mutableStateOf("") }
-    var soul          by remember { mutableStateOf("") }
+    var provider       by remember { mutableStateOf("gemini") }
+    var apiKey         by remember { mutableStateOf("") }
+    var googleApiKey   by remember { mutableStateOf("") }
+    var model          by remember { mutableStateOf("gemini-2.5-flash-preview-04-17") }
+    var customUrl      by remember { mutableStateOf("") }
+    var language       by remember { mutableStateOf("system") }
+    var picovoiceKey   by remember { mutableStateOf("") }
+    var soul           by remember { mutableStateOf("") }
     var personalMemory by remember { mutableStateOf("") }
-    var maxIterations by remember { mutableStateOf(10) }
-    var sttMode       by remember { mutableStateOf("auto") }
-    var showApiKey    by remember { mutableStateOf(false) }
-    var enabledSkills by remember { mutableStateOf(setOf<String>()) }
+    var maxIterations  by remember { mutableStateOf(10) }
+    var sttMode        by remember { mutableStateOf("auto") }
+    var showApiKey     by remember { mutableStateOf(false) }
+    var showGoogleKey  by remember { mutableStateOf(false) }
+    var enabledSkills  by remember { mutableStateOf(setOf<String>()) }
 
     val allSkills = DoeyApplication.instance.skillLoader.getAllSkills()
 
     LaunchedEffect(Unit) {
-        provider      = settings.getProvider()
-        apiKey        = settings.getApiKey(provider)
-        model         = settings.getModel()
-        customUrl     = settings.getCustomModelUrl()
-        language      = settings.getLanguage()
-        picovoiceKey  = settings.getPicovoiceKey()
-        soul          = settings.getSoul()
+        provider       = settings.getProvider()
+        apiKey         = settings.getApiKey(provider)
+        googleApiKey   = settings.getCredential("google_api_key")
+        model          = settings.getModel()
+        customUrl      = settings.getCustomModelUrl()
+        language       = settings.getLanguage()
+        picovoiceKey   = settings.getPicovoiceKey()
+        soul           = settings.getSoul()
         personalMemory = settings.getPersonalMemory()
-        maxIterations = settings.getMaxIterations()
-        sttMode       = settings.getSttMode()
-        enabledSkills = settings.getEnabledSkillsList().toSet()
+        maxIterations  = settings.getMaxIterations()
+        sttMode        = settings.getSttMode()
+        enabledSkills  = settings.getEnabledSkillsList().toSet()
+    }
+
+    // Necesidad de Google API Key según provider
+    val googleKeyRequired = provider in listOf("gemini")
+    val googleKeyNote = when {
+        googleKeyRequired -> "✅ Requerida para el proveedor seleccionado (Gemini)."
+        else              -> "ℹ️ Opcional. Usada por skills de Google (Maps, Calendar, etc.)."
     }
 
     Column(
-        Modifier.fillMaxSize().background(Surface0).verticalScroll(rememberScrollState())
+        Modifier.fillMaxSize().background(Surface0Light).verticalScroll(rememberScrollState())
     ) {
         TopAppBar(
-            title  = { Text("Settings", color = Label1, fontWeight = FontWeight.Bold) },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1)
+            title  = { Text("Ajustes", color = Label1Light, fontWeight = FontWeight.Bold) },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light)
         )
 
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
-            // ── Proveedor ──────────────────────────────────────────────────────
-            SettingsCard("AI Provider") {
+            // ── Proveedor de IA ────────────────────────────────────────────────
+            SettingsCard("Proveedor de IA") {
                 DoeyDropdown(
-                    label    = "Provider",
-                    value    = provider.replaceFirstChar { it.uppercase() },
-                    options  = listOf("groq" to "Groq", "openai" to "OpenAI", "custom" to "Custom"),
+                    label    = "Proveedor",
+                    value    = PROVIDERS.find { it.first == provider }?.second ?: provider,
+                    options  = PROVIDERS,
                     onSelect = {
                         provider = it
-                        if (it == "groq")   model = model.ifBlank { "llama-3.3-70b-versatile" }
-                        if (it == "openai") model = model.ifBlank { "gpt-4o" }
-                    }
-                )
-                DoeyTextField(
-                    value    = apiKey,
-                    onValueChange = { apiKey = it },
-                    label    = "API Key",
-                    visual   = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailing = {
-                        IconButton(onClick = { showApiKey = !showApiKey }) {
-                            Icon(if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                null, tint = Label3)
+                        model = when (it) {
+                            "gemini" -> "gemini-2.5-flash-preview-04-17"
+                            "groq"   -> "llama-3.3-70b-versatile"
+                            "openai" -> "gpt-4o"
+                            else     -> model
                         }
                     }
                 )
-                DoeyTextField(value = model, onValueChange = { model = it }, label = "Model",
-                    placeholder = if (provider == "groq") "llama-3.3-70b-versatile" else "gpt-4o")
+                DoeyTextField(
+                    value         = apiKey,
+                    onValueChange = { apiKey = it },
+                    label         = "Clave API del proveedor",
+                    visual        = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailing      = {
+                        IconButton(onClick = { showApiKey = !showApiKey }) {
+                            Icon(if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                null, tint = Label3Light)
+                        }
+                    }
+                )
+                DoeyTextField(
+                    value         = model,
+                    onValueChange = { model = it },
+                    label         = "Modelo",
+                    placeholder   = when (provider) {
+                        "gemini" -> "gemini-2.5-flash-preview-04-17"
+                        "groq"   -> "llama-3.3-70b-versatile"
+                        else     -> "gpt-4o"
+                    }
+                )
                 if (provider == "custom") {
-                    DoeyTextField(value = customUrl, onValueChange = { customUrl = it },
-                        label = "Custom API URL",
-                        placeholder = "https://your-endpoint.com/v1/chat/completions")
+                    DoeyTextField(
+                        value         = customUrl,
+                        onValueChange = { customUrl = it },
+                        label         = "URL de API personalizada",
+                        placeholder   = "https://tu-endpoint.com/v1/chat/completions"
+                    )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Max tool iterations: $maxIterations", color = Label1, modifier = Modifier.weight(1f), fontSize = 14.sp)
-                    Slider(value = maxIterations.toFloat(), onValueChange = { maxIterations = it.toInt() },
-                        valueRange = 1f..20f, steps = 18, modifier = Modifier.width(140.dp),
-                        colors = SliderDefaults.colors(thumbColor = Purple, activeTrackColor = Purple))
+                    Text(
+                        "Iteraciones máx. de herramientas: $maxIterations",
+                        color    = Label1Light,
+                        modifier = Modifier.weight(1f),
+                        fontSize = 14.sp
+                    )
+                    Slider(
+                        value          = maxIterations.toFloat(),
+                        onValueChange  = { maxIterations = it.toInt() },
+                        valueRange     = 1f..20f,
+                        steps          = 18,
+                        modifier       = Modifier.width(140.dp),
+                        colors         = SliderDefaults.colors(thumbColor = Purple, activeTrackColor = Purple)
+                    )
                 }
             }
 
-            // ── Speech ─────────────────────────────────────────────────────────
-            SettingsCard("Speech & Language") {
+            // ── Google API Key ────────────────────────────────────────────────
+            SettingsCard("Clave API de Google") {
+                Text(googleKeyNote, color = if (googleKeyRequired) Purple else Label3Light, fontSize = 12.sp)
+                DoeyTextField(
+                    value         = googleApiKey,
+                    onValueChange = { googleApiKey = it },
+                    label         = "Google API Key",
+                    visual        = if (showGoogleKey) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailing      = {
+                        IconButton(onClick = { showGoogleKey = !showGoogleKey }) {
+                            Icon(
+                                if (showGoogleKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                null, tint = Label3Light
+                            )
+                        }
+                    }
+                )
+                Text(
+                    "Obtén tu clave en: console.cloud.google.com\n" +
+                    "Activa: Gemini API, Maps, Calendar, etc. según tus skills.",
+                    color    = Label3Light,
+                    fontSize = 11.sp
+                )
+            }
+
+            // ── Voz e Idioma ──────────────────────────────────────────────────
+            SettingsCard("Voz e Idioma") {
                 DoeyDropdown(
-                    label    = "Language",
+                    label    = "Idioma",
                     value    = LANGUAGES.find { it.first == language }?.second ?: language,
                     options  = LANGUAGES,
                     onSelect = { language = it }
                 )
                 DoeyDropdown(
-                    label   = "STT Mode",
-                    value   = STT_MODES.find { it.first == sttMode }?.second ?: sttMode,
-                    options = STT_MODES,
+                    label    = "Modo de reconocimiento de voz",
+                    value    = STT_MODES.find { it.first == sttMode }?.second ?: sttMode,
+                    options  = STT_MODES,
                     onSelect = { sttMode = it }
                 )
             }
 
-            // ── Wake Word ──────────────────────────────────────────────────────
-            SettingsCard("Wake Word (Picovoice)") {
-                DoeyTextField(value = picovoiceKey, onValueChange = { picovoiceKey = it },
-                    label = "Picovoice Access Key",
-                    visual = PasswordVisualTransformation())
-                Text("Free key at console.picovoice.ai\nPlace a .ppn file in assets/ for custom wake word.",
-                    color = Label3, fontSize = 12.sp)
+            // ── Palabra de activación ─────────────────────────────────────────
+            SettingsCard("Palabra de activación (Picovoice)") {
+                DoeyTextField(
+                    value         = picovoiceKey,
+                    onValueChange = { picovoiceKey = it },
+                    label         = "Clave de acceso Picovoice",
+                    visual        = PasswordVisualTransformation()
+                )
+                Text(
+                    "Clave gratuita en console.picovoice.ai\n" +
+                    "Coloca un archivo .ppn en assets/ para una palabra personalizada.",
+                    color = Label3Light, fontSize = 12.sp
+                )
             }
 
-            // ── Skills ─────────────────────────────────────────────────────────
-            SettingsCard("Skills (${enabledSkills.size}/${allSkills.size})") {
+            // ── Skills ────────────────────────────────────────────────────────
+            SettingsCard("Habilidades (${enabledSkills.size}/${allSkills.size})") {
                 allSkills.sortedBy { it.name }.forEach { skill ->
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 2.dp),
@@ -148,47 +214,63 @@ fun SettingsScreen(vm: MainViewModel) {
                             colors = CheckboxDefaults.colors(checkedColor = Purple)
                         )
                         Column(Modifier.weight(1f)) {
-                            Text(skill.name, color = Label1, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Text(skill.name, color = Label1Light, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                             if (skill.description.isNotBlank())
-                                Text(skill.description, color = Label3, fontSize = 11.sp, maxLines = 1)
+                                Text(skill.description, color = Label3Light, fontSize = 11.sp, maxLines = 1)
                         }
                     }
                 }
             }
 
-            // ── Persona ────────────────────────────────────────────────────────
-            SettingsCard("Persona (SOUL)") {
-                DoeyTextField(value = soul, onValueChange = { soul = it },
-                    label = "Persona instructions",
-                    placeholder = "e.g. You are a concise, friendly assistant…",
-                    minLines = 3, maxLines = 6)
+            // ── Personalidad ──────────────────────────────────────────────────
+            SettingsCard("Personalidad (SOUL)") {
+                DoeyTextField(
+                    value         = soul,
+                    onValueChange = { soul = it },
+                    label         = "Instrucciones de personalidad",
+                    placeholder   = "Ej: Eres un asistente conciso y amigable…",
+                    minLines      = 3,
+                    maxLines      = 6
+                )
             }
 
-            // ── Memoria personal ───────────────────────────────────────────────
-            SettingsCard("Personal Memory") {
-                DoeyTextField(value = personalMemory, onValueChange = { personalMemory = it },
-                    label = "Personal facts (MEMORY.md)",
-                    placeholder = "- [name] My name is…\n- [family] My partner is…",
-                    minLines = 3, maxLines = 8)
+            // ── Memoria personal ──────────────────────────────────────────────
+            SettingsCard("Memoria Personal") {
+                DoeyTextField(
+                    value         = personalMemory,
+                    onValueChange = { personalMemory = it },
+                    label         = "Datos personales (MEMORY.md)",
+                    placeholder   = "- [nombre] Me llamo…\n- [familia] Mi pareja se llama…",
+                    minLines      = 3,
+                    maxLines      = 8
+                )
             }
 
-            // ── Guardar ────────────────────────────────────────────────────────
+            // ── Guardar ───────────────────────────────────────────────────────
             Button(
                 onClick = {
-                    vm.saveSettings(provider, apiKey, model, customUrl, language, picovoiceKey,
-                        enabledSkills.toList(), soul, personalMemory, maxIterations, sttMode)
+                    // Guardar Google API Key por separado (credencial)
+                    scope.launch { settings.setCredential("google_api_key", googleApiKey) }
+                    vm.saveSettings(
+                        provider, apiKey, model, customUrl, language, picovoiceKey,
+                        enabledSkills.toList(), soul, personalMemory, maxIterations, sttMode
+                    )
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors   = ButtonDefaults.buttonColors(containerColor = Purple)
             ) {
                 Icon(Icons.Default.Save, null, tint = OnPurple)
                 Spacer(Modifier.width(8.dp))
-                Text("Save Settings", color = OnPurple, fontWeight = FontWeight.Bold)
+                Text("Guardar ajustes", color = OnPurple, fontWeight = FontWeight.Bold)
             }
 
             if (state.settingsSaved) {
-                Text("✓ Settings saved", color = Color(0xFF79FF79),
-                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Text(
+                    "✓ Ajustes guardados",
+                    color       = Color(0xFF1A7A1A),
+                    textAlign   = TextAlign.Center,
+                    modifier    = Modifier.fillMaxWidth()
+                )
             }
             Spacer(Modifier.height(16.dp))
         }
@@ -197,20 +279,35 @@ fun SettingsScreen(vm: MainViewModel) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+private val PROVIDERS = listOf(
+    "gemini" to "Gemini (Google)",
+    "groq"   to "Groq",
+    "openai" to "OpenAI",
+    "custom" to "Personalizado"
+)
+
 private val LANGUAGES = listOf(
-    "system" to "System default", "en-US" to "English (US)", "en-GB" to "English (UK)",
-    "de-DE" to "German", "de-AT" to "German (Austria)", "es-ES" to "Spanish",
-    "es-MX" to "Spanish (Mexico)", "fr-FR" to "French", "it-IT" to "Italian",
-    "pt-BR" to "Portuguese (Brazil)"
+    "system" to "Predeterminado del sistema",
+    "es-ES"  to "Español (España)",
+    "es-MX"  to "Español (México)",
+    "en-US"  to "Inglés (EE. UU.)",
+    "en-GB"  to "Inglés (Reino Unido)",
+    "de-DE"  to "Alemán",
+    "de-AT"  to "Alemán (Austria)",
+    "fr-FR"  to "Francés",
+    "it-IT"  to "Italiano",
+    "pt-BR"  to "Portugués (Brasil)"
 )
 
 private val STT_MODES = listOf(
-    "auto" to "Auto (smart)", "offline" to "On-device only", "online" to "Cloud only"
+    "auto"    to "Automático (inteligente)",
+    "offline" to "Solo en dispositivo",
+    "online"  to "Solo en la nube"
 )
 
 @Composable
 fun SettingsCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Surface(shape = RoundedCornerShape(12.dp), color = Surface1) {
+    Surface(shape = RoundedCornerShape(12.dp), color = Surface1Light) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, fontWeight = FontWeight.Bold, color = Purple, fontSize = 14.sp)
             content()
@@ -229,13 +326,13 @@ fun DoeyDropdown(
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
         OutlinedTextField(
-            value          = value,
-            onValueChange  = {},
-            readOnly       = true,
-            label          = { Text(label) },
-            trailingIcon   = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            modifier       = Modifier.menuAnchor().fillMaxWidth(),
-            colors         = doeyFieldColors()
+            value         = value,
+            onValueChange = {},
+            readOnly      = true,
+            label         = { Text(label) },
+            trailingIcon  = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier      = Modifier.menuAnchor().fillMaxWidth(),
+            colors        = doeyFieldColors()
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { (code, name) ->
@@ -250,32 +347,35 @@ fun DoeyTextField(
     value:         String,
     onValueChange: (String) -> Unit,
     label:         String,
-    placeholder:   String          = "",
+    placeholder:   String               = "",
     visual:        VisualTransformation = VisualTransformation.None,
-    minLines:      Int             = 1,
-    maxLines:      Int             = 1,
+    minLines:      Int                  = 1,
+    maxLines:      Int                  = 1,
     trailing:      (@Composable () -> Unit)? = null
 ) {
     OutlinedTextField(
-        value          = value,
-        onValueChange  = onValueChange,
-        label          = { Text(label) },
-        placeholder    = { Text(placeholder, color = Color(0xFF4A4458)) },
-        modifier       = Modifier.fillMaxWidth(),
+        value                = value,
+        onValueChange        = onValueChange,
+        label                = { Text(label) },
+        placeholder          = { Text(placeholder, color = Label3Light) },
+        modifier             = Modifier.fillMaxWidth(),
         visualTransformation = visual,
-        trailingIcon   = trailing,
-        minLines       = minLines,
-        maxLines       = maxLines,
-        colors         = doeyFieldColors()
+        trailingIcon         = trailing,
+        minLines             = minLines,
+        maxLines             = maxLines,
+        colors               = doeyFieldColors()
     )
 }
 
 @Composable
 fun doeyFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor   = Purple,   unfocusedBorderColor = Color(0xFF4A4458),
-    focusedTextColor     = Label1,   unfocusedTextColor   = Label1,
-    focusedLabelColor    = Purple,   unfocusedLabelColor  = Label3,
-    cursorColor          = Purple,
-    focusedPlaceholderColor   = Color(0xFF4A4458),
-    unfocusedPlaceholderColor = Color(0xFF4A4458)
+    focusedBorderColor        = Purple,
+    unfocusedBorderColor      = Label3Light,
+    focusedTextColor          = Label1Light,
+    unfocusedTextColor        = Label1Light,
+    focusedLabelColor         = Purple,
+    unfocusedLabelColor       = Label3Light,
+    cursorColor               = Purple,
+    focusedPlaceholderColor   = Label3Light,
+    unfocusedPlaceholderColor = Label3Light
 )

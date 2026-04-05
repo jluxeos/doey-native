@@ -46,17 +46,17 @@ fun SchedulesScreen(vm: MainViewModel) {
     }
     LaunchedEffect(Unit) { refresh() }
 
-    Column(Modifier.fillMaxSize().background(Surface0)) {
+    Column(Modifier.fillMaxSize().background(Surface0Light)) {
         TopAppBar(
-            title   = { Text("Schedules & Timers", color = Label1, fontWeight = FontWeight.Bold) },
-            actions = { IconButton(onClick = { refresh() }) { Icon(Icons.Default.Refresh, "Refresh", tint = Label3) } },
-            colors  = TopAppBarDefaults.topAppBarColors(containerColor = Surface1)
+            title   = { Text("Agendas y Temporizadores", color = Label1Light, fontWeight = FontWeight.Bold) },
+            actions = { IconButton(onClick = { refresh() }) { Icon(Icons.Default.Refresh, "Actualizar", tint = Label3Light) } },
+            colors  = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light)
         )
 
         if (schedules.isEmpty() && timers.isEmpty()) {
             Box(Modifier.fillMaxSize(), Alignment.Center) {
-                Text("No schedules or timers yet.\nAsk Doey to 'set a reminder' or 'start a timer'.",
-                    color = Label3, textAlign = TextAlign.Center, fontSize = 14.sp)
+                Text("Aún no hay agendas ni temporizadores.\nPídele a Doey que 'ponga un recordatorio' o 'inicie un temporizador'.",
+                    color = Label3Light, textAlign = TextAlign.Center, fontSize = 14.sp)
             }
             return@Column
         }
@@ -96,18 +96,18 @@ private fun TimerRow(t: JSONObject, onCancel: () -> Unit) {
     val start = t.optLong("startTimeMs")
     val sub   = if (type == "timer") {
         val rem = (start + t.optLong("durationMs")) - now
-        "Remaining: ${fmtDur(rem.coerceAtLeast(0))}"
-    } else "Elapsed: ${fmtDur(now - start)}"
+        "Restante: ${fmtDur(rem.coerceAtLeast(0))}"
+    } else "Transcurrido: ${fmtDur(now - start)}"
 
     ItemCard {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(if (type == "timer") "⏱️" else "⏲️", fontSize = 22.sp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(label, color = Label1, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                Text(sub, color = Label3, fontSize = 12.sp)
+                Text(label, color = Label1Light, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                Text(sub, color = Label3Light, fontSize = 12.sp)
             }
-            IconButton(onClick = onCancel) { Icon(Icons.Default.Cancel, "Cancel", tint = ErrorRed) }
+            IconButton(onClick = onCancel) { Icon(Icons.Default.Cancel, "Cancelar", tint = ErrorRed) }
         }
     }
 }
@@ -118,10 +118,10 @@ private fun ScheduleRow(s: JSONObject, onToggle: () -> Unit, onDelete: () -> Uni
     val label   = s.optString("label").ifBlank { s.optString("instruction").take(40) }
     val rec     = s.optJSONObject("recurrence")
     val recStr  = when (rec?.optString("type", "once")) {
-        "interval" -> "Every ${(rec.optLong("intervalMs", 60_000) / 60_000)} min"
-        "daily"    -> "Daily ${rec.optString("time")}"
-        "weekly"   -> "Weekly ${rec.optString("time")}"
-        else       -> "Once"
+        "interval" -> "Cada ${(rec.optLong("intervalMs", 60_000) / 60_000)} min"
+        "daily"    -> "Diario ${rec.optString("time")}"
+        "weekly"   -> "Semanal ${rec.optString("time")}"
+        else       -> "Una vez"
     }
 
     ItemCard {
@@ -129,13 +129,13 @@ private fun ScheduleRow(s: JSONObject, onToggle: () -> Unit, onDelete: () -> Uni
             Text(if (enabled) "🟢" else "⏸️", fontSize = 18.sp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(label, color = Label1, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                Text("${fmtMs(s.optLong("triggerAtMs"))} · $recStr", color = Label3, fontSize = 12.sp)
+                Text(label, color = Label1Light, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                Text("${fmtMs(s.optLong("triggerAtMs"))} · $recStr", color = Label3Light, fontSize = 12.sp)
             }
             IconButton(onClick = onToggle) {
                 Icon(if (enabled) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = Purple)
             }
-            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete", tint = ErrorRed) }
+            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Eliminar", tint = ErrorRed) }
         }
     }
 }
@@ -159,17 +159,17 @@ fun JournalScreen(vm: MainViewModel) {
     val filtered = if (filterCat.isBlank()) entries
     else entries.filter { it.optString("category").equals(filterCat, ignoreCase = true) }
 
-    Column(Modifier.fillMaxSize().background(Surface0)) {
+    Column(Modifier.fillMaxSize().background(Surface0Light)) {
         TopAppBar(
-            title   = { Text("Journal", color = Label1, fontWeight = FontWeight.Bold) },
-            actions = { IconButton(onClick = { refresh() }) { Icon(Icons.Default.Refresh, "Refresh", tint = Label3) } },
-            colors  = TopAppBarDefaults.topAppBarColors(containerColor = Surface1)
+            title   = { Text("Diario", color = Label1Light, fontWeight = FontWeight.Bold) },
+            actions = { IconButton(onClick = { refresh() }) { Icon(Icons.Default.Refresh, "Actualizar", tint = Label3Light) } },
+            colors  = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light)
         )
 
         if (entries.isEmpty()) {
             Box(Modifier.fillMaxSize(), Alignment.Center) {
-                Text("No journal entries yet.\nAsk Doey to 'add a journal entry'.",
-                    color = Label3, textAlign = TextAlign.Center, fontSize = 14.sp)
+                Text("Aún no hay entradas en el diario.\nPídele a Doey que 'añada una entrada al diario'.",
+                    color = Label3Light, textAlign = TextAlign.Center, fontSize = 14.sp)
             }
             return@Column
         }
@@ -181,7 +181,7 @@ fun JournalScreen(vm: MainViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
-                    FilterChip(selected = filterCat.isBlank(), onClick = { filterCat = "" }, label = { Text("All") },
+                    FilterChip(selected = filterCat.isBlank(), onClick = { filterCat = "" }, label = { Text("Todas") },
                         colors = FilterChipDefaults.filterChipColors(selectedContainerColor = PurpleDark))
                 }
                 items(cats) { cat ->
@@ -217,19 +217,19 @@ private fun JournalCard(e: JSONObject, onDelete: () -> Unit) {
         Column(Modifier.fillMaxWidth().clickable { expanded = !expanded }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(e.optString("title"), color = Label1, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    Text(e.optString("title"), color = Label1Light, fontWeight = FontWeight.Medium, fontSize = 14.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(e.optString("category"), color = Purple, fontSize = 11.sp)
-                        Text(fmtMs(e.optLong("createdAt")), color = Label3, fontSize = 11.sp)
+                        Text(fmtMs(e.optLong("createdAt")), color = Label3Light, fontSize = 11.sp)
                     }
                 }
                 IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Delete, "Delete", tint = ErrorRed, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Delete, "Eliminar", tint = ErrorRed, modifier = Modifier.size(16.dp))
                 }
             }
             if (expanded) {
                 Spacer(Modifier.height(8.dp))
-                Text(e.optString("details"), color = Label2, fontSize = 13.sp)
+                Text(e.optString("details"), color = Label2Light, fontSize = 13.sp)
             }
         }
     }
@@ -245,48 +245,48 @@ fun PermissionsScreen() {
     data class PermItem(val title: String, val desc: String, val granted: Boolean, val onGrant: () -> Unit)
 
     val items = listOf(
-        PermItem("Accessibility Service",
-            "Required for UI automation (controlling other apps).",
+        PermItem("Servicio de Accesibilidad",
+            "Necesario para la automatización de la interfaz (controlar otras apps).",
             DoeyAccessibilityService.isRunning()) {
             ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         },
-        PermItem("Notification Listener",
-            "Required to monitor incoming notifications and react automatically.",
+        PermItem("Lector de Notificaciones",
+            "Necesario para monitorear notificaciones entrantes y reaccionar automáticamente.",
             NotificationAccessManager.isAccessGranted(ctx)) {
             ctx.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         },
-        PermItem("Microphone",
-            "Required for voice commands and wake word detection.",
+        PermItem("Micrófono",
+            "Necesario para comandos de voz y detección de palabra de activación.",
             ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             ctx.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.fromParts("package", ctx.packageName, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         },
-        PermItem("Contacts",
-            "Required to look up contacts by name.",
+        PermItem("Contactos",
+            "Necesario para buscar contactos por nombre.",
             ctx.checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
             ctx.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.fromParts("package", ctx.packageName, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         },
         PermItem("SMS",
-            "Required to read and send SMS messages.",
+            "Necesario para leer y enviar mensajes SMS.",
             ctx.checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) {
             ctx.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.fromParts("package", ctx.packageName, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         },
-        PermItem("Location (GPS)",
-            "Required for location-based queries and navigation.",
+        PermItem("Ubicación (GPS)",
+            "Necesario para consultas de ubicación y navegación.",
             ctx.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             ctx.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.fromParts("package", ctx.packageName, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
     )
 
-    Column(Modifier.fillMaxSize().background(Surface0)) {
+    Column(Modifier.fillMaxSize().background(Surface0Light)) {
         TopAppBar(
-            title  = { Text("Permissions", color = Label1, fontWeight = FontWeight.Bold) },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1)
+            title  = { Text("Permisos", color = Label1Light, fontWeight = FontWeight.Bold) },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light)
         )
         LazyColumn(
             contentPadding      = PaddingValues(16.dp),
@@ -301,21 +301,21 @@ fun PermissionsScreen() {
 
 @Composable
 private fun PermCard(title: String, desc: String, granted: Boolean, onGrant: () -> Unit) {
-    Surface(shape = RoundedCornerShape(12.dp), color = Surface1) {
+    Surface(shape = RoundedCornerShape(12.dp), color = Surface1Light) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top) {
             Text(if (granted) "✅" else "❌", fontSize = 20.sp, modifier = Modifier.padding(top = 2.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, color = Label1, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(title, color = Label1Light, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Spacer(Modifier.height(4.dp))
-                Text(desc, color = Label3, fontSize = 12.sp)
+                Text(desc, color = Label3Light, fontSize = 12.sp)
                 if (!granted) {
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = onGrant,
                         colors  = ButtonDefaults.outlinedButtonColors(contentColor = Purple),
                         border  = BorderStroke(1.dp, Purple)
-                    ) { Text("Open Settings", fontSize = 12.sp) }
+                    ) { Text("Abrir Ajustes", fontSize = 12.sp) }
                 }
             }
         }
@@ -332,13 +332,13 @@ fun SectionLabel(text: String) {
 
 @Composable
 fun ItemCard(content: @Composable () -> Unit) {
-    Surface(shape = RoundedCornerShape(12.dp), color = Surface1) {
+    Surface(shape = RoundedCornerShape(12.dp), color = Surface1Light) {
         Box(Modifier.fillMaxWidth().padding(12.dp)) { content() }
     }
 }
 
 fun fmtMs(ms: Long): String =
-    if (ms == 0L) "?" else SimpleDateFormat("EEE d MMM HH:mm", Locale.ENGLISH).format(Date(ms))
+    if (ms == 0L) "?" else SimpleDateFormat("EEE d MMM HH:mm", Locale("es")).format(Date(ms))
 
 fun fmtDur(ms: Long): String {
     val s = ms / 1000; val h = s / 3600; val m = (s % 3600) / 60; val sec = s % 60
