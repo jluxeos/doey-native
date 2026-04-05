@@ -1,7 +1,9 @@
 <resources>
-    <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
+
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:windowSplashScreenBackground">#10091A</item>
         <item name="android:statusBarColor">#10091A</item>
         <item name="android:navigationBarColor">#1D1027</item>
     </style>
+
 </resources>
