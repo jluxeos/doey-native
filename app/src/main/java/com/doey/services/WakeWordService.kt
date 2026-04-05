@@ -14,7 +14,6 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.doey.DoeyApplication
 import com.doey.ui.MainActivity
 
 private const val TAG = "WakeWordService"
@@ -55,7 +54,7 @@ class WakeWordService : Service() {
             porcupine?.stop()
             porcupine?.delete()
 
-            val wakeWordCallback = PorcupineManager.WakeWordCallback { idx ->
+            val wakeWordCallback: (Int) -> Unit = { idx ->
                 val keyword = when {
                     keywordPath.contains(".ppn") -> "custom"
                     else -> keywordPath
@@ -64,11 +63,10 @@ class WakeWordService : Service() {
                 onWakeWord?.invoke(keyword)
             }
 
-            val errorCallback = PorcupineManager.ErrorCallback { e ->
+            val errorCallback: (Exception) -> Unit = { e ->
                 Log.e(TAG, "Porcupine error: ${e.message}")
             }
 
-            // Check for custom .ppn in assets
             val assetKeyword = findAssetKeyword()
 
             porcupine = if (assetKeyword != null) {
@@ -77,7 +75,6 @@ class WakeWordService : Service() {
                     .setAccessKey(accessKey)
                     .setKeywordPath(assetKeyword)
                     .setSensitivity(0.8f)
-                    .setErrorCallback(errorCallback)
                     .build(this, wakeWordCallback)
             } else {
                 val builtIn = resolveBuiltIn(keywordPath)
@@ -87,7 +84,6 @@ class WakeWordService : Service() {
                         .setAccessKey(accessKey)
                         .setKeyword(builtIn)
                         .setSensitivity(0.85f)
-                        .setErrorCallback(errorCallback)
                         .build(this, wakeWordCallback)
                 } else {
                     Log.i(TAG, "Using keyword path: $keywordPath")
@@ -95,7 +91,6 @@ class WakeWordService : Service() {
                         .setAccessKey(accessKey)
                         .setKeywordPath(keywordPath)
                         .setSensitivity(0.85f)
-                        .setErrorCallback(errorCallback)
                         .build(this, wakeWordCallback)
                 }
             }
