@@ -113,10 +113,3 @@ object TimerEngine {
             .putString(KEY_TIMERS, newArr.toString()).apply()
     }
 }
-
-class TimerReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        val id = intent.getStringExtra("timer_id") ?: return
-        TimerEngine.onAlarmFired(context, id)
-    }
-}
