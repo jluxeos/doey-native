@@ -44,6 +44,7 @@ fun SettingsScreen(vm: MainViewModel) {
     var showApiKey     by remember { mutableStateOf(false) }
     var showGoogleKey  by remember { mutableStateOf(false) }
     var enabledSkills  by remember { mutableStateOf(setOf<String>()) }
+    var expertMode     by remember { mutableStateOf(true) }
 
     val allSkills = DoeyApplication.instance.skillLoader.getAllSkills()
 
@@ -60,6 +61,7 @@ fun SettingsScreen(vm: MainViewModel) {
         maxIterations  = settings.getMaxIterations()
         sttMode        = settings.getSttMode()
         enabledSkills  = settings.getEnabledSkillsList().toSet()
+        expertMode     = settings.getExpertMode()
     }
 
     // Necesidad de Google API Key según provider
@@ -78,6 +80,30 @@ fun SettingsScreen(vm: MainViewModel) {
         )
 
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+            // ── Modo de Funcionamiento ────────────────────────────────────────
+            SettingsCard("Modo de Funcionamiento") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            if (expertMode) "Modo Experto" else "Modo Básico (Accesibilidad)",
+                            color = Label1Light,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            if (expertMode) "Muestra todos los ajustes y usa APIs externas." 
+                            else "Simplificado. No requiere claves de API (excepto IA). Usa accesibilidad.",
+                            color = Label3Light,
+                            fontSize = 12.sp
+                        )
+                    }
+                    Switch(
+                        checked = expertMode,
+                        onCheckedChange = { expertMode = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Purple)
+                    )
+                }
+            }
 
             // ── Proveedor de IA ────────────────────────────────────────────────
             SettingsCard("Proveedor de IA") {
@@ -117,7 +143,7 @@ fun SettingsScreen(vm: MainViewModel) {
                         else     -> "gpt-4o"
                     }
                 )
-                if (provider == "custom") {
+                if (provider == "custom" && expertMode) {
                     DoeyTextField(
                         value         = customUrl,
                         onValueChange = { customUrl = it },
@@ -125,47 +151,51 @@ fun SettingsScreen(vm: MainViewModel) {
                         placeholder   = "https://tu-endpoint.com/v1/chat/completions"
                     )
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "Iteraciones máx. de herramientas: $maxIterations",
-                        color    = Label1Light,
-                        modifier = Modifier.weight(1f),
-                        fontSize = 14.sp
-                    )
-                    Slider(
-                        value          = maxIterations.toFloat(),
-                        onValueChange  = { maxIterations = it.toInt() },
-                        valueRange     = 1f..20f,
-                        steps          = 18,
-                        modifier       = Modifier.width(140.dp),
-                        colors         = SliderDefaults.colors(thumbColor = Purple, activeTrackColor = Purple)
-                    )
+                if (expertMode) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Iteraciones máx. de herramientas: $maxIterations",
+                            color    = Label1Light,
+                            modifier = Modifier.weight(1f),
+                            fontSize = 14.sp
+                        )
+                        Slider(
+                            value          = maxIterations.toFloat(),
+                            onValueChange  = { maxIterations = it.toInt() },
+                            valueRange     = 1f..20f,
+                            steps          = 18,
+                            modifier       = Modifier.width(140.dp),
+                            colors         = SliderDefaults.colors(thumbColor = Purple, activeTrackColor = Purple)
+                        )
+                    }
                 }
             }
 
             // ── Google API Key ────────────────────────────────────────────────
-            SettingsCard("Clave API de Google") {
-                Text(googleKeyNote, color = if (googleKeyRequired) Purple else Label3Light, fontSize = 12.sp)
-                DoeyTextField(
-                    value         = googleApiKey,
-                    onValueChange = { googleApiKey = it },
-                    label         = "Google API Key",
-                    visual        = if (showGoogleKey) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailing      = {
-                        IconButton(onClick = { showGoogleKey = !showGoogleKey }) {
-                            Icon(
-                                if (showGoogleKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                null, tint = Label3Light
-                            )
+            if (expertMode) {
+                SettingsCard("Clave API de Google") {
+                    Text(googleKeyNote, color = if (googleKeyRequired) Purple else Label3Light, fontSize = 12.sp)
+                    DoeyTextField(
+                        value         = googleApiKey,
+                        onValueChange = { googleApiKey = it },
+                        label         = "Google API Key",
+                        visual        = if (showGoogleKey) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailing      = {
+                            IconButton(onClick = { showGoogleKey = !showGoogleKey }) {
+                                Icon(
+                                    if (showGoogleKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    null, tint = Label3Light
+                                )
+                            }
                         }
-                    }
-                )
-                Text(
-                    "Obtén tu clave en: console.cloud.google.com\n" +
-                    "Activa: Gemini API, Maps, Calendar, etc. según tus skills.",
-                    color    = Label3Light,
-                    fontSize = 11.sp
-                )
+                    )
+                    Text(
+                        "Obtén tu clave en: console.cloud.google.com\n" +
+                        "Activa: Gemini API, Maps, Calendar, etc. según tus skills.",
+                        color    = Label3Light,
+                        fontSize = 11.sp
+                    )
+                }
             }
 
             // ── Voz e Idioma ──────────────────────────────────────────────────
@@ -185,65 +215,73 @@ fun SettingsScreen(vm: MainViewModel) {
             }
 
             // ── Palabra de activación ─────────────────────────────────────────
-            SettingsCard("Palabra de activación (Picovoice)") {
-                DoeyTextField(
-                    value         = picovoiceKey,
-                    onValueChange = { picovoiceKey = it },
-                    label         = "Clave de acceso Picovoice",
-                    visual        = PasswordVisualTransformation()
-                )
-                Text(
-                    "Clave gratuita en console.picovoice.ai\n" +
-                    "Coloca un archivo .ppn en assets/ para una palabra personalizada.",
-                    color = Label3Light, fontSize = 12.sp
-                )
+            if (expertMode) {
+                SettingsCard("Palabra de activación (Picovoice)") {
+                    DoeyTextField(
+                        value         = picovoiceKey,
+                        onValueChange = { picovoiceKey = it },
+                        label         = "Clave de acceso Picovoice",
+                        visual        = PasswordVisualTransformation()
+                    )
+                    Text(
+                        "Clave gratuita en console.picovoice.ai\n" +
+                        "Coloca un archivo .ppn en assets/ para una palabra personalizada.",
+                        color = Label3Light, fontSize = 12.sp
+                    )
+                }
             }
 
             // ── Skills ────────────────────────────────────────────────────────
-            SettingsCard("Habilidades (${enabledSkills.size}/${allSkills.size})") {
-                allSkills.sortedBy { it.name }.forEach { skill ->
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = skill.name in enabledSkills,
-                            onCheckedChange = { on ->
-                                enabledSkills = if (on) enabledSkills + skill.name else enabledSkills - skill.name
-                            },
-                            colors = CheckboxDefaults.colors(checkedColor = Purple)
-                        )
-                        Column(Modifier.weight(1f)) {
-                            Text(skill.name, color = Label1Light, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                            if (skill.description.isNotBlank())
-                                Text(skill.description, color = Label3Light, fontSize = 11.sp, maxLines = 1)
+            if (expertMode) {
+                SettingsCard("Habilidades (${enabledSkills.size}/${allSkills.size})") {
+                    allSkills.sortedBy { it.name }.forEach { skill ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = skill.name in enabledSkills,
+                                onCheckedChange = { on ->
+                                    enabledSkills = if (on) enabledSkills + skill.name else enabledSkills - skill.name
+                                },
+                                colors = CheckboxDefaults.colors(checkedColor = Purple)
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(skill.name, color = Label1Light, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                if (skill.description.isNotBlank())
+                                    Text(skill.description, color = Label3Light, fontSize = 11.sp, maxLines = 1)
+                            }
                         }
                     }
                 }
             }
 
             // ── Personalidad ──────────────────────────────────────────────────
-            SettingsCard("Personalidad (SOUL)") {
-                DoeyTextField(
-                    value         = soul,
-                    onValueChange = { soul = it },
-                    label         = "Instrucciones de personalidad",
-                    placeholder   = "Ej: Eres un asistente conciso y amigable…",
-                    minLines      = 3,
-                    maxLines      = 6
-                )
+            if (expertMode) {
+                SettingsCard("Personalidad (SOUL)") {
+                    DoeyTextField(
+                        value         = soul,
+                        onValueChange = { soul = it },
+                        label         = "Instrucciones de personalidad",
+                        placeholder   = "Ej: Eres un asistente conciso y amigable…",
+                        minLines      = 3,
+                        maxLines      = 6
+                    )
+                }
             }
 
             // ── Memoria personal ──────────────────────────────────────────────
-            SettingsCard("Memoria Personal") {
-                DoeyTextField(
-                    value         = personalMemory,
-                    onValueChange = { personalMemory = it },
-                    label         = "Datos personales (MEMORY.md)",
-                    placeholder   = "- [nombre] Me llamo…\n- [familia] Mi pareja se llama…",
-                    minLines      = 3,
-                    maxLines      = 8
-                )
+            if (expertMode) {
+                SettingsCard("Memoria Personal") {
+                    DoeyTextField(
+                        value         = personalMemory,
+                        onValueChange = { personalMemory = it },
+                        label         = "Datos personales (MEMORY.md)",
+                        placeholder   = "- [nombre] Me llamo…\n- [familia] Mi pareja se llama…",
+                        minLines      = 3,
+                        maxLines      = 8
+                    )
+                }
             }
 
             // ── Guardar ───────────────────────────────────────────────────────
@@ -253,7 +291,8 @@ fun SettingsScreen(vm: MainViewModel) {
                     scope.launch { settings.setCredential("google_api_key", googleApiKey) }
                     vm.saveSettings(
                         provider, apiKey, model, customUrl, language, picovoiceKey,
-                        enabledSkills.toList(), soul, personalMemory, maxIterations, sttMode
+                        enabledSkills.toList(), soul, personalMemory, maxIterations, sttMode,
+                        expertMode
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),

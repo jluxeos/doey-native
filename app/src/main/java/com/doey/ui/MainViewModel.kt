@@ -61,6 +61,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val drivingMode   = settings.getDrivingMode()
         val soul          = settings.getSoul()
         val personalMem   = settings.getPersonalMemory()
+        val expertMode    = settings.getExpertMode()
         val enabledSkills = settings.getEnabledSkillsList()
         val maxIter       = settings.getMaxIterations()
 
@@ -81,6 +82,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             language       = language,
             soul           = soul,
             personalMemory = personalMem,
+            expertMode     = expertMode,
             maxIterations  = maxIter
         )
         p.setEnabledSkills(enabledSkills)
@@ -111,12 +113,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         register(QueryContactsTool())
         register(QuerySmsTool())
         register(QueryCallLogTool())
-        register(HttpTool())
+        register(HttpTool(settings))
         register(TTSTool())
         register(AccessibilityTool())
         register(AppSearchTool())
         register(FileStorageTool())
-        register(SkillDetailTool(skillLoader))
+        register(SkillDetailTool(skillLoader, settings))
         register(PersonalMemoryTool())
         register(JournalTool())
         register(TimerTool())
@@ -203,7 +205,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun saveSettings(
         provider: String, apiKey: String, model: String, customUrl: String,
         language: String, picovoiceKey: String, enabledSkills: List<String>,
-        soul: String, personalMemory: String, maxIterations: Int, sttMode: String
+        soul: String, personalMemory: String, maxIterations: Int, sttMode: String,
+        expertMode: Boolean
     ) = viewModelScope.launch {
         settings.setProvider(provider)
         settings.setApiKey(provider, apiKey)
@@ -216,6 +219,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         settings.setPersonalMemory(personalMemory)
         settings.setMaxIterations(maxIterations)
         settings.setSttMode(sttMode)
+        settings.setExpertMode(expertMode)
         _uiState.update { it.copy(settingsSaved = true) }
         pipeline = null
         initPipeline()
