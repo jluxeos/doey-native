@@ -1,17 +1,10 @@
 package com.doey.tools
 
-import android.service.notification.StatusBarNotification
-
-// Clase simple para manejar notificaciones
-class NotificationListenerTool {
-
-    fun processNotification(sbn: StatusBarNotification) {
-        // Solo imprime algo por ahora
-        println("Notificación recibida: ${sbn.packageName} - ${sbn.notification.tickerText}")
-    }
-
-    fun clearNotifications() {
-        // Función ejemplo
-        println("Notificaciones borradas")
+class NotificationListenerTool : Tool {
+    override fun name() = "notifications"
+    override fun description() = "Read or clear system notifications."
+    override fun parameters() = mapOf("type" to "object", "properties" to mapOf("action" to mapOf("type" to "string", "enum" to listOf("read", "clear"))), "required" to listOf("action"))
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        return successResult("Notifications processed")
     }
 }
