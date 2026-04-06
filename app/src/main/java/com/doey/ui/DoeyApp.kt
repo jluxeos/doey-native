@@ -3,6 +3,7 @@ package com.doey.ui
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryBooks
@@ -99,16 +100,18 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Journal     : Screen("journal",     "Diario",      Icons.Default.LibraryBooks)
     object Permissions : Screen("permissions", "Permisos",    Icons.Default.Lock)
     object Settings    : Screen("settings",    "Ajustes",     Icons.Default.Settings)
+    object Logs        : Screen("logs",        "Logs",        Icons.Default.BugReport)
 }
 
 val NAV_ITEMS = listOf(
-    Screen.Home, 
-    Screen.Skills, 
-    Screen.Memories, 
-    Screen.Schedules, 
-    Screen.Journal, 
-    Screen.Permissions, 
-    Screen.Settings
+    Screen.Home,
+    Screen.Skills,
+    Screen.Memories,
+    Screen.Schedules,
+    Screen.Journal,
+    Screen.Permissions,
+    Screen.Settings,
+    Screen.Logs
 )
 
 // ── Raíz ──────────────────────────────────────────────────────────────────────
@@ -157,6 +160,7 @@ fun DoeyApp() {
                 composable(Screen.Journal.route)     { JournalScreen(vm) }
                 composable(Screen.Permissions.route) { PermissionsScreen() }
                 composable(Screen.Settings.route)    { SettingsScreen(vm) }
+                composable(Screen.Logs.route)         { LogScreen() }
             }
         }
     }
