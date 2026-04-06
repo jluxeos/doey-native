@@ -48,12 +48,16 @@ class ConversationPipeline(
 
     fun startListening() {
         if (_state.value == PipelineState.IDLE || _state.value == PipelineState.SPEAKING) {
+            DoeyLogger.pipelineState(_state.value.name, "LISTENING")
             _state.value = PipelineState.LISTENING
         }
     }
 
     fun stopListening() {
-        if (_state.value == PipelineState.LISTENING) _state.value = PipelineState.IDLE
+        if (_state.value == PipelineState.LISTENING) {
+            DoeyLogger.pipelineState("LISTENING", "IDLE")
+            _state.value = PipelineState.IDLE
+        }
     }
 
     suspend fun processUtterance(
@@ -61,14 +65,17 @@ class ConversationPipeline(
         silent: Boolean = false,
         onSpeak: (suspend (text: String, lang: String) -> Unit)? = null
     ): String {
+        val prevState = _state.value.name
         when (_state.value) {
             PipelineState.LISTENING -> _state.value = PipelineState.PROCESSING
             PipelineState.IDLE      -> _state.value = PipelineState.PROCESSING
             else                    -> return ""
         }
+        DoeyLogger.pipelineState(prevState, "PROCESSING")
 
         return try {
             if (!silent) onTranscript?.invoke("user", userText)
+            DoeyLogger.userInput(userText)
             Log.d(TAG, "Processing: ${userText.take(80)}")
 
             val systemPrompt = SystemPromptBuilder.build(
@@ -103,6 +110,7 @@ class ConversationPipeline(
             trimHistory()
 
             if (isSilent) {
+                DoeyLogger.pipelineState("PROCESSING", "IDLE (silencioso)")
                 _state.value = PipelineState.IDLE
                 return ""
             }
@@ -110,18 +118,30 @@ class ConversationPipeline(
             onTranscript?.invoke("assistant", assistantText)
 
             if (drivingMode && onSpeak != null) {
+                DoeyLogger.pipelineState("PROCESSING", "SPEAKING")
                 _state.value = PipelineState.SPEAKING
                 try { onSpeak(assistantText, language.ifBlank { "en-US" }) }
-                catch (e: Exception) { Log.e(TAG, "TTS error: ${e.message}") }
-                if (_state.value != PipelineState.LISTENING) _state.value = PipelineState.IDLE
+                catch (e: Exception) {
+                    Log.e(TAG, "TTS error: ${e.message}")
+                    DoeyLogger.error("TTS", e.message ?: "Error de voz")
+                }
+                if (_state.value != PipelineState.LISTENING) {
+                    DoeyLogger.pipelineState("SPEAKING", "IDLE")
+                    _state.value = PipelineState.IDLE
+                }
             } else {
-                if (_state.value != PipelineState.LISTENING) _state.value = PipelineState.IDLE
+                if (_state.value != PipelineState.LISTENING) {
+                    DoeyLogger.pipelineState("PROCESSING", "IDLE")
+                    _state.value = PipelineState.IDLE
+                }
             }
 
             assistantText
         } catch (e: Exception) {
             Log.e(TAG, "Pipeline error: ${e.message}")
+            DoeyLogger.error("Pipeline", e.message ?: "Error desconocido")
             _state.value = PipelineState.ERROR
+            DoeyLogger.pipelineState("PROCESSING", "ERROR")
             onError?.invoke(e.message ?: "Unknown error")
             history.add(Message(role = "assistant", content = "[Error: ${e.message}]"))
             _state.value = PipelineState.IDLE
