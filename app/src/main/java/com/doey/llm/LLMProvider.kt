@@ -107,6 +107,10 @@ class OpenAIProvider(
             if (tools.isNotEmpty()) {
                 put("tools", JSONArray().apply { tools.forEach { put(toolToJson(it)) } })
                 put("tool_choice", "auto")
+                // OpenRouter: forzar function calling
+                put("top_p", 1.0)
+                put("frequency_penalty", 0.0)
+                put("presence_penalty", 0.0)
             }
         }
 
@@ -380,16 +384,23 @@ class GeminiProvider(
     }
 }
 
-// ── Factory ───────────────────────────────────────────────────────────────────
+// ── Factory ────────────────────────────────────────────────
 
 object LLMProviderFactory {
     fun create(provider: String, apiKey: String, model: String, customUrl: String = ""): LLMProvider =
         when (provider) {
+            "openrouter" -> OpenAIProvider(
+                apiKey  = apiKey,
+                model   = model.ifBlank { "openrouter/auto" },
+                baseUrl = "https://openrouter.ai/api/v1/chat/completions"
+            )
             "gemini" -> GeminiProvider(apiKey, model.ifBlank { "gemini-2.5-flash-preview-04-17" })
             "openai" -> OpenAIProvider(apiKey, model.ifBlank { "gpt-4o" },
                 "https://api.openai.com/v1/chat/completions")
-            "custom" -> OpenAIProvider(apiKey, model, customUrl)
-            else     -> OpenAIProvider(apiKey, model.ifBlank { "llama-3.3-70b-versatile" },
+            "groq"   -> OpenAIProvider(apiKey, model.ifBlank { "llama-3.3-70b-versatile" },
                 "https://api.groq.com/openai/v1/chat/completions")
+            "custom" -> OpenAIProvider(apiKey, model, customUrl)
+            else     -> OpenAIProvider(apiKey, model.ifBlank { "openrouter/auto" },
+                "https://openrouter.ai/api/v1/chat/completions")
         }
 }
