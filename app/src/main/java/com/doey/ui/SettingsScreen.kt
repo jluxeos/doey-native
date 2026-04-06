@@ -36,7 +36,7 @@ fun SettingsScreen(vm: MainViewModel) {
     var model          by remember { mutableStateOf("openrouter/auto") }
     var customUrl      by remember { mutableStateOf("") }
     var language       by remember { mutableStateOf("system") }
-    var picovoiceKey   by remember { mutableStateOf("") }
+    var wakePhrase     by remember { mutableStateOf("hey doey") }
     var soul           by remember { mutableStateOf("") }
     var personalMemory by remember { mutableStateOf("") }
     var maxIterations  by remember { mutableStateOf(10) }
@@ -55,7 +55,7 @@ fun SettingsScreen(vm: MainViewModel) {
         model          = settings.getModel()
         customUrl      = settings.getCustomModelUrl()
         language       = settings.getLanguage()
-        picovoiceKey   = settings.getPicovoiceKey()
+        wakePhrase     = settings.getWakePhrase()
         soul           = settings.getSoul()
         personalMemory = settings.getPersonalMemory()
         maxIterations  = settings.getMaxIterations()
@@ -64,7 +64,6 @@ fun SettingsScreen(vm: MainViewModel) {
         enabledSkills  = settings.getEnabledSkillsList().toSet()
     }
 
-    // Necesidad de Google API Key según provider
     val googleKeyRequired = provider in listOf("gemini")
     val googleKeyNote = when {
         googleKeyRequired -> "✅ Requerida para el proveedor seleccionado (Gemini)."
@@ -108,7 +107,7 @@ fun SettingsScreen(vm: MainViewModel) {
                 }
             }
 
-            // ── Proveedor de IA (Siempre visible) ─────────────────────────────
+            // ── Proveedor de IA ───────────────────────────────────────────────
             SettingsCard("Proveedor de IA") {
                 DoeyDropdown(
                     label    = "Proveedor",
@@ -196,19 +195,24 @@ fun SettingsScreen(vm: MainViewModel) {
                         }
                     )
                 }
-
-                // ── Palabra de activación (Solo Experto) ──────────────────────
-                SettingsCard("Palabra de activación (Picovoice)") {
-                    DoeyTextField(
-                        value         = picovoiceKey,
-                        onValueChange = { picovoiceKey = it },
-                        label         = "Clave de acceso Picovoice",
-                        visual        = PasswordVisualTransformation()
-                    )
-                }
             }
 
-            // ── Voz e Idioma (Siempre visible) ────────────────────────────────
+            // ── Palabra de activación ─────────────────────────────────────────
+            SettingsCard("Palabra de activación") {
+                Text(
+                    "Frase que activa a Doey. Usa algo corto y distinto, como \"hey doey\" o \"oye doey\".",
+                    color    = Label3Light,
+                    fontSize = 12.sp
+                )
+                DoeyTextField(
+                    value         = wakePhrase,
+                    onValueChange = { wakePhrase = it },
+                    label         = "Frase de activación",
+                    placeholder   = "hey doey"
+                )
+            }
+
+            // ── Voz e Idioma ──────────────────────────────────────────────────
             SettingsCard("Voz e Idioma") {
                 DoeyDropdown(
                     label    = "Idioma",
@@ -226,7 +230,7 @@ fun SettingsScreen(vm: MainViewModel) {
                 }
             }
 
-            // ── Skills (Solo Experto o simplificado) ──────────────────────────
+            // ── Skills (Solo Experto) ─────────────────────────────────────────
             if (expertMode) {
                 SettingsCard("Habilidades (${enabledSkills.size}/${allSkills.size})") {
                     allSkills.sortedBy { it.name }.forEach { skill ->
@@ -251,7 +255,7 @@ fun SettingsScreen(vm: MainViewModel) {
                 }
             }
 
-            // ── Personalidad y Memoria (Siempre visible) ──────────────────────
+            // ── Personalidad y Memoria ────────────────────────────────────────
             SettingsCard("Personalidad (SOUL)") {
                 DoeyTextField(
                     value         = soul,
@@ -279,7 +283,7 @@ fun SettingsScreen(vm: MainViewModel) {
                 onClick = {
                     scope.launch { settings.setCredential("google_api_key", googleApiKey) }
                     vm.saveSettings(
-                        provider, apiKey, model, customUrl, language, picovoiceKey,
+                        provider, apiKey, model, customUrl, language, wakePhrase,
                         enabledSkills.toList(), soul, personalMemory, maxIterations, sttMode,
                         expertMode
                     )
@@ -395,4 +399,3 @@ fun DoeyTextField(
         colors               = doeyFieldColors()
     )
 }
-
