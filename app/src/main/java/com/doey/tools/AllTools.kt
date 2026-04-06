@@ -200,8 +200,18 @@ class DeviceTool : Tool {
         "type" to "object",
         "properties" to mapOf(
             "action"     to mapOf("type" to "string",
-                "enum" to listOf("get_location","get_battery","get_volume","set_volume","get_wifi_status","get_bluetooth_status","calculate_distance")),
+                "enum" to listOf(
+                    "get_location","get_battery","get_volume","set_volume",
+                    "get_wifi_status","get_bluetooth_status","calculate_distance",
+                    "set_brightness","set_brightness_auto",
+                    "enable_wifi","disable_wifi",
+                    "enable_bluetooth","disable_bluetooth",
+                    "set_ringer_mode",
+                    "flashlight_on","flashlight_off"
+                )),
             "volume"     to mapOf("type" to "number"),
+            "brightness" to mapOf("type" to "number"),
+            "mode"       to mapOf("type" to "string"),
             "latitude1"  to mapOf("type" to "number"),
             "longitude1" to mapOf("type" to "number"),
             "latitude2"  to mapOf("type" to "number"),
@@ -219,7 +229,16 @@ class DeviceTool : Tool {
             "get_wifi_status"       -> getWifiStatus()
             "get_bluetooth_status"  -> getBluetoothStatus()
             "calculate_distance"    -> calcDistance(args)
-            else                    -> errorResult("Unknown action: ${args["action"]}")
+            "set_brightness"        -> setBrightness((args["brightness"] as? Number)?.toInt() ?: 128)
+            "set_brightness_auto"   -> setBrightnessAuto()
+            "enable_wifi"           -> setWifi(true)
+            "disable_wifi"          -> setWifi(false)
+            "enable_bluetooth"      -> setBluetooth(true)
+            "disable_bluetooth"     -> setBluetooth(false)
+            "set_ringer_mode"       -> setRingerMode(args["mode"] as? String ?: "normal")
+            "flashlight_on"         -> setFlashlight(true)
+            "flashlight_off"        -> setFlashlight(false)
+            else                    -> errorResult("Acción desconocida: ${args["action"]}")
         }
     }
 
@@ -283,6 +302,91 @@ class DeviceTool : Tool {
         val a    = sin(dLat / 2).pow(2) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2)
         val km   = R * 2 * atan2(sqrt(a), sqrt(1 - a))
         return successResult("Distance: ${"%.2f".format(km)} km (${"%.1f".format(km * 0.621371)} mi)")
+    }
+
+    private fun setBrightness(level: Int): ToolResult {
+        return try {
+            val clamped = level.coerceIn(0, 255)
+            val resolver: ContentResolver = ctx.contentResolver
+            android.provider.Settings.System.putInt(
+                resolver,
+                android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE,
+                android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL
+            )
+            android.provider.Settings.System.putInt(
+                resolver,
+                android.provider.Settings.System.SCREEN_BRIGHTNESS,
+                clamped
+            )
+            val pct = (clamped * 100 / 255)
+            successResult("Brightness set to $clamped", "☀️ Brillo al $pct%")
+        } catch (e: Exception) {
+            errorResult("No se pudo ajustar el brillo: ${e.message}")
+        }
+    }
+
+    private fun setBrightnessAuto(): ToolResult {
+        return try {
+            android.provider.Settings.System.putInt(
+                ctx.contentResolver,
+                android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE,
+                android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC
+            )
+            successResult("Brightness set to auto", "✨ Brillo automático activado")
+        } catch (e: Exception) {
+            errorResult("No se pudo activar brillo automático: ${e.message}")
+        }
+    }
+
+    private fun setWifi(enable: Boolean): ToolResult {
+        return try {
+            val intent = android.content.Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            ctx.startActivity(intent)
+            val msg = if (enable) "Abriendo ajustes WiFi para activar" else "Abriendo ajustes WiFi para desactivar"
+            successResult(msg, "📶 $msg")
+        } catch (e: Exception) {
+            errorResult("No se pudo abrir ajustes WiFi: ${e.message}")
+        }
+    }
+
+    private fun setBluetooth(enable: Boolean): ToolResult {
+        return try {
+            val intent = android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            ctx.startActivity(intent)
+            val msg = if (enable) "Abriendo ajustes Bluetooth para activar" else "Abriendo ajustes Bluetooth para desactivar"
+            successResult(msg, "🔷 $msg")
+        } catch (e: Exception) {
+            errorResult("No se pudo abrir ajustes Bluetooth: ${e.message}")
+        }
+    }
+
+    private fun setRingerMode(mode: String): ToolResult {
+        return try {
+            val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val (amMode, label) = when (mode.lowercase()) {
+                "silent"  -> AudioManager.RINGER_MODE_SILENT  to "🔇 Modo silencio activado"
+                "vibrate" -> AudioManager.RINGER_MODE_VIBRATE to "📳 Modo vibración activado"
+                else      -> AudioManager.RINGER_MODE_NORMAL  to "🔔 Modo sonido activado"
+            }
+            am.ringerMode = amMode
+            successResult("Ringer mode: $mode", label)
+        } catch (e: Exception) {
+            errorResult("No se pudo cambiar el modo de sonido: ${e.message}")
+        }
+    }
+
+    private fun setFlashlight(enable: Boolean): ToolResult {
+        return try {
+            val cm = ctx.getSystemService(Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
+            val cameraId = cm.cameraIdList.firstOrNull() ?: return errorResult("No se encontró cámara")
+            cm.setTorchMode(cameraId, enable)
+            val label = if (enable) "🔦 Linterna encendida" else "🌑 Linterna apagada"
+            successResult("Flashlight ${if (enable) "on" else "off"}", label)
+        } catch (e: Exception) {
+            errorResult("No se pudo controlar la linterna: ${e.message}")
+        }
     }
 }
 
