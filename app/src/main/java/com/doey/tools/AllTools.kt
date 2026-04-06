@@ -15,6 +15,9 @@ import android.telephony.SmsManager
 import android.util.Log
 import com.doey.DoeyApplication
 import com.doey.agent.SkillLoader
+import com.doey.ui.MemoryEntry
+import com.doey.ui.parseMemoryEntries
+import com.doey.ui.toJson
 import com.doey.services.DoeyAccessibilityService
 import com.doey.services.DoeyTTSEngine
 import com.google.android.gms.location.LocationServices
@@ -673,13 +676,26 @@ class PersonalMemoryTool : Tool {
         @Suppress("UNCHECKED_CAST")
         val facts    = args["facts"] as? List<Map<String, String>> ?: return errorResult("facts required")
         val existing = store.getPersonalMemory()
-        val sb       = StringBuilder(existing)
+        // Parsear entradas existentes (JSON o Markdown legacy)
+        val entries  = com.doey.ui.parseMemoryEntries(existing).toMutableList()
         facts.forEach { f ->
             val fact = f["fact"] ?: return@forEach
-            val cat  = f["category"] ?: "general"
-            sb.append("\n- [$cat] $fact")
+            val cat  = f["category"] ?: "otro"
+            // Separar variable:definicion si viene con :
+            val colonIdx = fact.indexOf(':')
+            val variable   = if (colonIdx != -1) fact.substring(0, colonIdx).trim() else fact.trim()
+            val definition = if (colonIdx != -1) fact.substring(colonIdx + 1).trim() else ""
+            // Actualizar si ya existe la misma variable en la misma categoría
+            val idx = entries.indexOfFirst {
+                it.category == cat && it.variable.equals(variable, ignoreCase = true)
+            }
+            if (idx >= 0) {
+                entries[idx] = entries[idx].copy(definition = definition)
+            } else {
+                entries.add(MemoryEntry(category = cat, variable = variable, definition = definition))
+            }
         }
-        store.setPersonalMemory(sb.toString().trim())
+        store.setPersonalMemory((entries as List<MemoryEntry>).toJson())
         return successResult("Stored ${facts.size} fact(s)")
     }
 }
