@@ -1,8 +1,5 @@
 package com.doey.services
 
-import ai.picovoice.porcupine.Porcupine
-import ai.picovoice.porcupine.PorcupineException
-import ai.picovoice.porcupine.PorcupineManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,14 +8,23 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.doey.ui.MainActivity
 
-private const val TAG = "WakeWordService"
+private const val TAG        = "WakeWordService"
 private const val CHANNEL_ID = "doey_wake_word"
-private const val NOTIF_ID = 9001
+private const val NOTIF_ID   = 9001
+
+// Tiempo de espera antes de reiniciar la escucha tras silencio o error (ms)
+private const val RESTART_DELAY_MS = 1_500L
 
 class WakeWordService : Service() {
 
@@ -27,11 +33,20 @@ class WakeWordService : Service() {
         var isRunning = false
             private set
 
-        const val EXTRA_ACCESS_KEY = "ACCESS_KEY"
-        const val EXTRA_KEYWORD_PATH = "KEYWORD_PATH"
+        const val EXTRA_WAKE_PHRASE = "WAKE_PHRASE"
+        const val EXTRA_LANGUAGE    = "LANGUAGE"
+
+        private const val DEFAULT_PHRASE   = "hey doey"
+        private const val DEFAULT_LANGUAGE = "es-ES"
     }
 
-    private var porcupine: PorcupineManager? = null
+    private var recognizer: SpeechRecognizer? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private var wakePhrase = DEFAULT_PHRASE
+    private var language   = DEFAULT_LANGUAGE
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     override fun onCreate() {
         super.onCreate()
@@ -40,102 +55,129 @@ class WakeWordService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val accessKey = intent?.getStringExtra(EXTRA_ACCESS_KEY) ?: ""
-        val keywordPath = intent?.getStringExtra(EXTRA_KEYWORD_PATH) ?: "PORCUPINE"
+        wakePhrase = (intent?.getStringExtra(EXTRA_WAKE_PHRASE) ?: DEFAULT_PHRASE).lowercase().trim()
+        language   = intent?.getStringExtra(EXTRA_LANGUAGE) ?: DEFAULT_LANGUAGE
 
         startForeground(NOTIF_ID, buildNotification())
-        startPorcupine(accessKey, keywordPath)
+        mainHandler.post { startListening() }
 
         return START_STICKY
     }
 
-    private fun startPorcupine(accessKey: String, keywordPath: String) {
-        try {
-            porcupine?.stop()
-            porcupine?.delete()
-
-            val wakeWordCallback: (Int) -> Unit = { idx ->
-                val keyword = when {
-                    keywordPath.contains(".ppn") -> "custom"
-                    else -> keywordPath
-                }
-                Log.i(TAG, "Wake word detected: $keyword (index=$idx)")
-                onWakeWord?.invoke(keyword)
-            }
-
-            val errorCallback: (Exception) -> Unit = { e ->
-                Log.e(TAG, "Porcupine error: ${e.message}")
-            }
-
-            val assetKeyword = findAssetKeyword()
-
-            porcupine = if (assetKeyword != null) {
-                Log.i(TAG, "Using asset keyword: $assetKeyword")
-                PorcupineManager.Builder()
-                    .setAccessKey(accessKey)
-                    .setKeywordPath(assetKeyword)
-                    .setSensitivity(0.8f)
-                    .build(this, wakeWordCallback)
-            } else {
-                val builtIn = resolveBuiltIn(keywordPath)
-                if (builtIn != null) {
-                    Log.i(TAG, "Using built-in keyword: $builtIn")
-                    PorcupineManager.Builder()
-                        .setAccessKey(accessKey)
-                        .setKeyword(builtIn)
-                        .setSensitivity(0.85f)
-                        .build(this, wakeWordCallback)
-                } else {
-                    Log.i(TAG, "Using keyword path: $keywordPath")
-                    PorcupineManager.Builder()
-                        .setAccessKey(accessKey)
-                        .setKeywordPath(keywordPath)
-                        .setSensitivity(0.85f)
-                        .build(this, wakeWordCallback)
-                }
-            }
-
-            porcupine?.start()
-            Log.i(TAG, "Porcupine started")
-        } catch (e: PorcupineException) {
-            Log.e(TAG, "Porcupine init failed: ${e.message}")
-        } catch (e: Exception) {
-            Log.e(TAG, "WakeWordService error: ${e.message}")
-        }
-    }
-
-    private fun findAssetKeyword(): String? {
-        return try {
-            val assets = assets.list("") ?: return null
-            assets.firstOrNull { it.endsWith(".ppn") }?.let { "assets/$it" }
-        } catch (e: Exception) { null }
-    }
-
-    private fun resolveBuiltIn(name: String): Porcupine.BuiltInKeyword? {
-        return try { Porcupine.BuiltInKeyword.valueOf(name.uppercase()) }
-        catch (e: IllegalArgumentException) { null }
-    }
-
     override fun onDestroy() {
-        try {
-            porcupine?.stop()
-            porcupine?.delete()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error stopping Porcupine: ${e.message}")
-        }
-        porcupine = null
+        mainHandler.removeCallbacksAndMessages(null)
+        destroyRecognizer()
         isRunning = false
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    // ── Escucha continua ──────────────────────────────────────────────────────
+
+    private fun startListening() {
+        destroyRecognizer()
+
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            Log.e(TAG, "SpeechRecognizer no disponible en este dispositivo")
+            return
+        }
+
+        recognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        recognizer?.setRecognitionListener(object : RecognitionListener {
+
+            override fun onReadyForSpeech(params: Bundle?) {
+                Log.d(TAG, "Escuchando wake word…")
+            }
+
+            override fun onPartialResults(partialResults: Bundle?) {
+                val results = partialResults
+                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?: return
+                checkForWakeWord(results)
+            }
+
+            override fun onResults(results: Bundle?) {
+                val texts = results
+                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?: emptyList()
+                val triggered = checkForWakeWord(texts)
+                // Si no se detectó la wake word, reiniciar escucha
+                if (!triggered) scheduleRestart()
+            }
+
+            override fun onError(error: Int) {
+                val msg = errorString(error)
+                Log.w(TAG, "STT error: $msg ($error)")
+                // Reiniciar siempre salvo que el servicio esté siendo destruido
+                if (isRunning) scheduleRestart()
+            }
+
+            override fun onEndOfSpeech()                              {}
+            override fun onBeginningOfSpeech()                        {}
+            override fun onRmsChanged(rmsdB: Float)                   {}
+            override fun onBufferReceived(buffer: ByteArray?)         {}
+            override fun onEvent(eventType: Int, params: Bundle?)     {}
+        })
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,  RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE,        language)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,     3)
+            // Sin timeout de silencio para que espere más tiempo
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3_000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 3_000L)
+        }
+
+        try {
+            recognizer?.startListening(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al iniciar escucha: ${e.message}")
+            scheduleRestart()
+        }
+    }
+
+    /**
+     * Revisa si alguno de los textos contiene la wake phrase.
+     * Devuelve true si se disparó el callback.
+     */
+    private fun checkForWakeWord(texts: List<String>): Boolean {
+        for (text in texts) {
+            if (text.lowercase().contains(wakePhrase)) {
+                Log.i(TAG, "¡Wake word detectada! → \"$text\"")
+                onWakeWord?.invoke(wakePhrase)
+                // Pequeña pausa para que Doey tome el micrófono antes de reiniciar
+                scheduleRestart(delay = 3_000L)
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun scheduleRestart(delay: Long = RESTART_DELAY_MS) {
+        destroyRecognizer()
+        if (isRunning) {
+            mainHandler.postDelayed({ startListening() }, delay)
+        }
+    }
+
+    private fun destroyRecognizer() {
+        try {
+            recognizer?.stopListening()
+            recognizer?.destroy()
+        } catch (_: Exception) {}
+        recognizer = null
+    }
+
+    // ── Notificación foreground ───────────────────────────────────────────────
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID, "Doey Wake Word", NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Listening for the wake word"
+                description = "Escuchando la palabra de activación"
                 setShowBadge(false)
             }
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
@@ -144,18 +186,30 @@ class WakeWordService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val intent = Intent(this, MainActivity::class.java)
         val pi = PendingIntent.getActivity(
-            this, 0, intent,
+            this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Doey")
-            .setContentText("Listening for wake word…")
+            .setContentText("Escuchando: \"$wakePhrase\"…")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentIntent(pi)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
+    }
+
+    private fun errorString(code: Int) = when (code) {
+        SpeechRecognizer.ERROR_AUDIO               -> "Error de audio"
+        SpeechRecognizer.ERROR_CLIENT              -> "Error de cliente"
+        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Permisos insuficientes"
+        SpeechRecognizer.ERROR_NETWORK             -> "Error de red"
+        SpeechRecognizer.ERROR_NETWORK_TIMEOUT     -> "Timeout de red"
+        SpeechRecognizer.ERROR_NO_MATCH            -> "Sin coincidencia"
+        SpeechRecognizer.ERROR_RECOGNIZER_BUSY     -> "Reconocedor ocupado"
+        SpeechRecognizer.ERROR_SERVER              -> "Error del servidor"
+        SpeechRecognizer.ERROR_SPEECH_TIMEOUT      -> "Timeout de voz"
+        else                                       -> "Error desconocido ($code)"
     }
 }
