@@ -262,12 +262,12 @@ object FlowModeEngine {
             return r
         }
 
+        @Suppress("UNCHECKED_CAST")
         return args.mapValues { (_, value) ->
             when (value) {
-                is String -> resolveString(value)
-                @Suppress("UNCHECKED_CAST")
+                is String    -> resolveString(value)
                 is Map<*, *> -> resolveVariables(value as Map<String, Any?>, context)
-                else -> value
+                else         -> value
             }
         }
     }
