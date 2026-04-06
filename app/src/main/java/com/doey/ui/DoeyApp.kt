@@ -2,14 +2,17 @@ package com.doey.ui
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryBooks
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -114,6 +117,9 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Permissions : Screen("permissions", "Permisos",    Icons.Default.Lock)
     object Settings    : Screen("settings",    "Ajustes",     Icons.Default.Settings)
     object Logs        : Screen("logs",        "Logs",        Icons.Default.BugReport)
+    object FlowMode    : Screen("flow_mode",   "Modo Flujo",  Icons.Default.AccountTree)
+    object AutoMode    : Screen("auto_mode",   "Modo Auto",   Icons.Default.DirectionsCar)
+    object Macros      : Screen("macros",      "Macros",      Icons.Default.Star)
 }
 
 val NAV_ITEMS = listOf(
@@ -166,7 +172,7 @@ fun DoeyApp() {
             }
         ) { pad ->
             NavHost(nav, startDestination = Screen.Home.route, Modifier.padding(pad)) {
-                composable(Screen.Home.route)        { HomeScreen(vm) }
+                composable(Screen.Home.route)        { HomeScreen(vm, nav) }
                 composable(Screen.Skills.route)      { SkillsScreen(vm) }
                 composable(Screen.Memories.route)    { MemoriesScreen(vm) }
                 composable(Screen.Schedules.route)   { SchedulesScreen(vm) }
@@ -174,6 +180,9 @@ fun DoeyApp() {
                 composable(Screen.Permissions.route) { PermissionsScreen() }
                 composable(Screen.Settings.route)    { SettingsScreen(vm) }
                 composable(Screen.Logs.route)         { LogScreen() }
+                composable(Screen.FlowMode.route)    { FlowModeAdvancedScreen(vm) }
+                composable(Screen.AutoMode.route)    { AutoModeScreen(vm) }
+                composable(Screen.Macros.route)      { MacrosManagerScreen() }
             }
         }
     }
