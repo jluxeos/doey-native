@@ -98,6 +98,34 @@ object FlowModeEngine {
         }
     }
 
+    /**
+     * Retorna las acciones rápidas para mostrar en la HomeScreen.
+     */
+    fun getQuickActions(): List<FlowOption> = listOf(
+        FlowOption(
+            id = "quick_wa",
+            label = "WhatsApp",
+            nextNodeId = "contact_list",
+            params = mapOf("app" to "com.whatsapp")
+        ),
+        FlowOption(
+            id = "quick_music_pause",
+            label = "Pausar Música",
+            command = FlowCommand("intent", mapOf(
+                "action" to "com.android.music.musicservicecommand",
+                "extras" to listOf(mapOf("key" to "command", "value" to "pause"))
+            ))
+        ),
+        FlowOption(
+            id = "quick_music_skip",
+            label = "Siguiente",
+            command = FlowCommand("intent", mapOf(
+                "action" to "com.android.music.musicservicecommand",
+                "extras" to listOf(mapOf("key" to "command", "value" to "next"))
+            ))
+        )
+    )
+
     fun getRootNodes(): List<FlowNode> = listOf(
         FlowNode(
             id = "root_open",
@@ -117,8 +145,26 @@ object FlowModeEngine {
             )
         ),
         FlowNode(
+            id = "root_music",
+            label = "Música",
+            options = listOf(
+                FlowOption("music_play", "Reproducir/Pausar", command = FlowCommand("intent", mapOf(
+                    "action" to "com.android.music.musicservicecommand",
+                    "extras" to listOf(mapOf("key" to "command", "value" to "togglepause"))
+                ))),
+                FlowOption("music_next", "Siguiente Canción", command = FlowCommand("intent", mapOf(
+                    "action" to "com.android.music.musicservicecommand",
+                    "extras" to listOf(mapOf("key" to "command", "value" to "next"))
+                ))),
+                FlowOption("music_prev", "Canción Anterior", command = FlowCommand("intent", mapOf(
+                    "action" to "com.android.music.musicservicecommand",
+                    "extras" to listOf(mapOf("key" to "command", "value" to "previous"))
+                )))
+            )
+        ),
+        FlowNode(
             id = "root_control",
-            label = "Controlar",
+            label = "Dispositivo",
             options = listOf(
                 FlowOption("vol_up", "Subir Volumen", command = FlowCommand("device", mapOf("action" to "set_volume", "volume" to 80))),
                 FlowOption("vol_down", "Bajar Volumen", command = FlowCommand("device", mapOf("action" to "set_volume", "volume" to 20))),
@@ -127,7 +173,7 @@ object FlowModeEngine {
         ),
         FlowNode(
             id = "root_vars",
-            label = "Usar Variables",
+            label = "Mis Variables",
             options = listOf(
                 FlowOption("var_sms", "Enviar SMS a {{mamá}}", command = FlowCommand("send_sms", mapOf("phone_number" to "{{mamá}}", "message" to "Hola mamá, estoy usando el modo flujo."))),
                 FlowOption("var_call", "Llamar a {{papá}}", command = FlowCommand("intent", mapOf("action" to Intent.ACTION_DIAL, "uri" to "tel:{{papá}}"))),
