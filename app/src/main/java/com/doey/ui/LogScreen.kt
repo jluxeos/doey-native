@@ -15,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -67,21 +69,16 @@ fun LogScreen() {
                         )
                     }
                     // Exportar logs
+                    val context = LocalContext.current
                     IconButton(onClick = { 
                         val logText = entries.joinToString("\n") { 
-                            "[${it.type.name}] ${it.timestamp}: ${it.message}" 
+                            "[${it.type.name}] ${it.formattedTime}: ${it.title} - ${it.detail}" 
                         }
-                        val intent = android.content.Intent().apply {
-                            action = android.content.Intent.ACTION_CREATE_DOCUMENT
+                        val intent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
-                            putExtra(android.content.Intent.EXTRA_TITLE, "doey_logs_${System.currentTimeMillis()}.txt")
+                            putExtra(Intent.EXTRA_TEXT, logText)
                         }
-                        try {
-                            android.content.ContextCompat.startActivity(
-                                android.content.ContextCompat.getMainExecutor(android.content.ContextCompat.getMainExecutor(android.app.Application())).context as android.content.Context,
-                                intent, null
-                            )
-                        } catch (e: Exception) { }
+                        context.startActivity(Intent.createChooser(intent, "Exportar Logs"))
                     }) {
                         Icon(Icons.Default.FileDownload, contentDescription = "Exportar", tint = Label3Light)
                     }
