@@ -1,164 +1,75 @@
 ---
 name: google-tasks
 category: productivity
-description: Read, create, complete and delete tasks via Google Tasks API. Requires Google OAuth. Tools: http.
-test_prompt: Fetch the task lists and show the open tasks from the first list
-permissions:
- - android.permission.INTERNET
-credentials:
- - id: google_credentials
-   label: Google Account
-   type: oauth
-   auth_provider: google
+description: Manage tasks via Google Tasks app UI automation. No API key required. Tools: intent, accessibility.
+android_package: com.google.android.apps.tasks
+permissions: []
 ---
 # Google Tasks Skill
 
-Manage tasks (to-dos) via the Google Tasks API.
+Manage to-do tasks by automating the Google Tasks app UI. No OAuth or API key needed.
 
-## Tool: http
+## Tool: intent — Open app
 
-All requests require `auth_provider: "google"`.
-
-Base URL: `https://tasks.googleapis.com/tasks/v1`
-
-### Fetch task lists
-
+### Open Google Tasks
 ```json
-{
-  "method": "GET",
-  "url": "https://tasks.googleapis.com/tasks/v1/users/@me/lists",
-  "auth_provider": "google"
-}
+{ "action": "android.intent.action.MAIN", "package": "com.google.android.apps.tasks" }
 ```
 
-Result contains `items[]` with `id` and `title`. The default list is usually named "My Tasks".
+---
 
-### Fetch tasks from a list
+## Tool: accessibility — Full task management
 
-```json
-{
-  "method": "GET",
-  "url": "https://tasks.googleapis.com/tasks/v1/lists/{TASKLIST_ID}/tasks?showCompleted=false&maxResults=20",
-  "auth_provider": "google"
-}
-```
+All operations use `get_tree` → interact pattern.
 
-Parameters:
-- `showCompleted=true/false` – Show completed tasks
-- `showHidden=true` – Show deleted/hidden tasks
-- `dueMin` / `dueMax` – Filter by due date (RFC 3339, e.g. `2024-01-15T00:00:00Z`)
+### Workflow: Read tasks aloud
 
-### Create a new task
+1. Open Google Tasks via intent
+2. `wait_for_app` with `package_name: "com.google.android.apps.tasks"`
+3. `get_tree` — read all task items visible on screen
+4. Scroll down if needed to see more
+5. Read them aloud via `tts`
 
-```json
-{
-  "method": "POST",
-  "url": "https://tasks.googleapis.com/tasks/v1/lists/{TASKLIST_ID}/tasks",
-  "auth_provider": "google",
-  "body": {
-    "title": "{TITLE}",
-    "notes": "{NOTES}",
-    "due": "{ISO_DATE}T00:00:00.000Z"
-  }
-}
-```
+### Workflow: Create a new task
 
-Fields:
-- `title` (required) – Task title
-- `notes` (optional) – Additional notes/description
-- `due` (optional) – Due date as RFC 3339 timestamp
+1. Open Google Tasks via intent
+2. `wait_for_app`
+3. `get_tree` — find the "Add a task" button or "+" FAB
+4. `click` it
+5. `get_tree` — find the task title input field
+6. `type` the task title
+7. If due date needed: find "Add date/time" option and interact
+8. Find "Save" or confirm button, `click` it
+9. Confirm via `tts`: "Task created: [title]"
 
-### Update a task
+### Workflow: Complete a task
 
-```json
-{
-  "method": "PATCH",
-  "url": "https://tasks.googleapis.com/tasks/v1/lists/{TASKLIST_ID}/tasks/{TASK_ID}",
-  "auth_provider": "google",
-  "body": {
-    "title": "{NEW_TITLE}",
-    "notes": "{NEW_NOTES}",
-    "due": "{ISO_DATE}T00:00:00.000Z"
-  }
-}
-```
+1. Open Google Tasks via intent
+2. `wait_for_app`
+3. `get_tree` — find the task by its label
+4. Find the checkbox next to it, `click` it
+5. Confirm via `tts`: "Task completed: [title]"
 
-### Mark a task as completed
+### Workflow: Delete a task
 
-```json
-{
-  "method": "PATCH",
-  "url": "https://tasks.googleapis.com/tasks/v1/lists/{TASKLIST_ID}/tasks/{TASK_ID}",
-  "auth_provider": "google",
-  "body": {
-    "status": "completed"
-  }
-}
-```
+1. Open Google Tasks via intent
+2. `wait_for_app`
+3. `get_tree` — find the task
+4. `long_click` the task to open options, or swipe to find delete
+5. Find "Delete" option, `click` it
+6. Confirm via `tts`
 
-Status values: `"needsAction"` (open), `"completed"` (done)
-
-### Delete a task
-
-```json
-{
-  "method": "DELETE",
-  "url": "https://tasks.googleapis.com/tasks/v1/lists/{TASKLIST_ID}/tasks/{TASK_ID}",
-  "auth_provider": "google"
-}
-```
-
-## Workflow: Read tasks aloud
-
-1. Fetch task lists → select default list (first one)
-2. Fetch tasks for the list (showCompleted=false)
-3. Read aloud with `tts`: "You have 3 open tasks: 1. Groceries, 2. ..."
-
-## Workflow: Add a task
-
-1. Fetch task lists → select default list
-2. POST new task with title (and optionally due date)
-3. Confirm with `tts`: "Task created: {TITLE}"
-
-## Workflow: Complete a task
-
-1. Fetch tasks
-2. Find matching task by title
-3. PATCH with `status: "completed"`
-4. Confirm with `tts`: "Task completed: {TITLE}"
-
-## Due dates
-
-Use the `datetime` tool with `output_format` parameter to generate ISO date/datetime strings directly.
-
-### Setting due dates
-- "by tomorrow" → `datetime absolute` with `base: "tomorrow"`, `output_format: "iso_datetime_utc_ms"` → returns `YYYY-MM-DDT00:00:00.000Z`
-- "by Friday" → `datetime absolute` with `base: "next_friday"`, `output_format: "iso_datetime_utc_ms"` → returns `YYYY-MM-DDT00:00:00.000Z`
-- "on 2024-03-15" → `datetime absolute` with `base: "2024-03-15"`, `output_format: "iso_datetime_utc_ms"` → returns `2024-03-15T00:00:00.000Z`
-- Format always: `YYYY-MM-DDT00:00:00.000Z` (use `output_format: "iso_datetime_utc_ms"`)
-
-**Note:** The `base` parameter accepts enum values (`"today"`, `"tomorrow"`, etc.), Unix timestamps (number), or ISO date/datetime strings (`"2024-03-15"`, `"2024-03-15T14:00:00"`, etc.).
-
-### Interpreting due dates (IMPORTANT)
-When reading tasks aloud and expressing the due date relatively:
-1. Get today's ISO date via `datetime absolute` with `base: "today"`, `output_format: "iso_date"` → returns `YYYY-MM-DD`
-2. Compare ONLY the date part (YYYY-MM-DD) of the `due` field with today's ISO date
-3. Calculation: `due` date (YYYY-MM-DD) minus today (YYYY-MM-DD) = days until due
-
-Example: Today is 2026-02-22, task has `due: "2026-02-23T00:00:00.000Z"`
-→ 2026-02-23 minus 2026-02-22 = **1 day** → "tomorrow"
-
-Mapping:
-- 0 days → "today"
-- 1 day → "tomorrow"
-- 2 days → "day after tomorrow"
-- negative → "overdue"
+---
 
 ## Examples
 
-- "What do I still need to do?" → Fetch open tasks + TTS
-- "Create a task: Groceries" → POST new task
-- "Remind me about the dentist tomorrow" → POST task with tomorrow's due date
-- "Do I have tasks for today?" → Fetch tasks, filter by due date
-- "Task Groceries is done" → Find task + PATCH completed
-- "Delete the dentist task" → Find task + DELETE
+- "What do I still need to do?" → open app → read task list → TTS
+- "Create task: Buy milk" → open app → click add → type "Buy milk" → save
+- "Mark groceries as done" → open app → find task → click checkbox
+- "Delete the dentist task" → open app → find task → long click → delete
+
+## Notes
+- Always `wait_for_app` before reading the tree
+- If Google Tasks is not installed, inform the user
+- Never attempt HTTP calls to tasks.googleapis.com — no API key is available
+
