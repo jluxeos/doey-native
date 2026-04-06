@@ -88,7 +88,7 @@ class ConversationPipeline(
 
             history.add(userMsg)
 
-            val result = com.doey.agent.ToolLoop.run(
+            val result = com.doey.agent.runToolLoop(
                 provider      = provider,
                 tools         = tools,
                 messages      = messages,
