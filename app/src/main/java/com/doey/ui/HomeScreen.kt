@@ -116,7 +116,7 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
 @Composable
 private fun StandardFlowContent(
     vm: MainViewModel,
-    state: DoeyUiState,
+    state: MainUiState,
     nav: NavController,
     currentMode: HomeMode,
     onModeChange: (HomeMode) -> Unit,
@@ -200,7 +200,7 @@ private fun StandardFlowContent(
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("MODO FLUJO", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
+                        Text(text = "MODO FLUJO", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
                             color = Color(0xFFBB86FC), letterSpacing = 2.sp)
                         Text("Sin internet · Acciones instantáneas", fontSize = 11.sp,
                             color = Color(0xFF9E9E9E), lineHeight = 14.sp)
@@ -216,11 +216,11 @@ private fun StandardFlowContent(
         }
 
         // ── Banner de error ───────────────────────────────────────────────────
-        state.errorMessage?.let { err ->
-            LaunchedEffect(err) { delay(3000L); vm.clearError() }
+        if (state.errorMessage != null) {
+            LaunchedEffect(state.errorMessage) { delay(3000L); vm.clearError() }
             Surface(Modifier.fillMaxWidth(), color = Color(0xFFF9DEDC)) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(err, color = ErrorRed, modifier = Modifier.weight(1f), fontSize = 13.sp)
+                    Text(state.errorMessage!!, color = ErrorRed, modifier = Modifier.weight(1f), fontSize = 13.sp)
                     IconButton(onClick = { vm.clearError() }, modifier = Modifier.size(24.dp)) {
                         Icon(Icons.Default.Close, null, tint = ErrorRed)
                     }
@@ -244,7 +244,7 @@ private fun StandardFlowContent(
                     }
                 }
             }
-            items(state.messages, key = { it.id }) { msg -> ChatBubble(msg, isFlow) }
+            items(state.messages, key = { msg: ChatMessage -> msg.id }) { msg -> ChatBubble(msg, isFlow) }
             if (state.partialSpeech.isNotBlank()) {
                 item { PartialBubble(state.partialSpeech) }
             }
@@ -461,7 +461,7 @@ private fun StandardFlowContent(
 @Composable
 private fun DriveModeContent(
     vm: MainViewModel,
-    state: DoeyUiState,
+    state: MainUiState,
     onExit: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
@@ -476,7 +476,7 @@ private fun DriveModeContent(
                     }
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("MODO CONDUCCIÓN", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
+                        Text(text = "MODO CONDUCCIÓN", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
                             color = Color(0xFF6200EE), letterSpacing = 2.sp)
                         Text("Interfaz vehicular activa", fontSize = 10.sp, color = Color(0xFF9E9E9E))
                     }
@@ -578,7 +578,7 @@ private fun DriveMainPanel(vm: MainViewModel) {
 }
 
 @Composable
-private fun DriveNotificationsPanel(state: DoeyUiState) {
+private fun DriveNotificationsPanel(state: MainUiState) {
     val messages = state.messages.takeLast(10)
     if (messages.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -587,7 +587,7 @@ private fun DriveNotificationsPanel(state: DoeyUiState) {
         return
     }
     LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(messages) { msg ->
+        items(messages) { msg: ChatMessage ->
             Surface(Modifier.fillMaxWidth(), color = Color(0xFF2A2A2A), shape = RoundedCornerShape(12.dp)) {
                 Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Surface(Modifier.size(40.dp), color = Color(0xFF6200EE), shape = CircleShape) {
@@ -667,7 +667,10 @@ private fun DriveShortcutsPanel(vm: MainViewModel) {
         Triple(Icons.Default.Notifications, "Leer Notificaciones",    {})
     )
     LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(shortcuts) { (icon, label, action) ->
+        items(shortcuts) { shortcut ->
+            val icon   = shortcut.first
+            val label  = shortcut.second
+            val action = shortcut.third
             Button(
                 onClick = action,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
