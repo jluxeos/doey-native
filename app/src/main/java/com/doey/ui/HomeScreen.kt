@@ -339,7 +339,7 @@ private fun PartialBubble(text: String) {
 
 @Composable
 private fun FriendlyMessageBubble() {
-    var message by remember { mutableStateOf(FriendlyMessagesProvider.getFriendlyMessage()) }
+    var message by remember { mutableStateOf(FriendlyMessagesProvider.getWaitingMessage()) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
         Text("🤖 ", fontSize = 16.sp, modifier = Modifier.padding(top = 6.dp))
         Surface(shape = RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp), color = Surface1Light) {
