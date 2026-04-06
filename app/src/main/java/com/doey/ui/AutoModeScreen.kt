@@ -430,7 +430,7 @@ private fun NotificationCard(app: String, title: String, time: String) {
 }
 
 @Composable
-private fun ShortcutButton(label: String, icon: androidx.compose.material.icons.Icons.Filled) {
+private fun ShortcutButton(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Button(
         onClick = {},
         modifier = Modifier
