@@ -29,6 +29,7 @@ fun HomeScreen(vm: MainViewModel) {
     val state     by vm.uiState.collectAsState()
     val listState = rememberLazyListState()
     var input     by remember { mutableStateOf("") }
+    var voiceEnabled by remember { mutableStateOf(true) }
 
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.size - 1)
@@ -40,7 +41,7 @@ fun HomeScreen(vm: MainViewModel) {
         TopAppBar(
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("🤖", fontSize = 20.sp)
+                    Icon(Icons.Default.SmartToy, contentDescription = "Doey", tint = Purple, modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Doey", fontWeight = FontWeight.Bold, color = Label1Light)
                     if (state.isWakeWordActive) {
@@ -181,9 +182,25 @@ fun HomeScreen(vm: MainViewModel) {
 
                 Spacer(Modifier.width(4.dp))
 
+                // Control de voz
+                FilledIconButton(
+                    onClick  = { voiceEnabled = !voiceEnabled },
+                    enabled  = state.pipelineState != PipelineState.PROCESSING,
+                    colors   = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = if (voiceEnabled) Purple else Label3Light
+                    )
+                ) {
+                    Icon(
+                        if (voiceEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                        contentDescription = "Voz", tint = OnPurple
+                    )
+                }
+
+                Spacer(Modifier.width(4.dp))
+
                 // Enviar
                 FilledIconButton(
-                    onClick  = { val t = input.trim(); if (t.isNotBlank()) { input = ""; vm.sendMessage(t) } },
+                    onClick  = { val t = input.trim(); if (t.isNotBlank()) { input = ""; vm.sendMessage(t, voiceEnabled) } },
                     enabled  = input.isNotBlank() && state.pipelineState != PipelineState.PROCESSING,
                     colors   = IconButtonDefaults.filledIconButtonColors(containerColor = Purple)
                 ) {
