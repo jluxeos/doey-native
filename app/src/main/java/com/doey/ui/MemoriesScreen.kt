@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -262,11 +264,16 @@ fun MemoriesScreen(vm: MainViewModel) {
                             modifier = Modifier.padding(end = 8.dp).size(20.dp)
                         )
                     }
+                    val context = LocalContext.current
                     IconButton(onClick = { 
                         val json = entries.toJson()
-                        android.content.ClipboardManager.copyToClipboard(json)
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, json)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Exportar Memorias"))
                     }) {
-                        Icon(Icons.Default.ContentCopy, "Copiar", tint = Label3Light)
+                        Icon(Icons.Default.Share, "Compartir", tint = Label3Light)
                     }
                     IconButton(onClick = { showAddDialog = true }) {
                         Icon(Icons.Default.Add, "Agregar", tint = Purple)
