@@ -90,6 +90,19 @@ val DoeyColorsLight = lightColorScheme(
     errorContainer     = Color(0xFFF9DEDC)
 )
 
+@Composable
+fun doeyFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor        = Purple,
+    unfocusedBorderColor      = Label3Light,
+    focusedTextColor          = Label1Light,
+    unfocusedTextColor        = Label1Light,
+    focusedLabelColor         = Purple,
+    unfocusedLabelColor       = Label3Light,
+    cursorColor               = Purple,
+    focusedPlaceholderColor   = Label3Light,
+    unfocusedPlaceholderColor = Label3Light
+)
+
 // ── Navegación ────────────────────────────────────────────────────────────────
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
