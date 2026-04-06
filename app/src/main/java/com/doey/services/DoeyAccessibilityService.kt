@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.doey.agent.DoeyLogger
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -70,6 +71,7 @@ class DoeyAccessibilityService : AccessibilityService() {
      * Retries up to 5 times with increasing delays for slow-rendering apps.
      */
     fun buildAccessibilityTree(): String {
+        DoeyLogger.accessibilitySend("get_tree", null, "Leyendo árbol de pantalla")
         val retryDelays = longArrayOf(50, 100, 200, 300, 500)
 
         for (attempt in retryDelays.indices) {
@@ -83,10 +85,14 @@ class DoeyAccessibilityService : AccessibilityService() {
                     root.recycle()
                 } catch (e: Exception) {
                     Log.w(TAG, "Tree traversal error: ${e.message}")
+                    DoeyLogger.error("Accesibilidad", "Error al leer pantalla: ${e.message}")
                     try { root.recycle() } catch (_: Exception) {}
                 }
                 val result = sb.toString().trim()
-                if (result.isNotEmpty()) return result
+                if (result.isNotEmpty()) {
+                    DoeyLogger.accessibilityRecv("get_tree", "${result.lines().size} nodos encontrados")
+                    return result
+                }
             }
 
             if (attempt < retryDelays.size - 1) {
@@ -141,6 +147,7 @@ class DoeyAccessibilityService : AccessibilityService() {
      * Returns true on success, false on failure.
      */
     fun performNodeAction(action: String, nodeId: String?, text: String?): Boolean {
+        DoeyLogger.accessibilitySend(action, nodeId, text)
         // Global actions
         when (action) {
             "back" -> { performGlobalAction(GLOBAL_ACTION_BACK); return true }
