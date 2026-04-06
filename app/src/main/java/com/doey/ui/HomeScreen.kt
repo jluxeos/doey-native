@@ -23,9 +23,11 @@ import com.doey.agent.PipelineState
 import com.doey.agent.FriendlyMessagesProvider
 import kotlinx.coroutines.delay
 
+import androidx.navigation.NavController
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(vm: MainViewModel) {
+fun HomeScreen(vm: MainViewModel, nav: NavController) {
     val state     by vm.uiState.collectAsState()
     val listState = rememberLazyListState()
     var input     by remember { mutableStateOf("") }
@@ -41,7 +43,7 @@ fun HomeScreen(vm: MainViewModel) {
         TopAppBar(
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.SmartToy, contentDescription = "Doey", tint = Purple, modifier = Modifier.size(24.dp))
+                    DoeyIcon(modifier = Modifier, size = 24.dp, tint = Purple)
                     Spacer(Modifier.width(8.dp))
                     Text("Doey", fontWeight = FontWeight.Bold, color = Label1Light)
                     if (state.isWakeWordActive) {
@@ -54,11 +56,18 @@ fun HomeScreen(vm: MainViewModel) {
                 }
             },
             actions = {
-                IconButton(onClick = { vm.toggleDrivingMode() }) {
+                IconButton(onClick = { nav.navigate(Screen.AutoMode.route) }) {
                     Icon(
                         Icons.Default.DirectionsCar,
-                        contentDescription = "Conducción",
-                        tint = if (state.isDrivingMode) Purple else Label3Light
+                        contentDescription = "Modo Auto",
+                        tint = Label3Light
+                    )
+                }
+                IconButton(onClick = { nav.navigate(Screen.FlowMode.route) }) {
+                    Icon(
+                        Icons.Default.AccountTree,
+                        contentDescription = "Modo Flujo",
+                        tint = Label3Light
                     )
                 }
                 IconButton(onClick = { vm.clearHistory() }) {
@@ -68,10 +77,10 @@ fun HomeScreen(vm: MainViewModel) {
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light)
         )
 
-        // ── Banner modo conducción ────────────────────────────────────────────
+        // ── Banner modo auto ──────────────────────────────────────────────────
         AnimatedVisibility(state.isDrivingMode) {
             Surface(Modifier.fillMaxWidth(), color = Color(0xFFEADDFF)) {
-                Text("🚗  Modo conducción – Respuestas por voz activas",
+                Text("🚗  Modo Auto – Interfaz vehicular activada",
                     Modifier.padding(8.dp), color = Color(0xFF21005D),
                     fontSize = 12.sp, textAlign = TextAlign.Center)
             }
@@ -182,17 +191,18 @@ fun HomeScreen(vm: MainViewModel) {
 
                 Spacer(Modifier.width(4.dp))
 
-                // Control de voz
+                // Control TTS (Lectura en voz alta)
                 FilledIconButton(
                     onClick  = { voiceEnabled = !voiceEnabled },
                     enabled  = state.pipelineState != PipelineState.PROCESSING,
                     colors   = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = if (voiceEnabled) Purple else Label3Light
+                        containerColor = if (voiceEnabled) Purple else Color(0xFF9C27B0)
                     )
                 ) {
                     Icon(
                         if (voiceEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                        contentDescription = "Voz", tint = OnPurple
+                        contentDescription = if (voiceEnabled) "Desactivar lectura en voz" else "Activar lectura en voz",
+                        tint = OnPurple
                     )
                 }
 
