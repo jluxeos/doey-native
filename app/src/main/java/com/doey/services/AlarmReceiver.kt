@@ -84,7 +84,7 @@ class AlarmReceiver : BroadcastReceiver() {
             if (vibrator?.hasVibrator() == true) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     val pattern = longArrayOf(0, 500, 200, 500, 200, 500)
-                    vibrator.vibrate(VibrationEffect.createWaveform(pattern))
+                    vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
                 } else {
                     @Suppress("DEPRECATION")
                     vibrator.vibrate(longArrayOf(0, 500, 200, 500, 200, 500), -1)
