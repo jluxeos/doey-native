@@ -66,6 +66,25 @@ fun LogScreen() {
                             tint = if (autoScroll) Purple else Label3Light
                         )
                     }
+                    // Exportar logs
+                    IconButton(onClick = { 
+                        val logText = entries.joinToString("\n") { 
+                            "[${it.type.name}] ${it.timestamp}: ${it.message}" 
+                        }
+                        val intent = android.content.Intent().apply {
+                            action = android.content.Intent.ACTION_CREATE_DOCUMENT
+                            type = "text/plain"
+                            putExtra(android.content.Intent.EXTRA_TITLE, "doey_logs_${System.currentTimeMillis()}.txt")
+                        }
+                        try {
+                            android.content.ContextCompat.startActivity(
+                                android.content.ContextCompat.getMainExecutor(android.content.ContextCompat.getMainExecutor(android.app.Application())).context as android.content.Context,
+                                intent, null
+                            )
+                        } catch (e: Exception) { }
+                    }) {
+                        Icon(Icons.Default.FileDownload, contentDescription = "Exportar", tint = Label3Light)
+                    }
                     // Limpiar logs
                     IconButton(onClick = { DoeyLogger.clear() }) {
                         Icon(Icons.Default.DeleteSweep, contentDescription = "Limpiar", tint = Label3Light)
