@@ -772,6 +772,17 @@ class AlarmTool : Tool {
                     val minute = (args["minute"] as? Number)?.toInt() ?: 0
                     val recurring = args["recurring"] as? Boolean ?: false
                     com.doey.services.AlarmScheduler.scheduleAlarmAtTime(alarmId, title, desc, hour, minute, recurring)
+                    
+                    try {
+                        val intent = Intent("android.intent.action.SET_ALARM").apply {
+                            putExtra("android.intent.extra.alarm.HOUR", hour)
+                            putExtra("android.intent.extra.alarm.MINUTES", minute)
+                            putExtra("android.intent.extra.alarm.MESSAGE", title)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        ctx.startActivity(intent)
+                    } catch (e: Exception) {}
+                    
                     successResult("Alarma programada para las ${String.format("%02d:%02d", hour, minute)}${if (recurring) " diariamente" else ""}")
                 }
                 "timer" -> {
