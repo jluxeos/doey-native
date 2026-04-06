@@ -181,7 +181,6 @@ fun DoeyApp() {
                 composable(Screen.Settings.route)    { SettingsScreen(vm) }
                 composable(Screen.Logs.route)         { LogScreen() }
                 composable(Screen.FlowMode.route)    { FlowModeScreen(vm) }
-                composable(Screen.AutoMode.route)    { AutoModeScreen(vm) }
             }
         }
     }
