@@ -95,35 +95,47 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light)
         )
 
-        // ── Banner modo flujo (Dibujado por el usuario) ────────────────────────
+        // ── Banner modo flujo ──────────────────────────────────────────────────
         AnimatedVisibility(isFlowModeActive, enter = expandVertically(), exit = shrinkVertically()) {
-            Surface(
-                Modifier.fillMaxWidth(),
-                color = Color(0xFFF3E5F5), // Púrpura muy claro
-                tonalElevation = 2.dp
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF1A0A2E))
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
-                Row(
-                    Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Info, contentDescription = null, tint = Purple, modifier = Modifier.size(20.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Icono animado / badge
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFF6200EE)
+                    ) {
+                        Text(
+                            "⚡",
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "Modo Flujo Activado",
-                            fontWeight = FontWeight.Bold,
-                            color = PurpleDark,
-                            fontSize = 13.sp
+                            "MODO FLUJO",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFFBB86FC),
+                            letterSpacing = 2.sp
                         )
                         Text(
-                            "Sistema offline con comandos predefinidos y variables {{...}}. Toca los botones rápidos para actuar sin internet.",
-                            color = Label2Light,
+                            "Sin internet · Acciones instantáneas",
                             fontSize = 11.sp,
+                            color = Color(0xFF9E9E9E),
                             lineHeight = 14.sp
                         )
                     }
-                    TextButton(onClick = { isFlowModeActive = false }) {
-                        Text("SALIR", color = Purple, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    TextButton(
+                        onClick = { isFlowModeActive = false },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        Text("SALIR", color = Color(0xFFBB86FC), fontWeight = FontWeight.Bold, fontSize = 11.sp)
                     }
                 }
             }
@@ -161,12 +173,9 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (state.messages.isEmpty() && state.pipelineState == PipelineState.IDLE) {
-                item { 
+                item {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(top = 40.dp)) {
-                        EmptyState() 
-                        if (isFlowModeActive) {
-                            Text("Modo Flujo", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 16.dp))
-                        }
+                        EmptyState(isFlowModeActive)
                     }
                 }
             }
@@ -246,13 +255,15 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                                                     flowLoading = true
                                                     try {
                                                         val res = FlowModeEngine.executeCommand(ctx, option.command)
-                                                        Toast.makeText(ctx, res.forUser, Toast.LENGTH_SHORT).show()
+                                                        val msg = res.forUser
+                                                            ?: if (res.isError) res.forLLM else "✅ ${option.label}"
+                                                        Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
                                                         // Volver al inicio tras ejecutar
                                                         flowOptions = FlowModeEngine.getRootOptions()
                                                         flowHistory = emptyList()
                                                         flowLabel   = ""
                                                     } catch (e: Exception) {
-                                                        Toast.makeText(ctx, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                                        Toast.makeText(ctx, "Error: ${e.message ?: "desconocido"}", Toast.LENGTH_LONG).show()
                                                     } finally {
                                                         flowLoading = false
                                                     }
@@ -427,12 +438,20 @@ private fun FriendlyMessageBubble() {
 }
 
 @Composable
-private fun EmptyState() {
+private fun EmptyState(isFlowMode: Boolean = false) {
     Column(Modifier.fillMaxWidth().padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("🤖", fontSize = 48.sp)
-        Spacer(Modifier.height(16.dp))
-        Text("¡Hola, soy Doey!", fontWeight = FontWeight.Bold, color = Label1Light, fontSize = 18.sp)
-        Text("Tu asistente de IA personal.", color = Label2Light, fontSize = 14.sp)
-        Text("Toca el micrófono o escribe para comenzar.", color = Label3Light, fontSize = 12.sp, textAlign = TextAlign.Center)
+        if (isFlowMode) {
+            Text("⚡", fontSize = 48.sp)
+            Spacer(Modifier.height(16.dp))
+            Text("Acciones rápidas", fontWeight = FontWeight.Bold, color = Color(0xFFBB86FC), fontSize = 18.sp)
+            Text("Toca un botón para ejecutar al instante.", color = Label2Light, fontSize = 14.sp, textAlign = TextAlign.Center)
+            Text("Sin internet, sin esperas.", color = Label3Light, fontSize = 12.sp, textAlign = TextAlign.Center)
+        } else {
+            Text("🤖", fontSize = 48.sp)
+            Spacer(Modifier.height(16.dp))
+            Text("¡Hola, soy Doey!", fontWeight = FontWeight.Bold, color = Label1Light, fontSize = 18.sp)
+            Text("Tu asistente de IA personal.", color = Label2Light, fontSize = 14.sp)
+            Text("Toca el micrófono o escribe para comenzar.", color = Label3Light, fontSize = 12.sp, textAlign = TextAlign.Center)
+        }
     }
 }
