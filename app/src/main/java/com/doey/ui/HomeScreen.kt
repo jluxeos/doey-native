@@ -187,7 +187,6 @@ fun HomeScreen(vm: MainViewModel) {
 }
 
 // ── Componentes ───────────────────────────────────────────────────────────────
-
 @Composable
 private fun ChatBubble(msg: ChatMessage) {
     val isUser = msg.role == "user"
@@ -202,9 +201,21 @@ private fun ChatBubble(msg: ChatMessage) {
             color = if (isUser) Color(0xFFEADDFF) else Surface1Light,
             modifier = Modifier.widthIn(max = 300.dp)
         ) {
-            Text(msg.text, Modifier.padding(12.dp),
-                color = if (isUser) Color(0xFF21005D) else Label1Light,
-                fontSize = 14.sp, lineHeight = 20.sp)
+            if (isUser) {
+                // Mensajes del usuario: texto plano
+                Text(msg.text, Modifier.padding(12.dp),
+                    color = Color(0xFF21005D),
+                    fontSize = 14.sp, lineHeight = 20.sp)
+            } else {
+                // Respuestas de la IA: renderizar Markdown
+                MarkdownText(
+                    text      = msg.text,
+                    color     = Label1Light,
+                    fontSize  = 14.sp,
+                    lineHeight = 20.sp,
+                    modifier  = Modifier.padding(12.dp)
+                )
+            }
         }
     }
 }
