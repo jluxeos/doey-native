@@ -25,24 +25,13 @@ fun DoeyIcon(
     size: Dp = 24.dp,
     tint: Color = Color.Unspecified
 ) {
-    try {
-        // Intentar cargar el icono personalizado del usuario
-        val painter = painterResource(id = android.R.drawable.ic_dialog_info) // Fallback
-        Image(
-            painter = painter,
-            contentDescription = "Doey",
-            modifier = modifier.size(size),
-            colorFilter = if (tint != Color.Unspecified) ColorFilter.tint(tint) else null
-        )
-    } catch (e: Exception) {
-        // Fallback a icono genérico si no se encuentra
-        Icon(
-            imageVector = Icons.Default.SmartToy,
-            contentDescription = "Doey",
-            modifier = modifier.size(size),
-            tint = tint
-        )
-    }
+    // Usar el icono SmartToy como fallback seguro
+    Icon(
+        imageVector = Icons.Default.SmartToy,
+        contentDescription = "Doey",
+        modifier = modifier.size(size),
+        tint = tint
+    )
 }
 
 @Composable
