@@ -4,26 +4,99 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.provider.ContactsContract
+import com.doey.DoeyApplication
+import com.doey.tools.*
+import com.doey.ui.MemoryEntry
+import com.doey.ui.parseMemoryEntries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
+/**
+ * Representa un nodo en el árbol de navegación del modo flujo.
+ */
 data class FlowNode(
     val id: String,
     val label: String,
     val description: String = "",
     val options: List<FlowOption> = emptyList(),
-    val action: suspend (Context, Map<String, String>) -> String = { _, _ -> "Completado" }
+    val isVariableSelector: Boolean = false
 )
 
+/**
+ * Representa una opción dentro de un nodo.
+ */
 data class FlowOption(
     val id: String,
     val label: String,
     val nextNodeId: String? = null,
-    val params: Map<String, String> = emptyMap(),
-    val action: (suspend (Context, Map<String, String>) -> Unit)? = null
+    val command: FlowCommand? = null,
+    val params: Map<String, String> = emptyMap()
+)
+
+/**
+ * Comando predefinido que el modo flujo puede ejecutar offline.
+ */
+data class FlowCommand(
+    val toolName: String,
+    val arguments: Map<String, Any?>
 )
 
 object FlowModeEngine {
+
+    /**
+     * Resuelve las variables en un mapa de argumentos.
+     * Busca patrones como {{variable_name}} y los reemplaza con el valor de la memoria personal.
+     */
+    private suspend fun resolveVariables(args: Map<String, Any?>, context: Context): Map<String, Any?> {
+        val settings = (context.applicationContext as DoeyApplication).settingsStore
+        val memories = parseMemoryEntries(settings.getPersonalMemory())
+        
+        fun resolveString(input: String): String {
+            var result = input
+            memories.forEach { entry ->
+                val placeholder = "{{${entry.variable}}}"
+                if (result.contains(placeholder)) {
+                    result = result.replace(placeholder, entry.definition)
+                }
+            }
+            return result
+        }
+
+        return args.mapValues { (_, value) ->
+            when (value) {
+                is String -> resolveString(value)
+                is Map<*, *> -> @Suppress("UNCHECKED_CAST") resolveVariables(value as Map<String, Any?>, context)
+                else -> value
+            }
+        }
+    }
+
+    /**
+     * Ejecuta un comando utilizando el ToolRegistry global.
+     */
+    suspend fun executeCommand(context: Context, command: FlowCommand): ToolResult = withContext(Dispatchers.Main) {
+        val registry = ToolRegistry().apply {
+            register(IntentTool())
+            register(SmsTool())
+            register(BeepTool())
+            register(DateTimeTool())
+            register(DeviceTool())
+            register(TTSTool())
+            register(AccessibilityTool())
+            register(AppSearchTool())
+            register(FileStorageTool())
+            register(AlarmTool())
+            register(TimerTool())
+        }
+
+        val resolvedArgs = resolveVariables(command.arguments, context)
+        try {
+            registry.execute(command.toolName, resolvedArgs)
+        } catch (e: Exception) {
+            errorResult("Error al ejecutar ${command.toolName}: ${e.message}")
+        }
+    }
 
     fun getRootNodes(): List<FlowNode> = listOf(
         FlowNode(
@@ -38,29 +111,36 @@ object FlowModeEngine {
             id = "root_send",
             label = "Enviar",
             options = listOf(
-                FlowOption("msg_whatsapp", "WhatsApp", "contact_list", mapOf("app" to "com.whatsapp")),
-                FlowOption("msg_telegram", "Telegram", "contact_list", mapOf("app" to "org.telegram.messenger")),
-                FlowOption("msg_sms", "SMS", "contact_list", mapOf("app" to "sms")),
-                FlowOption("msg_email", "Email", "contact_list", mapOf("app" to "email"))
+                FlowOption("msg_whatsapp", "WhatsApp", "contact_list", params = mapOf("app" to "com.whatsapp")),
+                FlowOption("msg_sms", "SMS", "contact_list", params = mapOf("app" to "sms")),
+                FlowOption("msg_email", "Email", "contact_list", params = mapOf("app" to "email"))
             )
         ),
         FlowNode(
             id = "root_control",
             label = "Controlar",
             options = listOf(
-                FlowOption("wifi_toggle", "WiFi", "wifi_options"),
-                FlowOption("bluetooth_toggle", "Bluetooth", "bluetooth_options")
+                FlowOption("vol_up", "Subir Volumen", command = FlowCommand("device", mapOf("action" to "set_volume", "volume" to 80))),
+                FlowOption("vol_down", "Bajar Volumen", command = FlowCommand("device", mapOf("action" to "set_volume", "volume" to 20))),
+                FlowOption("beep_test", "Emitir Beep", command = FlowCommand("beep", mapOf("tone" to "default", "count" to 1)))
+            )
+        ),
+        FlowNode(
+            id = "root_vars",
+            label = "Usar Variables",
+            options = listOf(
+                FlowOption("var_sms", "Enviar SMS a {{mamá}}", command = FlowCommand("send_sms", mapOf("phone_number" to "{{mamá}}", "message" to "Hola mamá, estoy usando el modo flujo."))),
+                FlowOption("var_call", "Llamar a {{papá}}", command = FlowCommand("intent", mapOf("action" to Intent.ACTION_DIAL, "uri" to "tel:{{papá}}"))),
+                FlowOption("var_home", "Navegar a {{casa}}", command = FlowCommand("intent", mapOf("action" to Intent.ACTION_VIEW, "uri" to "google.navigation:q={{casa}}")))
             )
         )
     )
 
-    suspend fun getNodeById(ctx: Context, nodeId: String): FlowNode? = withContext(Dispatchers.Default) {
+    suspend fun getNodeById(ctx: Context, nodeId: String, params: Map<String, String> = emptyMap()): FlowNode? = withContext(Dispatchers.Default) {
         when (nodeId) {
             "app_list" -> getAppListNode(ctx)
-            "contact_list" -> getContactListNode(ctx)
-            "wifi_options" -> getWiFiOptionsNode()
-            "bluetooth_options" -> getBluetoothOptionsNode()
-            "music_apps" -> getMusicAppsNode(ctx)
+            "contact_list" -> getContactListNode(ctx, params)
+            "variable_list" -> getVariableListNode(ctx)
             else -> null
         }
     }
@@ -74,60 +154,56 @@ object FlowModeEngine {
                 FlowOption(
                     id = "app_$pkg",
                     label = name,
-                    params = mapOf("package" to pkg),
-                    action = { ctx, _ ->
-                        val intent = ctx.packageManager.getLaunchIntentForPackage(pkg)
-                        intent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        if (intent != null) ctx.startActivity(intent)
-                    }
+                    command = FlowCommand("intent", mapOf("action" to Intent.ACTION_MAIN, "package" to pkg))
                 )
             }
         )
     }
 
-    private suspend fun getContactListNode(ctx: Context): FlowNode {
+    private suspend fun getContactListNode(ctx: Context, params: Map<String, String>): FlowNode {
         val contacts = getContactsList(ctx)
+        val targetApp = params["app"]
+        
         return FlowNode(
             id = "contact_list",
             label = "Selecciona un contacto",
             options = contacts.map { (name, phone) ->
+                val command = when (targetApp) {
+                    "com.whatsapp" -> FlowCommand("intent", mapOf(
+                        "action" to Intent.ACTION_VIEW,
+                        "uri" to "https://wa.me/${phone.replace("+", "").replace(" ", "")}",
+                        "package" to "com.whatsapp"
+                    ))
+                    "sms" -> FlowCommand("intent", mapOf(
+                        "action" to Intent.ACTION_SENDTO,
+                        "uri" to "smsto:$phone"
+                    ))
+                    else -> FlowCommand("intent", mapOf(
+                        "action" to Intent.ACTION_DIAL,
+                        "uri" to "tel:$phone"
+                    ))
+                }
                 FlowOption(
                     id = "contact_$phone",
                     label = name,
-                    params = mapOf("contact" to name, "phone" to phone)
+                    command = command
                 )
             }
         )
     }
 
-    private fun getWiFiOptionsNode() = FlowNode(
-        id = "wifi_options",
-        label = "WiFi",
-        options = listOf(
-            FlowOption("wifi_on", "Activar"),
-            FlowOption("wifi_off", "Desactivar")
-        )
-    )
-
-    private fun getBluetoothOptionsNode() = FlowNode(
-        id = "bluetooth_options",
-        label = "Bluetooth",
-        options = listOf(
-            FlowOption("bt_on", "Activar"),
-            FlowOption("bt_off", "Desactivar")
-        )
-    )
-
-    private suspend fun getMusicAppsNode(ctx: Context): FlowNode {
-        val musicApps = getMusicApplications(ctx)
+    private suspend fun getVariableListNode(ctx: Context): FlowNode {
+        val settings = (ctx.applicationContext as DoeyApplication).settingsStore
+        val memories = parseMemoryEntries(settings.getPersonalMemory())
         return FlowNode(
-            id = "music_apps",
-            label = "Apps de música",
-            options = musicApps.map { (name, pkg) ->
+            id = "variable_list",
+            label = "Mis Variables",
+            isVariableSelector = true,
+            options = memories.map { entry ->
                 FlowOption(
-                    id = "music_$pkg",
-                    label = name,
-                    params = mapOf("package" to pkg)
+                    id = "var_${entry.id}",
+                    label = "${entry.variable}: ${entry.definition}",
+                    params = mapOf("var_name" to entry.variable, "var_value" to entry.definition)
                 )
             }
         )
@@ -140,45 +216,25 @@ object FlowModeEngine {
         pm.getInstalledApplications(0)
             .filter { it.flags and ApplicationInfo.FLAG_SYSTEM == 0 }
             .map { pm.getApplicationLabel(it).toString() to it.packageName }
-            .take(30)
+            .sortedBy { it.first }
+            .take(50)
     }
 
     private suspend fun getContactsList(ctx: Context): List<Pair<String, String>> = withContext(Dispatchers.IO) {
         val list = mutableListOf<Pair<String, String>>()
-
         val cursor = ctx.contentResolver.query(
             ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
             null, null, null, null
         )
-
         cursor?.use {
+            val nameIdx = it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+            val phoneIdx = it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)
             while (it.moveToNext()) {
-                val name = it.getString(
-                    it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-                )
-                val phone = it.getString(
-                    it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                )
+                val name = it.getString(nameIdx)
+                val phone = it.getString(phoneIdx)
                 list.add(name to phone)
             }
         }
-
-        list.take(30)
-    }
-
-    private suspend fun getMusicApplications(ctx: Context): List<Pair<String, String>> = withContext(Dispatchers.IO) {
-        val apps = listOf(
-            "Spotify" to "com.spotify.music",
-            "YouTube Music" to "com.google.android.apps.youtube.music"
-        )
-
-        apps.filter { (_, pkg) ->
-            try {
-                ctx.packageManager.getApplicationInfo(pkg, 0)
-                true
-            } catch (e: Exception) {
-                false
-            }
-        }
+        list.distinctBy { it.second }.sortedBy { it.first }.take(50)
     }
 }
