@@ -729,15 +729,4 @@ private fun AddEditMemoryDialog(
     }
 }
 
-// ── Helper de colores para campos ─────────────────────────────────────────────
 
-@Composable
-fun doeyFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor   = Purple,
-    unfocusedBorderColor = Label3Light,
-    focusedLabelColor    = Purple,
-    unfocusedLabelColor  = Label3Light,
-    focusedTextColor     = Label1Light,
-    unfocusedTextColor   = Label1Light,
-    cursorColor          = Purple
-)
