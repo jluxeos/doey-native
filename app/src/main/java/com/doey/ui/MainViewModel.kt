@@ -72,8 +72,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         val llmProvider = LLMProviderFactory.create(provider, apiKey, model, customUrl)
         val skillLoader = app.skillLoader
-
-        val tools = buildTools(skillLoader)
+        val tools       = buildTools(skillLoader)
 
         val p = ConversationPipeline(
             provider       = llmProvider,
@@ -155,16 +154,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.Main) {
             try {
                 if (speechRecognizer == null) speechRecognizer = DoeySpeechRecognizer(app)
-                val lang = settings.getLanguage().let { 
+                val lang = settings.getLanguage().let {
                     when {
-                        it == "system" -> java.util.Locale.getDefault().toLanguageTag()
-                        it.startsWith("es") -> "es-ES"
-                        it.startsWith("en") -> "en-US"
-                        it.startsWith("de") -> "de-DE"
-                        it.startsWith("fr") -> "fr-FR"
-                        it.startsWith("it") -> "it-IT"
-                        it.startsWith("pt") -> "pt-BR"
-                        else -> it
+                        it == "system"       -> java.util.Locale.getDefault().toLanguageTag()
+                        it.startsWith("es")  -> "es-ES"
+                        it.startsWith("en")  -> "en-US"
+                        it.startsWith("de")  -> "de-DE"
+                        it.startsWith("fr")  -> "fr-FR"
+                        it.startsWith("it")  -> "it-IT"
+                        it.startsWith("pt")  -> "pt-BR"
+                        else                 -> it
                     }
                 }
                 val mode = settings.getSttMode()
@@ -193,12 +192,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // ── Wake word ─────────────────────────────────────────────────────────────
 
     private suspend fun startWakeWord() {
-        val key = settings.getPicovoiceKey()
-        if (key.isBlank()) return
-        WakeWordService.onWakeWord = { _ -> viewModelScope.launch(Dispatchers.Main) { startListening() } }
+        val phrase   = settings.getWakePhrase()
+        val language = settings.getLanguage().let {
+            when {
+                it == "system"      -> java.util.Locale.getDefault().toLanguageTag()
+                it.startsWith("es") -> "es-ES"
+                it.startsWith("en") -> "en-US"
+                it.startsWith("de") -> "de-DE"
+                it.startsWith("fr") -> "fr-FR"
+                else                -> it
+            }
+        }
+
+        WakeWordService.onWakeWord = { _ ->
+            viewModelScope.launch(Dispatchers.Main) { startListening() }
+        }
+
         val intent = Intent(app, WakeWordService::class.java).apply {
-            putExtra(WakeWordService.EXTRA_ACCESS_KEY, key)
-            putExtra(WakeWordService.EXTRA_KEYWORD_PATH, "PORCUPINE")
+            putExtra(WakeWordService.EXTRA_WAKE_PHRASE, phrase)
+            putExtra(WakeWordService.EXTRA_LANGUAGE,    language)
         }
         app.startForegroundService(intent)
         _uiState.update { it.copy(isWakeWordActive = true) }
@@ -220,7 +232,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveSettings(
         provider: String, apiKey: String, model: String, customUrl: String,
-        language: String, picovoiceKey: String, enabledSkills: List<String>,
+        language: String, wakePhrase: String, enabledSkills: List<String>,
         soul: String, personalMemory: String, maxIterations: Int, sttMode: String,
         expertMode: Boolean
     ) = viewModelScope.launch {
@@ -229,7 +241,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         settings.setModel(model)
         settings.setCustomModelUrl(customUrl)
         settings.setLanguage(language)
-        settings.setPicovoiceKey(picovoiceKey)
+        settings.setWakePhrase(wakePhrase)
         settings.setEnabledSkills(enabledSkills.joinToString(","))
         settings.setSoul(soul)
         settings.setPersonalMemory(personalMemory)
