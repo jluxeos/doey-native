@@ -26,6 +26,7 @@ class SettingsStore(private val context: Context) {
     private val KEY_MAX_ITERATIONS = intPreferencesKey("max_iterations")
     private val KEY_SOUL           = stringPreferencesKey("soul_md")
     private val KEY_PERSONAL_MEM   = stringPreferencesKey("personal_memory_md")
+    private val KEY_EXPERT_MODE    = booleanPreferencesKey("expert_mode")
 
     // ── Encrypted SharedPreferences (API keys, secrets) ───────────────────────
     private val encPrefs: SharedPreferences by lazy {
@@ -80,6 +81,7 @@ class SettingsStore(private val context: Context) {
     val maxIterations: Flow<Int>     = context.dataStore.data.map { it[KEY_MAX_ITERATIONS] ?: 10 }
     val soul: Flow<String>           = context.dataStore.data.map { it[KEY_SOUL] ?: "" }
     val personalMemory: Flow<String> = context.dataStore.data.map { it[KEY_PERSONAL_MEM] ?: "" }
+    val expertMode: Flow<Boolean>    = context.dataStore.data.map { it[KEY_EXPERT_MODE] ?: false }
 
     // ── DataStore setters ─────────────────────────────────────────────────────
     suspend fun setProvider(v: String)       = context.dataStore.edit { it[KEY_PROVIDER] = v }
@@ -92,6 +94,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setMaxIterations(v: Int)     = context.dataStore.edit { it[KEY_MAX_ITERATIONS] = v }
     suspend fun setSoul(v: String)           = context.dataStore.edit { it[KEY_SOUL] = v }
     suspend fun setPersonalMemory(v: String) = context.dataStore.edit { it[KEY_PERSONAL_MEM] = v }
+    suspend fun setExpertMode(v: Boolean)    = context.dataStore.edit { it[KEY_EXPERT_MODE] = v }
 
     // ── Suspend getters (first emission) ──────────────────────────────────────
     suspend fun getProvider()        = provider.first()
@@ -103,6 +106,7 @@ class SettingsStore(private val context: Context) {
     suspend fun getSoul()            = soul.first()
     suspend fun getPersonalMemory()  = personalMemory.first()
     suspend fun getMaxIterations()   = maxIterations.first()
+    suspend fun getExpertMode()      = expertMode.first()
 
     suspend fun getEnabledSkillsList(): List<String> =
         enabledSkills.first().let { raw ->
