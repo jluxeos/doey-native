@@ -125,6 +125,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         register(TimerTool())
         register(SchedulerTool())
         register(NotificationListenerTool())
+        register(AlarmTool())
+        register(AppSearchAndLaunchTool())
     }
 
     // ── User actions ──────────────────────────────────────────────────────────
