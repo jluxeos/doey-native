@@ -527,6 +527,17 @@ private fun AddEditMemoryDialog(
     var catExpanded by remember { mutableStateOf(false) }
     var varExpanded by remember { mutableStateOf(false) }
     var defExpanded by remember { mutableStateOf(false) }
+    var varSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
+    
+    // Cargar sugerencias según la categoría
+    LaunchedEffect(selectedCat.id) {
+        varSuggestions = when (selectedCat.id) {
+            "contacto" -> ContactsSuggestionsHelper.getContactsSuggestions().map { it.name }
+            "lugar" -> ContactsSuggestionsHelper.getLocationsSuggestions().map { it.name }
+            "app_favorita" -> ContactsSuggestionsHelper.getAppsSuggestions()
+            else -> emptyList()
+        }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -616,6 +627,41 @@ private fun AddEditMemoryDialog(
                                     text    = { Text(opt) },
                                     onClick = { variable = opt; varExpanded = false }
                                 )
+                            }
+                        }
+                    }
+                } else if (selectedCat.id in listOf("contacto", "lugar", "app_favorita")) {
+                    // Autocompletado inteligente para contactos, lugares y apps
+                    val filteredSuggestions = when {
+                        variable.isBlank() -> emptyList()
+                        selectedCat.id == "contacto" -> ContactsSuggestionsHelper.filterContacts(variable, ContactsSuggestionsHelper.getContactsSuggestions()).map { it.name }
+                        selectedCat.id == "lugar" -> ContactsSuggestionsHelper.filterLocations(variable, ContactsSuggestionsHelper.getLocationsSuggestions()).map { it.name }
+                        selectedCat.id == "app_favorita" -> ContactsSuggestionsHelper.filterApps(variable, varSuggestions)
+                        else -> emptyList()
+                    }
+                    ExposedDropdownMenuBox(
+                        expanded         = varExpanded && filteredSuggestions.isNotEmpty(),
+                        onExpandedChange = { varExpanded = it && filteredSuggestions.isNotEmpty() }
+                    ) {
+                        OutlinedTextField(
+                            value         = variable,
+                            onValueChange = { variable = it; varExpanded = true },
+                            label         = { Text(selectedCat.variableHint) },
+                            trailingIcon  = if (filteredSuggestions.isNotEmpty()) { { ExposedDropdownMenuDefaults.TrailingIcon(varExpanded) } } else null,
+                            modifier      = Modifier.menuAnchor().fillMaxWidth(),
+                            colors        = doeyFieldColors()
+                        )
+                        if (filteredSuggestions.isNotEmpty()) {
+                            ExposedDropdownMenu(
+                                expanded         = varExpanded,
+                                onDismissRequest = { varExpanded = false }
+                            ) {
+                                filteredSuggestions.forEach { suggestion ->
+                                    DropdownMenuItem(
+                                        text    = { Text(suggestion) },
+                                        onClick = { variable = suggestion; varExpanded = false }
+                                    )
+                                }
                             }
                         }
                     }
