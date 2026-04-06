@@ -31,7 +31,8 @@ data class MainUiState(
     val isDrivingMode: Boolean = false,
     val isWakeWordActive: Boolean = false,
     val isListening: Boolean = false,
-    val settingsSaved: Boolean = false
+    val settingsSaved: Boolean = false,
+    val isExpertMode: Boolean = false
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -63,6 +64,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val personalMem   = settings.getPersonalMemory()
         val enabledSkills = settings.getEnabledSkillsList()
         val maxIter       = settings.getMaxIterations()
+        val expertMode    = settings.getExpertMode()
 
         if (apiKey.isBlank()) {
             _uiState.update { it.copy(errorMessage = "No API key configured. Go to Settings.") }
@@ -81,7 +83,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             language       = language,
             soul           = soul,
             personalMemory = personalMem,
-            maxIterations  = maxIter
+            maxIterations  = maxIter,
+            expertMode     = expertMode
         )
         p.setEnabledSkills(enabledSkills)
 
@@ -97,7 +100,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         pipeline = p
-        _uiState.update { it.copy(isDrivingMode = drivingMode) }
+        _uiState.update { it.copy(isDrivingMode = drivingMode, isExpertMode = expertMode) }
 
         if (settings.getWakeWordEnabled()) startWakeWord()
     }
@@ -203,7 +206,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun saveSettings(
         provider: String, apiKey: String, model: String, customUrl: String,
         language: String, picovoiceKey: String, enabledSkills: List<String>,
-        soul: String, personalMemory: String, maxIterations: Int, sttMode: String
+        soul: String, personalMemory: String, maxIterations: Int, sttMode: String,
+        expertMode: Boolean
     ) = viewModelScope.launch {
         settings.setProvider(provider)
         settings.setApiKey(provider, apiKey)
@@ -216,6 +220,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         settings.setPersonalMemory(personalMemory)
         settings.setMaxIterations(maxIterations)
         settings.setSttMode(sttMode)
+        settings.setExpertMode(expertMode)
         _uiState.update { it.copy(settingsSaved = true) }
         pipeline = null
         initPipeline()
