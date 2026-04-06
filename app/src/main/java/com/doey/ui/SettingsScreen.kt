@@ -30,10 +30,10 @@ fun SettingsScreen(vm: MainViewModel) {
     val settings = vm.getSettings()
     val scope    = rememberCoroutineScope()
 
-    var provider       by remember { mutableStateOf("gemini") }
+    var provider       by remember { mutableStateOf("openrouter") }
     var apiKey         by remember { mutableStateOf("") }
     var googleApiKey   by remember { mutableStateOf("") }
-    var model          by remember { mutableStateOf("gemini-2.5-flash-preview-04-17") }
+    var model          by remember { mutableStateOf("openrouter/auto") }
     var customUrl      by remember { mutableStateOf("") }
     var language       by remember { mutableStateOf("system") }
     var picovoiceKey   by remember { mutableStateOf("") }
@@ -117,10 +117,11 @@ fun SettingsScreen(vm: MainViewModel) {
                     onSelect = {
                         provider = it
                         model = when (it) {
-                            "gemini" -> "gemini-2.5-flash-preview-04-17"
-                            "groq"   -> "llama-3.3-70b-versatile"
-                            "openai" -> "gpt-4o"
-                            else     -> model
+                            "openrouter" -> "openrouter/auto"
+                            "gemini"     -> "gemini-2.5-flash-preview-04-17"
+                            "groq"       -> "llama-3.3-70b-versatile"
+                            "openai"     -> "gpt-4o"
+                            else         -> model
                         }
                     }
                 )
@@ -142,9 +143,11 @@ fun SettingsScreen(vm: MainViewModel) {
                         onValueChange = { model = it },
                         label         = "Modelo",
                         placeholder   = when (provider) {
-                            "gemini" -> "gemini-2.5-flash-preview-04-17"
-                            "groq"   -> "llama-3.3-70b-versatile"
-                            else     -> "gpt-4o"
+                            "openrouter" -> "openrouter/auto"
+                            "gemini"     -> "gemini-2.5-flash-preview-04-17"
+                            "groq"       -> "llama-3.3-70b-versatile"
+                            "openai"     -> "gpt-4o"
+                            else         -> "openrouter/auto"
                         }
                     )
                     if (provider == "custom") {
@@ -305,10 +308,11 @@ fun SettingsScreen(vm: MainViewModel) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 private val PROVIDERS = listOf(
-    "gemini" to "Gemini (Google)",
-    "groq"   to "Groq",
-    "openai" to "OpenAI",
-    "custom" to "Personalizado"
+    "openrouter" to "OpenRouter (Recomendado)",
+    "gemini"     to "Gemini (Google)",
+    "groq"       to "Groq",
+    "openai"     to "OpenAI",
+    "custom"     to "Personalizado"
 )
 
 private val LANGUAGES = listOf(
