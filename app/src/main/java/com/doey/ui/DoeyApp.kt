@@ -3,9 +3,11 @@ package com.doey.ui
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryBooks
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -91,13 +93,23 @@ val DoeyColorsLight = lightColorScheme(
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Home        : Screen("home",        "Inicio",      Icons.Default.Home)
+    object Skills      : Screen("skills",      "Skills",      Icons.Default.Extension)
+    object Memories    : Screen("memories",    "Memorias",    Icons.Default.Psychology)
     object Schedules   : Screen("schedules",   "Agendas",     Icons.Default.Alarm)
     object Journal     : Screen("journal",     "Diario",      Icons.Default.LibraryBooks)
     object Permissions : Screen("permissions", "Permisos",    Icons.Default.Lock)
     object Settings    : Screen("settings",    "Ajustes",     Icons.Default.Settings)
 }
 
-val NAV_ITEMS = listOf(Screen.Home, Screen.Schedules, Screen.Journal, Screen.Permissions, Screen.Settings)
+val NAV_ITEMS = listOf(
+    Screen.Home, 
+    Screen.Skills, 
+    Screen.Memories, 
+    Screen.Schedules, 
+    Screen.Journal, 
+    Screen.Permissions, 
+    Screen.Settings
+)
 
 // ── Raíz ──────────────────────────────────────────────────────────────────────
 
@@ -139,6 +151,8 @@ fun DoeyApp() {
         ) { pad ->
             NavHost(nav, startDestination = Screen.Home.route, Modifier.padding(pad)) {
                 composable(Screen.Home.route)        { HomeScreen(vm) }
+                composable(Screen.Skills.route)      { SkillsScreen(vm) }
+                composable(Screen.Memories.route)    { MemoriesScreen(vm) }
                 composable(Screen.Schedules.route)   { SchedulesScreen(vm) }
                 composable(Screen.Journal.route)     { JournalScreen(vm) }
                 composable(Screen.Permissions.route) { PermissionsScreen() }
