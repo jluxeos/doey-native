@@ -39,19 +39,14 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      # ── Debug keystore ────────────────────────────────────────────────────────
-      - name: Generate debug keystore
+      # ── Debug keystore (fijo del repo) ───────────────────────────────────────
+      - name: Verify keystore exists
         run: |
-          rm -f app/debug.keystore
-          keytool -genkeypair -v \
-            -keystore app/debug.keystore \
-            -storepass android \
-            -keypass android \
-            -alias androiddebugkey \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+          if [ ! -f app/debug.keystore ]; then
+            echo "ERROR: debug.keystore no encontrado en el repo"
+            exit 1
+          fi
+          echo "Keystore OK"
 
       # ── Build ─────────────────────────────────────────────────────────────────
       - name: Grant execute permission for gradlew
