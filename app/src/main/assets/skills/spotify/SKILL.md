@@ -1,166 +1,86 @@
 ---
 name: spotify
 category: media
-description: Play, pause, skip, search and control Spotify playback. Requires Spotify OAuth. Tools: http, intent, accessibility (only for NO_ACTIVE_DEVICE recovery).
-test_prompt: Fetch the currently playing track or show the user profile
+description: Control Spotify playback via intents, accessibility UI automation, and media keys. No API key required.
 android_package: com.spotify.music
 permissions:
  - android.permission.INTERNET
-credentials:
- - id: spotify_credentials
-   label: Spotify Login
-   type: oauth
-   auth_provider: spotify
 ---
 # Spotify Skill
 
-Control Spotify playback via the Web API and app intents.
+Control Spotify entirely via Android intents and UI automation. No OAuth or API key needed.
 
-## Tool: http (Spotify Web API)
+## Tool: intent — Open & basic control
 
-All requests require `auth_provider: "spotify"`.
-
-Base URL: `https://api.spotify.com/v1`
-
-### Get currently playing track
-
+### Open Spotify
 ```json
-{
-  "method": "GET",
-  "url": "https://api.spotify.com/v1/me/player/currently-playing",
-  "auth_provider": "spotify"
-}
+{ "action": "android.intent.action.MAIN", "package": "com.spotify.music" }
 ```
 
-### Start/resume playback
-
+### Play a specific song/artist/playlist by URI (if you have the URI)
 ```json
-{
-  "method": "PUT",
-  "url": "https://api.spotify.com/v1/me/player/play",
-  "auth_provider": "spotify"
-}
+{ "action": "android.intent.action.VIEW", "uri": "spotify:artist:ARTIST_ID", "package": "com.spotify.music" }
 ```
 
-### Pause playback
-
+### Search inside Spotify (opens search screen)
 ```json
-{
-  "method": "PUT",
-  "url": "https://api.spotify.com/v1/me/player/pause",
-  "auth_provider": "spotify"
-}
+{ "action": "android.intent.action.VIEW", "uri": "spotify:search:SEARCH_TERM", "package": "com.spotify.music" }
+```
+Replace spaces with `%20`. Example: `spotify:search:Bad%20Bunny`
+
+### Media key intents (play/pause/next/prev)
+Use `intent` with broadcast action and `flags`:
+```json
+{ "action": "com.spotify.music.playbackstatechanged" }
 ```
 
-### Next track
+For reliable play/pause/next/prev use the `accessibility` tool instead (see below).
 
-```json
-{
-  "method": "POST",
-  "url": "https://api.spotify.com/v1/me/player/next",
-  "auth_provider": "spotify"
-}
-```
+---
 
-### Previous track
+## Tool: accessibility — Full control without API
 
-```json
-{
-  "method": "POST",
-  "url": "https://api.spotify.com/v1/me/player/previous",
-  "auth_provider": "spotify"
-}
-```
+This is the primary method for all playback control.
 
-### Search for music
+### Workflow: Play a song by name
 
-```json
-{
-  "method": "GET",
-  "url": "https://api.spotify.com/v1/search?q={SEARCH_TERM}&type=track,artist,playlist&limit=5",
-  "auth_provider": "spotify"
-}
-```
+1. Open Spotify via intent (`android.intent.action.MAIN`)
+2. `wait_for_app` with `package_name: "com.spotify.music"`
+3. `get_tree` — find the Search tab/button and click it
+4. `get_tree` — find the search input field, `type` the song/artist name
+5. `get_tree` — find and click the first relevant result
+6. Confirm playback started
 
-### Play track/artist/playlist (after search)
+### Workflow: Play/Pause
+1. `get_tree` on `com.spotify.music`
+2. Find the play/pause button (usually labeled "Play" or "Pause", or has resource-id containing "play")
+3. `click` it
 
-```json
-{
-  "method": "PUT",
-  "url": "https://api.spotify.com/v1/me/player/play",
-  "auth_provider": "spotify",
-  "body": {
-    "context_uri": "spotify:artist:{ARTIST_ID}"
-  }
-}
-```
+### Workflow: Next / Previous track
+1. `get_tree`
+2. Find "Next" or "Previous" button
+3. `click` it
 
-Or for individual tracks:
-```json
-{
-  "body": {
-    "uris": ["spotify:track:{TRACK_ID}"]
-  }
-}
-```
+### Workflow: Set volume
+Use Android volume keys via accessibility or the volume slider visible in Spotify's UI.
 
-### Set volume (0-100)
+### Workflow: What's playing?
+1. `get_tree` on `com.spotify.music`
+2. Read the track title and artist name visible in the mini-player or now-playing screen
+3. Respond with what you found
 
-```json
-{
-  "method": "PUT",
-  "url": "https://api.spotify.com/v1/me/player/volume?volume_percent={0-100}",
-  "auth_provider": "spotify"
-}
-```
-
-## Tool: intent (open Spotify app directly)
-
-```json
-{
-  "action": "android.intent.action.VIEW",
-  "uri": "spotify:track:{TRACK_ID}",
-  "package": "com.spotify.music"
-}
-```
-
-## Tool: accessibility (ONLY for NO_ACTIVE_DEVICE errors)
-
-**IMPORTANT**: Use accessibility ONLY when the Web API returns a `NO_ACTIVE_DEVICE` error (HTTP 404 with `"reason": "NO_ACTIVE_DEVICE"`). All other actions (pause, next, previous, volume, search, play specific tracks) MUST be done via the Web API.
-
-### When to use: NO_ACTIVE_DEVICE
-
-If any playback API call returns `HTTP 404 / NO_ACTIVE_DEVICE`, Spotify has no active player on any device. Fix this by opening Spotify and selecting this phone as the active device:
-
-```json
-{
-  "package_name": "com.spotify.music",
-  "goal": "Open Spotify. In the mini-player bar at the bottom of the screen, tap the devices/connect icon (the monitor icon to the left of the + button). A bottom sheet titled 'Connect' will appear. In that sheet, tap the first row that shows a smartphone icon – it represents this phone (labeled 'Dieses Smartphone' in German or 'This phone' / 'This device' in English). Tap it to activate playback on this device."
-}
-```
-
-After the accessibility tool completes, **immediately retry** the original API play call (with the same URI/body as before).
-
-**Note**: Once this phone is selected as the active device, all further control (pause, next, previous, volume) should be done via the Web API, NOT via accessibility.
-
-## Workflow: Play music
-
-1. Search for artist/song using `http`
-2. Get context URI or track URI from search results
-3. Call play endpoint with the URI
-   - If response is `HTTP 404 / NO_ACTIVE_DEVICE`: use the `accessibility` tool (see above) to activate this phone, then **retry** the play call
-4. Confirm with spoken response: "Now playing {Artist} - {Track}"
-
-## Workflow: Resume playback
-
-1. Call `PUT /me/player/play` (no body) to resume
-   - If `HTTP 404 / NO_ACTIVE_DEVICE`: use the `accessibility` tool to activate this phone, then retry
+---
 
 ## Examples
 
-- "Play Rammstein" → Search + artist URI + play (via API)
-- "Next song" → POST /me/player/next (via API)
-- "Pause" → PUT /me/player/pause (via API)
-- "What's playing?" → GET /me/player/currently-playing + TTS (via API)
-- "Louder" → Get current volume + increase + set volume (via API)
-- "Resume playback" / "Continue playing" → PUT /me/player/play → if NO_ACTIVE_DEVICE: accessibility tool to select this phone, then retry
+- "Play Bad Bunny" → intent `spotify:search:Bad%20Bunny` → accessibility: click first artist result
+- "Next song" → accessibility: find and click Next button
+- "Pause" → accessibility: find and click Pause button
+- "What's playing?" → accessibility `get_tree` → read track/artist labels
+- "Play my Liked Songs" → intent `spotify:user:me:collection` or search via accessibility
+- "Volume up" → accessibility: find volume slider or use Android volume
+
+## Notes
+- Always use `wait_for_app` after opening Spotify before reading the tree
+- If the screen shows a login page, inform the user that Spotify needs to be logged in manually
+- Never attempt HTTP calls to api.spotify.com — no API key is available
