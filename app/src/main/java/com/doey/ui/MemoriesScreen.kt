@@ -262,6 +262,12 @@ fun MemoriesScreen(vm: MainViewModel) {
                             modifier = Modifier.padding(end = 8.dp).size(20.dp)
                         )
                     }
+                    IconButton(onClick = { 
+                        val json = entries.toJson()
+                        android.content.ClipboardManager.copyToClipboard(json)
+                    }) {
+                        Icon(Icons.Default.ContentCopy, "Copiar", tint = Label3Light)
+                    }
                     IconButton(onClick = { showAddDialog = true }) {
                         Icon(Icons.Default.Add, "Agregar", tint = Purple)
                     }
