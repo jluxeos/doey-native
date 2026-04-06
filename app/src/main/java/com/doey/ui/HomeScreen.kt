@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,9 +27,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.doey.agent.PipelineState
-import com.doey.agent.FriendlyMessagesProvider
 import com.doey.agent.FlowModeEngine
+import com.doey.agent.FlowOption
+import com.doey.agent.FriendlyMessagesProvider
+import com.doey.agent.PipelineState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -46,6 +48,12 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
     var isFlowModeActive by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // ── Estado del carrusel de Modo Flujo ─────────────────────────────────────
+    var flowOptions    by remember { mutableStateOf(FlowModeEngine.getRootOptions()) }
+    var flowHistory    by remember { mutableStateOf(listOf<List<FlowOption>>()) }
+    var flowLabel      by remember { mutableStateOf("") }
+    var flowLoading    by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.size - 1)
@@ -172,52 +180,122 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             }
         }
 
-        // ── Botones Rápidos Modo Flujo (Dibujado por el usuario) ────────────────
+        // ── Carrusel dinámico Modo Flujo ────────────────────────────────────────
         AnimatedVisibility(isFlowModeActive, enter = expandVertically(), exit = shrinkVertically()) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val quickActions = FlowModeEngine.getQuickActions()
-                quickActions.forEach { action ->
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(40.dp)
-                            .clickable {
-                                scope.launch {
-                                    if (action.command != null) {
-                                        val res = FlowModeEngine.executeCommand(ctx, action.command)
-                                        Toast.makeText(ctx, res.forUser, Toast.LENGTH_SHORT).show()
-                                    } else if (action.nextNodeId != null) {
-                                        nav.navigate(Screen.FlowMode.route)
-                                    }
-                                }
-                            },
-                        shape = RoundedCornerShape(20.dp),
-                        border = BorderStroke(1.dp, Purple),
-                        color = Color.White
+            Surface(color = Surface1Light) {
+                Column(Modifier.fillMaxWidth()) {
+                    // Barra de título + botón atrás
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(action.label, color = Purple, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        if (flowHistory.isNotEmpty()) {
+                            IconButton(
+                                onClick = {
+                                    flowOptions = flowHistory.last()
+                                    flowHistory = flowHistory.dropLast(1)
+                                    flowLabel   = ""
+                                },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.ArrowBack, null, tint = Purple, modifier = Modifier.size(18.dp))
+                            }
+                        } else {
+                            Spacer(Modifier.width(32.dp))
+                        }
+                        Text(
+                            if (flowLabel.isBlank()) "Modo Flujo" else flowLabel,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = PurpleDark,
+                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                        )
+                        if (flowLoading) {
+                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Purple)
+                        }
+                        if (flowHistory.isNotEmpty()) {
+                            TextButton(
+                                onClick = {
+                                    flowOptions = FlowModeEngine.getRootOptions()
+                                    flowHistory = emptyList()
+                                    flowLabel   = ""
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                            ) {
+                                Text("Inicio", color = Purple, fontSize = 11.sp)
+                            }
                         }
                     }
-                }
-                
-                // Botón "Más"
-                Surface(
-                    modifier = Modifier
-                        .weight(0.8f)
-                        .height(40.dp)
-                        .clickable { nav.navigate(Screen.FlowMode.route) },
-                    shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(2.dp, Purple),
-                    color = Color.White
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text("Más", color = Purple, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+
+                    // Fila de botones scrollable
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(flowOptions) { option ->
+                            Surface(
+                                modifier = Modifier
+                                    .height(40.dp)
+                                    .clickable {
+                                        scope.launch {
+                                            when {
+                                                // Tiene comando → ejecutar
+                                                option.command != null -> {
+                                                    flowLoading = true
+                                                    try {
+                                                        val res = FlowModeEngine.executeCommand(ctx, option.command)
+                                                        Toast.makeText(ctx, res.forUser, Toast.LENGTH_SHORT).show()
+                                                        // Volver al inicio tras ejecutar
+                                                        flowOptions = FlowModeEngine.getRootOptions()
+                                                        flowHistory = emptyList()
+                                                        flowLabel   = ""
+                                                    } catch (e: Exception) {
+                                                        Toast.makeText(ctx, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                                    } finally {
+                                                        flowLoading = false
+                                                    }
+                                                }
+                                                // Tiene siguiente nodo → navegar
+                                                option.nextNodeId != null -> {
+                                                    flowLoading = true
+                                                    try {
+                                                        val next = FlowModeEngine.getNodeById(ctx, option.nextNodeId, option.params)
+                                                        if (next != null) {
+                                                            flowHistory = flowHistory + listOf(flowOptions)
+                                                            flowOptions = next.options
+                                                            flowLabel   = next.label
+                                                        }
+                                                    } finally {
+                                                        flowLoading = false
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                shape  = RoundedCornerShape(20.dp),
+                                border = BorderStroke(1.dp, Purple),
+                                color  = if (option.nextNodeId != null && option.command == null)
+                                             Color(0xFFEADDFF) else Color.White
+                            ) {
+                                Row(
+                                    Modifier.padding(horizontal = 14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    if (option.icon.isNotBlank()) {
+                                        Text(option.icon, fontSize = 14.sp)
+                                        Spacer(Modifier.width(4.dp))
+                                    }
+                                    Text(option.label, color = PurpleDark, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                    if (option.nextNodeId != null && option.command == null) {
+                                        Spacer(Modifier.width(2.dp))
+                                        Text("›", color = Purple, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
