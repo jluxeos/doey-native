@@ -144,11 +144,6 @@ object FlowModeEngine {
             }
         )
     }
-                    }
-                )
-            }
-        )
-    }
 
     private suspend fun getContactListNode(ctx: Context): FlowNode {
         val contacts = getContactsList(ctx)
@@ -158,6 +153,7 @@ object FlowModeEngine {
             options = contacts.map { (name, phone) ->
                 FlowOption(
                     id = "contact_$phone",
+                    label = name,
                     nextNodeId = "message_input",
                     params = mapOf("contact" to name, "phone" to phone)
                 )
@@ -307,14 +303,6 @@ object FlowModeEngine {
                     val phone = it.getString(1)
                     if (name != null && phone != null) {
                         contacts.add(name to phone)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            // Silently fail
-        }
-        contacts.take(30) // Limitar a 30 contactos
-    }
 
     private suspend fun getMusicApplications(ctx: Context): List<Pair<String, String>> = withContext(Dispatchers.IO) {
         val musicApps = listOf(
