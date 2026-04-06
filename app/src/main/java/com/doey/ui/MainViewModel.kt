@@ -131,13 +131,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── User actions ──────────────────────────────────────────────────────────
 
-    fun sendMessage(text: String) {
+    fun sendMessage(text: String, voiceEnabled: Boolean = true) {
         if (text.isBlank()) return
         val p = pipeline ?: return
         viewModelScope.launch {
             p.processUtterance(
                 userText = text,
-                onSpeak  = if (_uiState.value.isDrivingMode) { t, lang ->
+                onSpeak  = if (voiceEnabled && _uiState.value.isDrivingMode) { t, lang ->
+                    DoeyTTSEngine.speakAndWait(t, lang)
+                } else if (voiceEnabled) { t, lang ->
                     DoeyTTSEngine.speakAndWait(t, lang)
                 } else null
             )
@@ -153,7 +155,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.Main) {
             try {
                 if (speechRecognizer == null) speechRecognizer = DoeySpeechRecognizer(app)
-                val lang = settings.getLanguage().let { if (it == "system") "en-US" else it }
+                val lang = settings.getLanguage().let { 
+                    when {
+                        it == "system" -> java.util.Locale.getDefault().toLanguageTag()
+                        it.startsWith("es") -> "es-ES"
+                        it.startsWith("en") -> "en-US"
+                        it.startsWith("de") -> "de-DE"
+                        it.startsWith("fr") -> "fr-FR"
+                        it.startsWith("it") -> "it-IT"
+                        it.startsWith("pt") -> "pt-BR"
+                        else -> it
+                    }
+                }
                 val mode = settings.getSttMode()
                 val text = speechRecognizer!!.listen(lang, mode)
                 _uiState.update { it.copy(partialSpeech = "") }
