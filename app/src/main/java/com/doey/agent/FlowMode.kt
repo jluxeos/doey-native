@@ -18,6 +18,7 @@ data class FlowNode(
     val description: String = "",
     val options: List<FlowOption> = emptyList(),
     val action: suspend (Context, Map<String, String>) -> String = { _, _ -> "Completado" }
+)
 
 data class FlowOption(
     val id: String,

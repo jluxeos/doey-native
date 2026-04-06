@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.sp
 
 /**
  * FlowModeScreen - Pantalla simplificada del Modo Flujo
- * Nota: Usa FlowModeAdvancedScreen como pantalla principal
+ * Nota: Usa FlowModeScreen como pantalla principal
  * Este archivo se mantiene para compatibilidad
  */
 
@@ -54,7 +54,7 @@ fun FlowModeScreen(vm: MainViewModel) {
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    "Usa FlowModeAdvancedScreen",
+                    "Usa FlowModeScreen",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Label1Light
