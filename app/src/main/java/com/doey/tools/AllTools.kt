@@ -737,3 +737,107 @@ class FileStorageTool : Tool {
         }
     }
 }
+// ── AlarmTool ─────────────────────────────────────────────────────────────────
+
+class AlarmTool : Tool {
+    private val ctx get() = DoeyApplication.instance
+    override fun name()        = "set_alarm"
+    override fun description() = "Schedule alarms, timers, and reminders that sound even when app is closed."
+    override fun systemHint()  = "Use for scheduling alarms, timers, and wake-up reminders. Always confirm time with user."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "type"        to mapOf("type" to "string", "enum" to listOf("alarm", "timer", "reminder")),
+            "hour"        to mapOf("type" to "number", "description" to "Hour (0-23) for alarm"),
+            "minute"      to mapOf("type" to "number", "description" to "Minute (0-59)"),
+            "delay_minutes" to mapOf("type" to "number", "description" to "Minutes from now for timer"),
+            "title"       to mapOf("type" to "string", "description" to "Alarm title/label"),
+            "description" to mapOf("type" to "string", "description" to "Alarm description"),
+            "recurring"   to mapOf("type" to "boolean", "description" to "Daily recurring alarm")
+        ),
+        "required" to listOf("type", "title")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        val type = args["type"] as? String ?: return errorResult("type required")
+        val title = args["title"] as? String ?: "Alarma"
+        val desc = args["description"] as? String ?: ""
+        val alarmId = (System.currentTimeMillis() % 100000).toInt()
+
+        return try {
+            when (type) {
+                "alarm" -> {
+                    val hour = (args["hour"] as? Number)?.toInt() ?: return errorResult("hour required")
+                    val minute = (args["minute"] as? Number)?.toInt() ?: 0
+                    val recurring = args["recurring"] as? Boolean ?: false
+                    com.doey.services.AlarmScheduler.scheduleAlarmAtTime(alarmId, title, desc, hour, minute, recurring)
+                    successResult("Alarma programada para las ${String.format("%02d:%02d", hour, minute)}${if (recurring) " diariamente" else ""}")
+                }
+                "timer" -> {
+                    val delayMin = (args["delay_minutes"] as? Number)?.toInt() ?: return errorResult("delay_minutes required")
+                    com.doey.services.AlarmScheduler.scheduleAlarmInMinutes(alarmId, title, desc, delayMin)
+                    successResult("Temporizador de $delayMin minutos iniciado")
+                }
+                "reminder" -> {
+                    val hour = (args["hour"] as? Number)?.toInt() ?: return errorResult("hour required")
+                    val minute = (args["minute"] as? Number)?.toInt() ?: 0
+                    com.doey.services.AlarmScheduler.scheduleAlarmAtTime(alarmId, title, desc, hour, minute, false)
+                    successResult("Recordatorio programado para las ${String.format("%02d:%02d", hour, minute)}")
+                }
+                else -> errorResult("Unknown alarm type: $type")
+            }
+        } catch (e: Exception) {
+            errorResult("Alarm error: ${e.message}")
+        }
+    }
+}
+
+// ── AppSearchAndLaunchTool ─────────────────────────────────────────────────────
+
+class AppSearchAndLaunchTool : Tool {
+    private val ctx get() = DoeyApplication.instance
+    override fun name()        = "find_and_launch_app"
+    override fun description() = "Search for installed apps by name and launch them. Uses accessibility if needed."
+    override fun systemHint()  = "Use when you don't know the exact package name. Searches installed apps and launches them."
+
+    override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "app_name" to mapOf("type" to "string", "description" to "Name of the app to find and launch")
+        ),
+        "required" to listOf("app_name")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        val appName = args["app_name"] as? String ?: return errorResult("app_name required")
+        
+        return withContext(Dispatchers.Main) {
+            try {
+                val pm = ctx.packageManager
+                val packages = pm.getInstalledPackages(0)
+                
+                // Buscar por nombre exacto o parcial
+                val matchedPackage = packages.find { pkg ->
+                    val label = try {
+                        pm.getApplicationLabel(pm.getApplicationInfo(pkg.packageName, 0)).toString()
+                    } catch (e: Exception) { "" }
+                    label.equals(appName, ignoreCase = true) || label.lowercase().contains(appName.lowercase())
+                }
+                
+                if (matchedPackage != null) {
+                    val intent = pm.getLaunchIntentForPackage(matchedPackage.packageName)
+                    if (intent != null) {
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        ctx.startActivity(intent)
+                        return@withContext successResult("App '${matchedPackage.packageName}' launched")
+                    }
+                }
+                
+                errorResult("App '$appName' not found or not launchable")
+            } catch (e: Exception) {
+                errorResult("App search error: ${e.message}")
+            }
+        }
+    }
+}
