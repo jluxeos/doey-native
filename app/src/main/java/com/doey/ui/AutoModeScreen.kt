@@ -364,7 +364,7 @@ private fun AutoModeShortcutsScreen(vm: MainViewModel) {
 }
 
 @Composable
-private fun IndicatorItem(label: String, icon: androidx.compose.material.icons.Icons.Filled) {
+private fun IndicatorItem(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(8.dp)
@@ -375,7 +375,7 @@ private fun IndicatorItem(label: String, icon: androidx.compose.material.icons.I
 }
 
 @Composable
-private fun QuickControlButton(label: String, icon: androidx.compose.material.icons.Icons.Filled, modifier: Modifier = Modifier) {
+private fun QuickControlButton(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier) {
     Button(
         onClick = {},
         modifier = modifier
