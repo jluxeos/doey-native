@@ -20,6 +20,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.doey.agent.PipelineState
+import com.doey.agent.FriendlyMessagesProvider
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,8 +76,14 @@ fun HomeScreen(vm: MainViewModel) {
             }
         }
 
-        // ── Banner de error ───────────────────────────────────────────────────
+             // ── Banner de error ─────────────────────────────────────────────
         state.errorMessage?.let { err ->
+            // Auto-dismiss en 3 segundos
+            LaunchedEffect(err) {
+                delay(3000L)
+                vm.clearError()
+            }
+            
             Surface(Modifier.fillMaxWidth(), color = Color(0xFFF9DEDC)) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(err, color = ErrorRed, modifier = Modifier.weight(1f), fontSize = 13.sp)
@@ -101,7 +109,7 @@ fun HomeScreen(vm: MainViewModel) {
                 item { PartialBubble(state.partialSpeech) }
             }
             if (state.pipelineState == PipelineState.PROCESSING) {
-                item { ThinkingBubble() }
+                item { FriendlyMessageBubble() }
             }
         }
 
@@ -226,6 +234,30 @@ private fun PartialBubble(text: String) {
         Surface(shape = RoundedCornerShape(16.dp, 4.dp, 16.dp, 16.dp), color = Surface2Light,
             modifier = Modifier.widthIn(max = 280.dp)) {
             Text(text, Modifier.padding(12.dp), color = Label3Light, fontSize = 14.sp, fontStyle = FontStyle.Italic)
+        }
+    }
+}
+
+@Composable
+private fun FriendlyMessageBubble() {
+    var message by remember { mutableStateOf(FriendlyMessagesProvider.getStartMessage()) }
+    var messageIndex by remember { mutableStateOf(0) }
+    
+    // Cambiar mensaje cada 3-4 segundos
+    LaunchedEffect(messageIndex) {
+        delay(3500L + (Math.random() * 1000).toLong())
+        message = FriendlyMessagesProvider.getWaitingMessage()
+        messageIndex++
+    }
+    
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
+        Text("🤖 ", fontSize = 16.sp)
+        Surface(shape = RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp), color = Surface1Light) {
+            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Purple)
+                Spacer(Modifier.width(8.dp))
+                Text(message, color = Label2Light, fontSize = 13.sp, fontStyle = FontStyle.Italic)
+            }
         }
     }
 }
