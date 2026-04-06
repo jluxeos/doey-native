@@ -13,7 +13,8 @@ object SystemPromptBuilder {
         drivingMode: Boolean,
         language: String = "en",
         soul: String = "",
-        personalMemory: String = ""
+        personalMemory: String = "",
+        expertMode: Boolean = false
     ): String {
         val langName = resolveLanguageName(language)
         val now = Date()
@@ -48,6 +49,18 @@ ${if (drivingMode) """**DRIVING MODE ACTIVE**
 else """**Normal Mode**
 - You may use Markdown formatting (headings, lists, code blocks, bold, etc.).
 - Respond in detail when helpful."""}
+
+${if (!expertMode) """
+## BASIC MODE (No API Keys)
+- You do NOT have API keys for external services like Google Maps, Gmail, or Weather APIs.
+- **MANDATORY**: For any action involving external apps (sending emails, navigating, checking calendar), you MUST use the `intent` tool to open the app or the `accessibility` tool to interact with the UI.
+- Do NOT attempt to use `http` calls to restricted APIs.
+- If the user asks for something you can't do without an API, try to open the corresponding app via `intent` so the user can do it manually, or use `accessibility` to automate the clicks.
+""" else """
+## EXPERT MODE
+- You have access to all configured API keys and advanced tools.
+- Use the most efficient method (API vs Intent) based on the skill definition.
+"""}
 
 ## Important Rules
 
