@@ -1,7 +1,13 @@
 package com.doey.ui
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -21,7 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.doey.agent.PipelineState
 import com.doey.agent.FriendlyMessagesProvider
+import com.doey.agent.FlowModeEngine
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 import androidx.navigation.NavController
 
@@ -32,6 +41,11 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
     val listState = rememberLazyListState()
     var input     by remember { mutableStateOf("") }
     var voiceEnabled by remember { mutableStateOf(true) }
+    
+    // Estado local para activar/desactivar Modo Flujo
+    var isFlowModeActive by remember { mutableStateOf(false) }
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.size - 1)
@@ -57,17 +71,13 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             },
             actions = {
                 IconButton(onClick = { nav.navigate(Screen.AutoMode.route) }) {
-                    Icon(
-                        Icons.Default.DirectionsCar,
-                        contentDescription = "Modo Auto",
-                        tint = Label3Light
-                    )
+                    Icon(Icons.Default.DirectionsCar, contentDescription = "Modo Auto", tint = Label3Light)
                 }
-                IconButton(onClick = { nav.navigate(Screen.FlowMode.route) }) {
+                IconButton(onClick = { isFlowModeActive = !isFlowModeActive }) {
                     Icon(
                         Icons.Default.AccountTree,
-                        contentDescription = "Modo Flujo",
-                        tint = Label3Light
+                        contentDescription = "Toggle Modo Flujo",
+                        tint = if (isFlowModeActive) Purple else Label3Light
                     )
                 }
                 IconButton(onClick = { vm.clearHistory() }) {
@@ -76,6 +86,40 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light)
         )
+
+        // ── Banner modo flujo (Dibujado por el usuario) ────────────────────────
+        AnimatedVisibility(isFlowModeActive, enter = expandVertically(), exit = shrinkVertically()) {
+            Surface(
+                Modifier.fillMaxWidth(),
+                color = Color(0xFFF3E5F5), // Púrpura muy claro
+                tonalElevation = 2.dp
+            ) {
+                Row(
+                    Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null, tint = Purple, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Modo Flujo Activado",
+                            fontWeight = FontWeight.Bold,
+                            color = PurpleDark,
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            "Sistema offline con comandos predefinidos y variables {{...}}. Toca los botones rápidos para actuar sin internet.",
+                            color = Label2Light,
+                            fontSize = 11.sp,
+                            lineHeight = 14.sp
+                        )
+                    }
+                    TextButton(onClick = { isFlowModeActive = false }) {
+                        Text("SALIR", color = Purple, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
 
         // ── Banner modo auto ──────────────────────────────────────────────────
         AnimatedVisibility(state.isDrivingMode) {
@@ -86,14 +130,12 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             }
         }
 
-             // ── Banner de error ─────────────────────────────────────────────
+        // ── Banner de error ─────────────────────────────────────────────
         state.errorMessage?.let { err ->
-            // Auto-dismiss en 3 segundos
             LaunchedEffect(err) {
                 delay(3000L)
                 vm.clearError()
             }
-            
             Surface(Modifier.fillMaxWidth(), color = Color(0xFFF9DEDC)) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(err, color = ErrorRed, modifier = Modifier.weight(1f), fontSize = 13.sp)
@@ -111,7 +153,14 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (state.messages.isEmpty() && state.pipelineState == PipelineState.IDLE) {
-                item { EmptyState() }
+                item { 
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(top = 40.dp)) {
+                        EmptyState() 
+                        if (isFlowModeActive) {
+                            Text("Modo Flujo", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 16.dp))
+                        }
+                    }
+                }
             }
             items(state.messages, key = { it.id }) { msg -> ChatBubble(msg) }
 
@@ -123,17 +172,54 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             }
         }
 
-        // ── Banner de estado ──────────────────────────────────────────────────
-        AnimatedVisibility(
-            state.pipelineState == PipelineState.LISTENING ||
-            state.pipelineState == PipelineState.SPEAKING
-        ) {
-            Surface(Modifier.fillMaxWidth(),
-                color = if (state.pipelineState == PipelineState.LISTENING) Color(0xFFDCF5DC) else Surface1Light) {
-                Text(
-                    if (state.pipelineState == PipelineState.LISTENING) "🎙️  Escuchando…" else "🔊  Hablando…",
-                    Modifier.padding(8.dp), color = Label1Light, fontSize = 13.sp, textAlign = TextAlign.Center
-                )
+        // ── Botones Rápidos Modo Flujo (Dibujado por el usuario) ────────────────
+        AnimatedVisibility(isFlowModeActive, enter = expandVertically(), exit = shrinkVertically()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val quickActions = FlowModeEngine.getQuickActions()
+                quickActions.forEach { action ->
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp)
+                            .clickable {
+                                scope.launch {
+                                    if (action.command != null) {
+                                        val res = FlowModeEngine.executeCommand(ctx, action.command)
+                                        Toast.makeText(ctx, res.forUser, Toast.LENGTH_SHORT).show()
+                                    } else if (action.nextNodeId != null) {
+                                        nav.navigate(Screen.FlowMode.route)
+                                    }
+                                }
+                            },
+                        shape = RoundedCornerShape(20.dp),
+                        border = BorderStroke(1.dp, Purple),
+                        color = Color.White
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(action.label, color = Purple, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+                
+                // Botón "Más"
+                Surface(
+                    modifier = Modifier
+                        .weight(0.8f)
+                        .height(40.dp)
+                        .clickable { nav.navigate(Screen.FlowMode.route) },
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(2.dp, Purple),
+                    color = Color.White
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("Más", color = Purple, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
 
@@ -161,7 +247,6 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                 )
                 Spacer(Modifier.width(8.dp))
 
-                // Micrófono / Stop
                 FilledIconButton(
                     onClick  = {
                         when {
@@ -191,7 +276,6 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
 
                 Spacer(Modifier.width(4.dp))
 
-                // Control TTS (Lectura en voz alta)
                 FilledIconButton(
                     onClick  = { voiceEnabled = !voiceEnabled },
                     enabled  = state.pipelineState != PipelineState.PROCESSING,
@@ -208,7 +292,6 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
 
                 Spacer(Modifier.width(4.dp))
 
-                // Enviar
                 FilledIconButton(
                     onClick  = { val t = input.trim(); if (t.isNotBlank()) { input = ""; vm.sendMessage(t, voiceEnabled) } },
                     enabled  = input.isNotBlank() && state.pipelineState != PipelineState.PROCESSING,
@@ -221,7 +304,6 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
     }
 }
 
-// ── Componentes ───────────────────────────────────────────────────────────────
 @Composable
 private fun ChatBubble(msg: ChatMessage) {
     val isUser = msg.role == "user"
@@ -237,19 +319,9 @@ private fun ChatBubble(msg: ChatMessage) {
             modifier = Modifier.widthIn(max = 300.dp)
         ) {
             if (isUser) {
-                // Mensajes del usuario: texto plano
-                Text(msg.text, Modifier.padding(12.dp),
-                    color = Color(0xFF21005D),
-                    fontSize = 14.sp, lineHeight = 20.sp)
+                Text(msg.text, Modifier.padding(12.dp), color = Color(0xFF21005D), fontSize = 14.sp, lineHeight = 20.sp)
             } else {
-                // Respuestas de la IA: renderizar Markdown
-                MarkdownText(
-                    text      = msg.text,
-                    color     = Label1Light,
-                    fontSize  = 14.sp,
-                    lineHeight = 20.sp,
-                    modifier  = Modifier.padding(12.dp)
-                )
+                MarkdownText(text = msg.text, color = Label1Light, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(12.dp))
             }
         }
     }
@@ -267,52 +339,22 @@ private fun PartialBubble(text: String) {
 
 @Composable
 private fun FriendlyMessageBubble() {
-    var message by remember { mutableStateOf(FriendlyMessagesProvider.getStartMessage()) }
-    var messageIndex by remember { mutableStateOf(0) }
-    
-    // Cambiar mensaje cada 3-4 segundos
-    LaunchedEffect(messageIndex) {
-        delay(3500L + (Math.random() * 1000).toLong())
-        message = FriendlyMessagesProvider.getWaitingMessage()
-        messageIndex++
-    }
-    
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
-        Text("🤖 ", fontSize = 16.sp)
+    var message by remember { mutableStateOf(FriendlyMessagesProvider.getFriendlyMessage()) }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+        Text("🤖 ", fontSize = 16.sp, modifier = Modifier.padding(top = 6.dp))
         Surface(shape = RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp), color = Surface1Light) {
-            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Purple)
-                Spacer(Modifier.width(8.dp))
-                Text(message, color = Label2Light, fontSize = 13.sp, fontStyle = FontStyle.Italic)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ThinkingBubble() {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
-        Text("🤖 ", fontSize = 16.sp)
-        Surface(shape = RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp), color = Surface1Light) {
-            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Purple)
-                Spacer(Modifier.width(8.dp))
-                Text("Procesando…", color = Label3Light, fontSize = 13.sp)
-            }
+            Text(message, Modifier.padding(12.dp), color = Label2Light, fontSize = 14.sp, fontStyle = FontStyle.Italic)
         }
     }
 }
 
 @Composable
 private fun EmptyState() {
-    Column(
-        Modifier.fillMaxWidth().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
+    Column(Modifier.fillMaxWidth().padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("🤖", fontSize = 48.sp)
-        Text("¡Hola, soy Doey!", fontWeight = FontWeight.Bold, color = Label1Light, fontSize = 20.sp)
-        Text("Tu asistente de IA personal.\nToca el micrófono o escribe para comenzar.",
-            color = Label3Light, textAlign = TextAlign.Center, fontSize = 14.sp)
+        Spacer(Modifier.height(16.dp))
+        Text("¡Hola, soy Doey!", fontWeight = FontWeight.Bold, color = Label1Light, fontSize = 18.sp)
+        Text("Tu asistente de IA personal.", color = Label2Light, fontSize = 14.sp)
+        Text("Toca el micrófono o escribe para comenzar.", color = Label3Light, fontSize = 12.sp, textAlign = TextAlign.Center)
     }
 }
