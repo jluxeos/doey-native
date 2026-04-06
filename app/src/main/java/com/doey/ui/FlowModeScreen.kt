@@ -1,64 +1,103 @@
 package com.doey.ui
 
-import androidx.compose.foundation.background
+import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-
-/**
- * FlowModeScreen - Pantalla simplificada del Modo Flujo
- * Nota: Usa FlowModeScreen como pantalla principal
- * Este archivo se mantiene para compatibilidad
- */
+import androidx.compose.ui.platform.LocalContext
+import com.doey.agent.FlowModeEngine
+import com.doey.agent.FlowNode
+import com.doey.agent.FlowOption
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FlowModeScreen(vm: MainViewModel) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(Surface0Light)
-    ) {
+
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var currentNode by remember { mutableStateOf<FlowNode?>(null) }
+    var history by remember { mutableStateOf(listOf<FlowNode>()) }
+
+    // Inicializar con root
+    LaunchedEffect(Unit) {
+        currentNode = FlowModeEngine.getRootNodes().firstOrNull()
+    }
+
+    Column(Modifier.fillMaxSize()) {
+
         TopAppBar(
             title = {
-                Text("Modo Flujo", color = Label1Light, fontWeight = FontWeight.Bold)
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light)
+                Text(currentNode?.label ?: "Modo Flujo")
+            }
         )
 
-        Box(
-            Modifier
-                .fillMaxSize(),
-            contentAlignment = Alignment.Center
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    Icons.Default.Info,
-                    null,
-                    tint = Label3Light,
-                    modifier = Modifier.size(64.dp)
-                )
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    "Usa FlowModeScreen",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Label1Light
-                )
+
+            currentNode?.let { node ->
+
+                items(node.options) { option ->
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                            .clickable {
+
+                                scope.launch {
+
+                                    // Si hay siguiente nodo → navegar
+                                    if (option.nextNodeId != null) {
+                                        val next = FlowModeEngine.getNodeById(ctx, option.nextNodeId)
+
+                                        if (next != null) {
+                                            history = history + node
+                                            currentNode = next
+                                        }
+                                    }
+                                    // Si no hay siguiente nodo → ejecutar acción
+                                    else {
+                                        option.action?.invoke(ctx, option.params)
+
+                                        Toast
+                                            .makeText(ctx, "Acción ejecutada", Toast.LENGTH_SHORT)
+                                            .show()
+                                    }
+                                }
+                            }
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(option.label)
+                        }
+                    }
+                }
+            }
+
+            // Botón regresar
+            if (history.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            currentNode = history.last()
+                            history = history.dropLast(1)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("⬅ Regresar")
+                    }
+                }
             }
         }
     }
