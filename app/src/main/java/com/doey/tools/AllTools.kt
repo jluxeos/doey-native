@@ -632,7 +632,18 @@ class SkillDetailTool(private val skillLoader: SkillLoader) : Tool {
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
         val name  = args["skill_name"] as? String ?: return errorResult("skill_name required")
         val skill = skillLoader.getSkill(name)    ?: return errorResult("Skill not found: $name")
-        return successResult("# Skill: ${skill.name}\n\n${skill.content}")
+
+        val expertMode = kotlinx.coroutines.runBlocking { DoeyApplication.instance.settingsStore.getExpertMode() }
+        val sb = StringBuilder("# Skill: ${skill.name}\n\n${skill.content}")
+
+        if (!expertMode && skill.credentials.isNotEmpty()) {
+            val credLabels = skill.credentials.joinToString { it.label }
+            sb.append("\n\n⚠️ **NOTA DE MODO BÁSICO**: Esta skill normalmente requiere claves API ($credLabels). " +
+                      "Como el Modo Experto está desactivado, NO intentes usar herramientas HTTP con estas claves. " +
+                      "En su lugar, usa `intent` para abrir la aplicación correspondiente o `accessibility` para interactuar con ella.")
+        }
+
+        return successResult(sb.toString())
     }
 }
 
