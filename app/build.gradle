@@ -11,8 +11,8 @@ android {
         applicationId 'com.doey'
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode 2
+        versionName '2.0'
         manifestPlaceholders = [appAuthRedirectScheme: 'doey']
     }
 
@@ -114,4 +114,11 @@ dependencies {
     // Location
     implementation 'com.google.android.gms:play-services-location:21.2.0'
     implementation 'com.google.android.material:material:1.11.0'
+
+    // SavedState (para overlay service con Compose)
+    implementation 'androidx.savedstate:savedstate-ktx:1.2.1'
+    implementation 'androidx.lifecycle:lifecycle-common:2.7.0'
+
+    // Compose Runtime para servicios
+    implementation 'androidx.compose.runtime:runtime'
 }

@@ -6,6 +6,7 @@ import android.accessibilityservice.GestureDescription
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Path
 import android.graphics.Rect
 import android.os.Build
@@ -27,6 +28,25 @@ class DoeyAccessibilityService : AccessibilityService() {
         @Volatile
         var instance: DoeyAccessibilityService? = null
         fun isRunning() = instance != null
+
+        /**
+         * Reporta el estado actual al overlay (burbuja flotante) si está activo.
+         * Llamar desde cualquier parte del código del agente.
+         */
+        fun reportToOverlay(
+            context: Context,
+            status: DoeyOverlayService.OverlayStatus,
+            message: String,
+            nextAction: String = ""
+        ) {
+            // Actualizar el overlay en memoria si está corriendo
+            DoeyOverlayService.instance?.updateOverlayContent(status, message, nextAction)
+            
+            // También actualizar los valores estáticos para cuando el overlay se inicie
+            DoeyOverlayService.currentStatus = status
+            DoeyOverlayService.currentMessage = message
+            DoeyOverlayService.nextAction = nextAction
+        }
     }
 
     private val nodeMap = ConcurrentHashMap<String, AccessibilityNodeInfo>()
@@ -47,6 +67,13 @@ class DoeyAccessibilityService : AccessibilityService() {
         info.flags = (AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
                 or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS)
         serviceInfo = info
+        
+        // Notificar al overlay que el servicio está activo
+        reportToOverlay(
+            this,
+            DoeyOverlayService.OverlayStatus.IDLE,
+            "Servicio de accesibilidad conectado"
+        )
     }
 
     override fun onInterrupt() { Log.w(TAG, "Service interrupted") }
@@ -72,6 +99,12 @@ class DoeyAccessibilityService : AccessibilityService() {
      */
     fun buildAccessibilityTree(): String {
         DoeyLogger.accessibilitySend("get_tree", null, "Leyendo árbol de pantalla")
+        reportToOverlay(
+            this,
+            DoeyOverlayService.OverlayStatus.ACTING,
+            "Leyendo pantalla...",
+            "Analizando elementos de UI"
+        )
         val retryDelays = longArrayOf(50, 100, 200, 300, 500)
 
         for (attempt in retryDelays.indices) {
@@ -145,9 +178,30 @@ class DoeyAccessibilityService : AccessibilityService() {
     /**
      * Perform an action on a node or a global action.
      * Returns true on success, false on failure.
+     * NUEVO: Reporta cada acción al overlay.
      */
     fun performNodeAction(action: String, nodeId: String?, text: String?): Boolean {
         DoeyLogger.accessibilitySend(action, nodeId, text)
+        
+        // Reportar acción al overlay
+        val actionDesc = when (action) {
+            "click" -> "Tocando elemento..."
+            "long_click" -> "Manteniendo pulsado..."
+            "type" -> "Escribiendo: ${text?.take(30) ?: ""}..."
+            "scroll_down", "scroll_forward" -> "Deslizando hacia abajo..."
+            "scroll_up", "scroll_backward" -> "Deslizando hacia arriba..."
+            "back" -> "Presionando Atrás"
+            "home" -> "Yendo al inicio"
+            "paste" -> "Pegando texto..."
+            else -> "Ejecutando: $action"
+        }
+        reportToOverlay(
+            this,
+            DoeyOverlayService.OverlayStatus.ACTING,
+            actionDesc,
+            if (nodeId != null) "Nodo: $nodeId" else ""
+        )
+        
         // Global actions
         when (action) {
             "back" -> { performGlobalAction(GLOBAL_ACTION_BACK); return true }
@@ -179,7 +233,7 @@ class DoeyAccessibilityService : AccessibilityService() {
         if (nodeId == null) return false
         val node = nodeMap[nodeId] ?: return false
 
-        return when (action) {
+        val result = when (action) {
             "click" -> {
                 val rect = Rect()
                 node.getBoundsInScreen(rect)
@@ -222,13 +276,39 @@ class DoeyAccessibilityService : AccessibilityService() {
             "focus" -> node.performAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS)
             else -> false
         }
+        
+        // Reportar resultado
+        if (result) {
+            DoeyLogger.accessibilityRecv(action, "Acción completada")
+        } else {
+            reportToOverlay(
+                this,
+                DoeyOverlayService.OverlayStatus.ERROR,
+                "No se pudo completar: $action",
+                ""
+            )
+        }
+        
+        return result
     }
 
     fun performSwipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long): Boolean {
+        reportToOverlay(
+            this,
+            DoeyOverlayService.OverlayStatus.ACTING,
+            "Deslizando pantalla...",
+            "De ($x1,$y1) a ($x2,$y2)"
+        )
         return dispatchSwipeGestureSync(x1.toInt(), y1.toInt(), x2.toInt(), y2.toInt(), durationMs.coerceAtLeast(1))
     }
 
     fun waitForPackage(packageName: String, timeoutMs: Long): Boolean {
+        reportToOverlay(
+            this,
+            DoeyOverlayService.OverlayStatus.ACTING,
+            "Esperando que abra $packageName...",
+            "Tiempo máximo: ${timeoutMs}ms"
+        )
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
             if (currentPackageName == packageName) return true

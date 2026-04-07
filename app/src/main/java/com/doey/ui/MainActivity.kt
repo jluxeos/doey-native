@@ -1,6 +1,7 @@
 package com.doey.ui
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -8,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import com.doey.agent.ProfileStore
 
 class MainActivity : ComponentActivity() {
 
@@ -17,8 +19,26 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestEssentialPermissions()
+
+        // Solo solicitar permisos básicos en runtime si el onboarding ya fue completado
+        val profileStore = ProfileStore(this)
+        if (profileStore.isOnboardingDone()) {
+            requestEssentialPermissions()
+        }
+
         setContent { DoeyApp() }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // Manejar invocación desde asistente del sistema
+        if (intent?.action == Intent.ACTION_ASSIST ||
+            intent?.action == Intent.ACTION_VOICE_COMMAND ||
+            intent?.getBooleanExtra("from_assistant", false) == true) {
+            // Marcar para que DoeyApp inicie escucha automáticamente
+            intent?.putExtra("auto_listen", true)
+        }
     }
 
     private fun requestEssentialPermissions() {
