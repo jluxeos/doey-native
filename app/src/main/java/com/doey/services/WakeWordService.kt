@@ -18,13 +18,14 @@ import android.speech.SpeechRecognizer
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.doey.ui.MainActivity
+import java.util.Locale
 
 private const val TAG        = "WakeWordService"
 private const val CHANNEL_ID = "doey_wake_word"
 private const val NOTIF_ID   = 9001
 
 // Tiempo de espera antes de reiniciar la escucha tras silencio o error (ms)
-private const val RESTART_DELAY_MS = 1_500L
+private const val RESTART_DELAY_MS = 1_000L
 
 class WakeWordService : Service() {
 
@@ -45,6 +46,7 @@ class WakeWordService : Service() {
 
     private var wakePhrase = DEFAULT_PHRASE
     private var language   = DEFAULT_LANGUAGE
+    private var isListening = false
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -65,9 +67,10 @@ class WakeWordService : Service() {
     }
 
     override fun onDestroy() {
+        isRunning = false
+        isListening = false
         mainHandler.removeCallbacksAndMessages(null)
         destroyRecognizer()
-        isRunning = false
         super.onDestroy()
     }
 
@@ -76,6 +79,7 @@ class WakeWordService : Service() {
     // ── Escucha continua ──────────────────────────────────────────────────────
 
     private fun startListening() {
+        if (!isRunning) return
         destroyRecognizer()
 
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
@@ -88,6 +92,7 @@ class WakeWordService : Service() {
 
             override fun onReadyForSpeech(params: Bundle?) {
                 Log.d(TAG, "Escuchando wake word…")
+                isListening = true
             }
 
             override fun onPartialResults(partialResults: Bundle?) {
@@ -98,6 +103,7 @@ class WakeWordService : Service() {
             }
 
             override fun onResults(results: Bundle?) {
+                isListening = false
                 val texts = results
                     ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     ?: emptyList()
@@ -107,13 +113,18 @@ class WakeWordService : Service() {
             }
 
             override fun onError(error: Int) {
+                isListening = false
                 val msg = errorString(error)
                 Log.w(TAG, "STT error: $msg ($error)")
+                
+                // Si el reconocedor está ocupado, esperar un poco más antes de reintentar
+                val delay = if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) 2000L else RESTART_DELAY_MS
+                
                 // Reiniciar siempre salvo que el servicio esté siendo destruido
-                if (isRunning) scheduleRestart()
+                if (isRunning) scheduleRestart(delay)
             }
 
-            override fun onEndOfSpeech()                              {}
+            override fun onEndOfSpeech()                              { isListening = false }
             override fun onBeginningOfSpeech()                        {}
             override fun onRmsChanged(rmsdB: Float)                   {}
             override fun onBufferReceived(buffer: ByteArray?)         {}
@@ -125,9 +136,10 @@ class WakeWordService : Service() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE,        language)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,     3)
-            // Sin timeout de silencio para que espere más tiempo
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3_000L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 3_000L)
+            // Ajustes para escucha continua más robusta
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            }
         }
 
         try {
@@ -144,11 +156,20 @@ class WakeWordService : Service() {
      */
     private fun checkForWakeWord(texts: List<String>): Boolean {
         for (text in texts) {
-            if (text.lowercase().contains(wakePhrase)) {
-                Log.i(TAG, "¡Wake word detectada! → \"$text\"")
+            val normalized = text.lowercase().trim()
+            if (normalized.contains(wakePhrase)) {
+                Log.i(TAG, "¡Wake word detectada! → \"$normalized\"")
+                
+                // Notificar al sistema
                 onWakeWord?.invoke(wakePhrase)
-                // Pequeña pausa para que Doey tome el micrófono antes de reiniciar
-                scheduleRestart(delay = 3_000L)
+                
+                // Detener la escucha propia para dejar el micrófono libre a Doey
+                isListening = false
+                destroyRecognizer()
+                
+                // Esperar a que Doey termine antes de volver a escuchar (se maneja desde el ViewModel usualmente,
+                // pero aquí ponemos un delay de seguridad largo)
+                scheduleRestart(delay = 8_000L)
                 return true
             }
         }
@@ -156,18 +177,20 @@ class WakeWordService : Service() {
     }
 
     private fun scheduleRestart(delay: Long = RESTART_DELAY_MS) {
+        if (!isRunning) return
         destroyRecognizer()
-        if (isRunning) {
-            mainHandler.postDelayed({ startListening() }, delay)
-        }
+        mainHandler.removeCallbacksAndMessages(null)
+        mainHandler.postDelayed({ startListening() }, delay)
     }
 
     private fun destroyRecognizer() {
         try {
             recognizer?.stopListening()
+            recognizer?.cancel()
             recognizer?.destroy()
         } catch (_: Exception) {}
         recognizer = null
+        isListening = false
     }
 
     // ── Notificación foreground ───────────────────────────────────────────────
