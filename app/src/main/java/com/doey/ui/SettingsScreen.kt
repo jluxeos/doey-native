@@ -37,6 +37,7 @@ fun SettingsScreen(vm: MainViewModel) {
     var customUrl      by remember { mutableStateOf("") }
     var language       by remember { mutableStateOf("system") }
     var wakePhrase     by remember { mutableStateOf("hey doey") }
+    var wakeWordEnabled by remember { mutableStateOf(false) }
     var soul           by remember { mutableStateOf("") }
     var personalMemory by remember { mutableStateOf("") }
     var maxIterations  by remember { mutableStateOf(10) }
@@ -56,6 +57,7 @@ fun SettingsScreen(vm: MainViewModel) {
         customUrl      = settings.getCustomModelUrl()
         language       = settings.getLanguage()
         wakePhrase     = settings.getWakePhrase()
+        wakeWordEnabled = settings.getWakeWordEnabled()
         soul           = settings.getSoul()
         personalMemory = settings.getPersonalMemory()
         maxIterations  = settings.getMaxIterations()
@@ -199,6 +201,35 @@ fun SettingsScreen(vm: MainViewModel) {
 
             // ── Palabra de activación ─────────────────────────────────────────
             SettingsCard("Palabra de activación") {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = "Activar por voz",
+                            color = Label1Light,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                        Text(
+                            text = "Permite llamar a Doey diciendo la frase mágica.",
+                            color = Label3Light,
+                            fontSize = 12.sp
+                        )
+                    }
+                    Switch(
+                        checked = wakeWordEnabled,
+                        onCheckedChange = { 
+                            wakeWordEnabled = it
+                            vm.toggleWakeWord()
+                        },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Purple)
+                    )
+                }
+                
+                Spacer(Modifier.height(8.dp))
+                
                 Text(
                     "Frase que activa a Doey. Usa algo corto y distinto, como \"hey doey\" o \"oye doey\".",
                     color    = Label3Light,
@@ -240,15 +271,14 @@ fun SettingsScreen(vm: MainViewModel) {
                         ) {
                             Checkbox(
                                 checked = skill.name in enabledSkills,
-                                onCheckedChange = { on ->
-                                    enabledSkills = if (on) enabledSkills + skill.name else enabledSkills - skill.name
+                                onCheckedChange = { checked ->
+                                    enabledSkills = if (checked) enabledSkills + skill.name else enabledSkills - skill.name
                                 },
                                 colors = CheckboxDefaults.colors(checkedColor = Purple)
                             )
-                            Column(Modifier.weight(1f)) {
+                            Column {
                                 Text(skill.name, color = Label1Light, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                                if (skill.description.isNotBlank())
-                                    Text(skill.description, color = Label3Light, fontSize = 11.sp, maxLines = 1)
+                                Text(skill.description, color = Label3Light, fontSize = 11.sp, maxLines = 1)
                             }
                         }
                     }
@@ -256,146 +286,160 @@ fun SettingsScreen(vm: MainViewModel) {
             }
 
             // ── Personalidad y Memoria ────────────────────────────────────────
-            SettingsCard("Personalidad (SOUL)") {
+            SettingsCard("Personalidad y Memoria") {
                 DoeyTextField(
                     value         = soul,
                     onValueChange = { soul = it },
-                    label         = "Instrucciones de personalidad",
-                    placeholder   = "Ej: Eres un asistente conciso y amigable…",
-                    minLines      = 3,
-                    maxLines      = 6
+                    label         = "Personalidad (Soul)",
+                    placeholder   = "Ej: Eres un asistente sarcástico pero eficiente...",
+                    single        = false
                 )
-            }
-
-            SettingsCard("Memoria Personal") {
                 DoeyTextField(
                     value         = personalMemory,
                     onValueChange = { personalMemory = it },
-                    label         = "Datos personales (MEMORY.md)",
-                    placeholder   = "- [nombre] Me llamo…\n- [familia] Mi pareja se llama…",
-                    minLines      = 3,
-                    maxLines      = 8
+                    label         = "Memoria Personal",
+                    placeholder   = "Ej: Mi nombre es Juan, me gusta el café...",
+                    single        = false
                 )
             }
 
-            // ── Guardar ───────────────────────────────────────────────────────
+            // ── Botón Guardar ─────────────────────────────────────────────────
             Button(
                 onClick = {
-                    scope.launch { settings.setCredential("google_api_key", googleApiKey) }
                     vm.saveSettings(
                         provider, apiKey, model, customUrl, language, wakePhrase,
-                        enabledSkills.toList(), soul, personalMemory, maxIterations, sttMode,
-                        expertMode
+                        enabledSkills.toList(), soul, personalMemory, maxIterations, sttMode, expertMode
                     )
+                    scope.launch {
+                        settings.setCredential("google_api_key", googleApiKey)
+                    }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape    = RoundedCornerShape(16.dp),
                 colors   = ButtonDefaults.buttonColors(containerColor = Purple)
             ) {
-                Icon(Icons.Default.Save, null, tint = OnPurple)
+                Icon(Icons.Default.Save, null)
                 Spacer(Modifier.width(8.dp))
-                Text("Guardar ajustes", color = OnPurple, fontWeight = FontWeight.Bold)
+                Text("Guardar Cambios", fontWeight = FontWeight.Bold)
             }
 
             if (state.settingsSaved) {
                 Text(
-                    "✓ Ajustes guardados",
-                    color       = Color(0xFF1A7A1A),
-                    textAlign   = TextAlign.Center,
-                    modifier    = Modifier.fillMaxWidth()
+                    "¡Ajustes guardados correctamente!",
+                    color     = Color(0xFF4CAF50),
+                    modifier  = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                    fontSize  = 14.sp
                 )
+                LaunchedEffect(Unit) {
+                    delay(3000)
+                    // Resetear flag en el VM si fuera necesario, o simplemente dejar que pase el tiempo
+                }
             }
-            Spacer(Modifier.height(16.dp))
+            
+            Spacer(Modifier.height(40.dp))
         }
     }
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-private val PROVIDERS = listOf(
-    "openrouter" to "OpenRouter (Recomendado)",
-    "gemini"     to "Gemini (Google)",
-    "groq"       to "Groq",
-    "openai"     to "OpenAI",
-    "custom"     to "Personalizado"
-)
-
-private val LANGUAGES = listOf(
-    "system" to "Predeterminado del sistema",
-    "es-ES"  to "Español (España)",
-    "es-MX"  to "Español (México)",
-    "en-US"  to "Inglés (EE. UU.)",
-    "en-GB"  to "Inglés (Reino Unido)",
-    "de-DE"  to "Alemán",
-    "de-AT"  to "Alemán (Austria)",
-    "fr-FR"  to "Francés",
-    "it-IT"  to "Italiano",
-    "pt-BR"  to "Portugués (Brasil)"
-)
-
-private val STT_MODES = listOf(
-    "auto"    to "Automático (inteligente)",
-    "offline" to "Solo en dispositivo",
-    "online"  to "Solo en la nube"
-)
 
 @Composable
 fun SettingsCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Surface(shape = RoundedCornerShape(12.dp), color = Surface1Light) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape    = RoundedCornerShape(16.dp),
+        color    = Surface1Light,
+        tonalElevation = 1.dp
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, fontWeight = FontWeight.Bold, color = Purple, fontSize = 14.sp)
+            Text(title, color = Purple, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             content()
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DoeyDropdown(
-    label:    String,
-    value:    String,
-    options:  List<Pair<String, String>>,
-    onSelect: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
-        OutlinedTextField(
-            value         = value,
-            onValueChange = {},
-            readOnly      = true,
-            label         = { Text(label) },
-            trailingIcon  = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            modifier      = Modifier.menuAnchor().fillMaxWidth(),
-            colors        = doeyFieldColors()
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { (code, name) ->
-                DropdownMenuItem(text = { Text(name) }, onClick = { onSelect(code); expanded = false })
-            }
         }
     }
 }
 
 @Composable
 fun DoeyTextField(
-    value:         String,
+    value: String,
     onValueChange: (String) -> Unit,
-    label:         String,
-    placeholder:   String               = "",
-    visual:        VisualTransformation = VisualTransformation.None,
-    minLines:      Int                  = 1,
-    maxLines:      Int                  = 1,
-    trailing:      (@Composable () -> Unit)? = null
+    label: String,
+    placeholder: String = "",
+    visual: VisualTransformation = VisualTransformation.None,
+    trailing: @Composable (() -> Unit)? = null,
+    single: Boolean = true
 ) {
     OutlinedTextField(
-        value                = value,
-        onValueChange        = onValueChange,
-        label                = { Text(label) },
-        placeholder          = { Text(placeholder, color = Label3Light) },
-        modifier             = Modifier.fillMaxWidth(),
+        value         = value,
+        onValueChange = onValueChange,
+        label         = { Text(label) },
+        placeholder   = { Text(placeholder) },
+        modifier      = Modifier.fillMaxWidth(),
+        shape         = RoundedCornerShape(12.dp),
         visualTransformation = visual,
-        trailingIcon         = trailing,
-        minLines             = minLines,
-        maxLines             = maxLines,
-        colors               = doeyFieldColors()
+        trailingIcon  = trailing,
+        singleLine    = single,
+        colors        = doeyFieldColors()
     )
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DoeyDropdown(
+    label: String,
+    value: String,
+    options: List<Pair<String, String>>,
+    onSelect: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value         = value,
+            onValueChange = {},
+            readOnly      = true,
+            label         = { Text(label) },
+            trailingIcon  = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier      = Modifier.fillMaxWidth().menuAnchor(),
+            shape         = RoundedCornerShape(12.dp),
+            colors        = doeyFieldColors()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { (id, name) ->
+                DropdownMenuItem(
+                    text    = { Text(name) },
+                    onClick = { onSelect(id); expanded = false }
+                )
+            }
+        }
+    }
+}
+
+private val PROVIDERS = listOf(
+    "openrouter" to "OpenRouter (Recomendado)",
+    "gemini"     to "Google Gemini",
+    "groq"       to "Groq (Ultra rápido)",
+    "openai"     to "OpenAI (GPT-4o)",
+    "custom"     to "API Personalizada"
+)
+
+private val LANGUAGES = listOf(
+    "system" to "Idioma del sistema",
+    "es-ES"  to "Español (España)",
+    "es-MX"  to "Español (México)",
+    "en-US"  to "English (US)",
+    "en-GB"  to "English (UK)",
+    "pt-BR"  to "Português (Brasil)",
+    "fr-FR"  to "Français",
+    "de-DE"  to "Deutsch",
+    "it-IT"  to "Italiano"
+)
+
+private val STT_MODES = listOf(
+    "auto"    to "Automático (Nube + Local)",
+    "offline" to "Solo Local (Privacidad)",
+    "online"  to "Solo Nube (Precisión)"
+)
