@@ -52,8 +52,6 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 // ── Fuente estilo iOS/CarPlay ──────────────────────────────────────────────────
-// En Android usamos FontFamily.Default (Roboto) con ajustes de peso similares a
-// SF Pro. Si el proyecto incluye la fuente SF Pro como asset, reemplazar aquí.
 private val CarPlayFont = FontFamily.Default
 
 // ── Paleta de colores CarPlay / iOS ───────────────────────────────────────────
@@ -71,13 +69,7 @@ private val CPTextSecondary = Color(0xFF8E8E93)
 private val CPTextTertiary  = Color(0xFF48484A)
 private val CPSeparator     = Color(0xFF38383A)
 
-// ── Enum de modo de pantalla ──────────────────────────────────────────────────
-
 enum class HomeMode { STANDARD, FLOW, DRIVE }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// PANTALLA PRINCIPAL
-// ═══════════════════════════════════════════════════════════════════════════════
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,14 +82,14 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
     val ctx   = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Sincronizar modo conducción con el estado del ViewModel
     LaunchedEffect(state.isDrivingMode) {
         if (!state.isDrivingMode && currentMode == HomeMode.DRIVE) {
             currentMode = HomeMode.STANDARD
+        } else if (state.isDrivingMode && currentMode != HomeMode.DRIVE) {
+            currentMode = HomeMode.DRIVE
         }
     }
 
-    // Estado del modo flujo
     var flowOptions by remember { mutableStateOf(FlowModeEngine.getRootOptions()) }
     var flowHistory by remember { mutableStateOf(listOf<List<FlowOption>>()) }
     var flowLabel   by remember { mutableStateOf("") }
@@ -140,10 +132,6 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// MODO ESTÁNDAR + FLUJO
-// ═══════════════════════════════════════════════════════════════════════════════
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StandardFlowContent(
@@ -168,14 +156,11 @@ private fun StandardFlowContent(
     scope: kotlinx.coroutines.CoroutineScope
 ) {
     val isFlow = currentMode == HomeMode.FLOW
-
     val bgColor    = if (isFlow) Color(0xFF0D0717) else Surface0Light
     val surfaceBar = if (isFlow) Color(0xFF12082A) else Surface1Light
     val titleColor = if (isFlow) Color(0xFFD0BCFF) else Label1Light
 
     Column(Modifier.fillMaxSize().background(bgColor)) {
-
-        // ── TopAppBar ─────────────────────────────────────────────────────────
         TopAppBar(
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -195,6 +180,11 @@ private fun StandardFlowContent(
                 }
             },
             actions = {
+                IconButton(onClick = { vm.toggleWakeWord() }) {
+                    Icon(if (state.isWakeWordActive) Icons.Default.RecordVoiceOver else Icons.Default.VoiceOverOff, 
+                        "Palabra de activación",
+                        tint = if (state.isWakeWordActive) (if (isFlow) Color(0xFFBB86FC) else Purple) else Label3Light)
+                }
                 IconButton(onClick = {
                     vm.toggleDrivingMode()
                     onModeChange(HomeMode.DRIVE)
@@ -216,7 +206,6 @@ private fun StandardFlowContent(
             colors = TopAppBarDefaults.topAppBarColors(containerColor = surfaceBar)
         )
 
-        // ── Banner modo flujo ─────────────────────────────────────────────────
         AnimatedVisibility(isFlow, enter = expandVertically(), exit = shrinkVertically()) {
             Box(
                 Modifier.fillMaxWidth().background(Color(0xFF1A0A2E))
@@ -245,7 +234,6 @@ private fun StandardFlowContent(
             }
         }
 
-        // ── Mensaje de error ──────────────────────────────────────────────────
         if (state.errorMessage != null) {
             LaunchedEffect(state.errorMessage) { delay(3000L); vm.clearError() }
             Surface(Modifier.fillMaxWidth(), color = Color(0xFFF9DEDC)) {
@@ -259,7 +247,6 @@ private fun StandardFlowContent(
             }
         }
 
-        // ── Lista de mensajes ─────────────────────────────────────────────────
         LazyColumn(
             Modifier.weight(1f), listState,
             contentPadding = PaddingValues(12.dp),
@@ -286,7 +273,6 @@ private fun StandardFlowContent(
             }
         }
 
-        // ── Carrusel Modo Flujo ───────────────────────────────────────────────
         AnimatedVisibility(isFlow, enter = expandVertically(), exit = shrinkVertically()) {
             Surface(color = Color(0xFF12082A)) {
                 Column(Modifier.fillMaxWidth()) {
@@ -407,7 +393,6 @@ private fun StandardFlowContent(
             }
         }
 
-        // ── Barra de input ────────────────────────────────────────────────────
         Surface(color = surfaceBar) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -494,10 +479,6 @@ private fun StandardFlowContent(
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// CAR PLAY MODE  — Diseño inspirado en Apple CarPlay
-// ═══════════════════════════════════════════════════════════════════════════════
-
 @Composable
 private fun CarPlayModeContent(
     vm: MainViewModel,
@@ -509,11 +490,7 @@ private fun CarPlayModeContent(
 
     Box(Modifier.fillMaxSize().background(CPBackground)) {
         Column(Modifier.fillMaxSize()) {
-
-            // ── Status bar CarPlay ────────────────────────────────────────────
-            CarPlayStatusBar(onExit = onExit)
-
-            // ── Contenido según tab ───────────────────────────────────────────
+            CarPlayStatusBar(onExit = onExit, isWakeWordActive = state.isWakeWordActive, onWakeWordToggle = { vm.toggleWakeWord() })
             Box(Modifier.weight(1f)) {
                 when (selectedTab) {
                     0 -> CarPlayDashboard(vm = vm, state = state, ctx = ctx)
@@ -523,18 +500,14 @@ private fun CarPlayModeContent(
                     4 -> CarPlayAppsScreen(ctx = ctx)
                 }
             }
-
-            // ── Navigation dock CarPlay ───────────────────────────────────────
             CarPlayDock(selectedTab = selectedTab, onTabChange = { selectedTab = it })
         }
     }
 }
 
-// ── Status Bar estilo CarPlay ─────────────────────────────────────────────────
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CarPlayStatusBar(onExit: () -> Unit) {
+private fun CarPlayStatusBar(onExit: () -> Unit, isWakeWordActive: Boolean, onWakeWordToggle: () -> Unit) {
     val now = remember { mutableStateOf(LocalDateTime.now()) }
     LaunchedEffect(Unit) { while (true) { now.value = LocalDateTime.now(); delay(1000) } }
 
@@ -542,14 +515,22 @@ private fun CarPlayStatusBar(onExit: () -> Unit) {
         Modifier.fillMaxWidth().background(CPSurface)
             .padding(horizontal = 20.dp, vertical = 8.dp)
     ) {
-        Text(
-            now.value.format(DateTimeFormatter.ofPattern("HH:mm")),
-            fontFamily = CarPlayFont,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = CPText,
-            modifier = Modifier.align(Alignment.CenterStart)
-        )
+        Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                now.value.format(DateTimeFormatter.ofPattern("HH:mm")),
+                fontFamily = CarPlayFont,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = CPText
+            )
+            Spacer(Modifier.width(12.dp))
+            Icon(
+                if (isWakeWordActive) Icons.Default.RecordVoiceOver else Icons.Default.VoiceOverOff,
+                null,
+                tint = if (isWakeWordActive) CPAccentGreen else CPTextTertiary,
+                modifier = Modifier.size(18.dp).clickable { onWakeWordToggle() }
+            )
+        }
         Row(
             Modifier.align(Alignment.Center),
             verticalAlignment = Alignment.CenterVertically,
@@ -580,8 +561,6 @@ private fun CarPlayStatusBar(onExit: () -> Unit) {
         }
     }
 }
-
-// ── Navigation Dock CarPlay ───────────────────────────────────────────────────
 
 @Composable
 private fun CarPlayDock(selectedTab: Int, onTabChange: (Int) -> Unit) {
@@ -637,8 +616,6 @@ private fun CarPlayDock(selectedTab: Int, onTabChange: (Int) -> Unit) {
     }
 }
 
-// ── Dashboard principal CarPlay ───────────────────────────────────────────────
-
 @Composable
 private fun CarPlayDashboard(
     vm: MainViewModel,
@@ -653,7 +630,6 @@ private fun CarPlayDashboard(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // ── Reloj grande ──────────────────────────────────────────────────────
         item {
             Box(
                 Modifier.fillMaxWidth()
@@ -681,14 +657,12 @@ private fun CarPlayDashboard(
             }
         }
 
-        // ── Mini reproductor si hay música ────────────────────────────────────
         if (!state.nowPlaying.isEmpty) {
             item {
                 CarPlayMiniPlayer(nowPlaying = state.nowPlaying, vm = vm)
             }
         }
 
-        // ── Accesos rápidos ───────────────────────────────────────────────────
         item {
             Text(
                 "Accesos rápidos",
@@ -736,12 +710,9 @@ private fun CarPlayDashboard(
             CPQuickActionsGrid(actions = quickActions)
         }
 
-        // ── Estado del sistema ────────────────────────────────────────────────
         item { CarPlaySystemStatus() }
     }
 }
-
-// ── Data class para acciones rápidas ─────────────────────────────────────────
 
 private data class QuickAction(
     val label: String,
@@ -822,8 +793,6 @@ private fun CPStatusItem(icon: ImageVector, label: String, tint: Color) {
     }
 }
 
-// ── Mini reproductor en el dashboard ─────────────────────────────────────────
-
 @Composable
 private fun CarPlayMiniPlayer(nowPlaying: NowPlayingInfo, vm: MainViewModel) {
     Row(
@@ -893,8 +862,6 @@ private fun CarPlayMiniPlayer(nowPlaying: NowPlayingInfo, vm: MainViewModel) {
     }
 }
 
-// ── Pantalla de Música CarPlay ────────────────────────────────────────────────
-
 @Composable
 private fun CarPlayMusicScreen(vm: MainViewModel, state: MainUiState) {
     val nowPlaying = state.nowPlaying
@@ -905,7 +872,6 @@ private fun CarPlayMusicScreen(vm: MainViewModel, state: MainUiState) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // ── Carátula grande ───────────────────────────────────────────────────
         Box(
             Modifier.size(220.dp).clip(RoundedCornerShape(20.dp)).background(CPSurface2),
             contentAlignment = Alignment.Center
@@ -934,7 +900,6 @@ private fun CarPlayMusicScreen(vm: MainViewModel, state: MainUiState) {
             }
         }
 
-        // ── Título y artista ──────────────────────────────────────────────────
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 nowPlaying.title.ifBlank { "—" },
@@ -980,7 +945,6 @@ private fun CarPlayMusicScreen(vm: MainViewModel, state: MainUiState) {
             }
         }
 
-        // ── Controles de reproducción ─────────────────────────────────────────
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -1008,7 +972,6 @@ private fun CarPlayMusicScreen(vm: MainViewModel, state: MainUiState) {
             }
         }
 
-        // ── Barra de volumen visual ───────────────────────────────────────────
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1023,7 +986,6 @@ private fun CarPlayMusicScreen(vm: MainViewModel, state: MainUiState) {
             Icon(Icons.Default.VolumeUp, null, tint = CPTextSecondary, modifier = Modifier.size(18.dp))
         }
 
-        // ── Accesos directos a apps de música ─────────────────────────────────
         Text(
             "Abrir en",
             fontFamily = CarPlayFont,
@@ -1059,8 +1021,6 @@ private fun CarPlayMusicScreen(vm: MainViewModel, state: MainUiState) {
     }
 }
 
-// ── Pantalla de Mapa CarPlay (mini mapa con WebView) ─────────────────────────
-
 @Composable
 private fun CarPlayMapScreen(ctx: android.content.Context) {
     Column(Modifier.fillMaxSize()) {
@@ -1079,7 +1039,6 @@ private fun CarPlayMapScreen(ctx: android.content.Context) {
             )
         }
 
-        // Mini mapa via WebView (OpenStreetMap embebido)
         Box(Modifier.weight(1f)) {
             AndroidView(
                 factory = { context ->
@@ -1096,7 +1055,6 @@ private fun CarPlayMapScreen(ctx: android.content.Context) {
             )
         }
 
-        // Accesos rápidos de navegación
         Row(
             Modifier.fillMaxWidth().background(CPSurface).padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1129,8 +1087,6 @@ private fun CarPlayMapScreen(ctx: android.content.Context) {
     }
 }
 
-// ── Pantalla del Asistente CarPlay (solo voz) ─────────────────────────────────
-
 @Composable
 private fun CarPlayAssistantScreen(vm: MainViewModel, state: MainUiState) {
     val isListening  = state.isListening
@@ -1156,7 +1112,6 @@ private fun CarPlayAssistantScreen(vm: MainViewModel, state: MainUiState) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ── Historial de conversación ─────────────────────────────────────────
         LazyColumn(
             Modifier.weight(1f),
             state = listState,
@@ -1256,7 +1211,6 @@ private fun CarPlayAssistantScreen(vm: MainViewModel, state: MainUiState) {
             }
         }
 
-        // ── Estado actual ─────────────────────────────────────────────────────
         AnimatedVisibility(isListening || isProcessing || isSpeaking) {
             Text(
                 when {
@@ -1272,7 +1226,6 @@ private fun CarPlayAssistantScreen(vm: MainViewModel, state: MainUiState) {
             )
         }
 
-        // ── Botón de voz grande (único control de entrada) ────────────────────
         Box(
             Modifier.size((80 * scale).dp)
                 .background(
@@ -1360,8 +1313,6 @@ private fun CarPlayChatBubble(msg: ChatMessage) {
         }
     }
 }
-
-// ── Pantalla de Apps CarPlay ──────────────────────────────────────────────────
 
 private data class AppShortcut(
     val label: String,
@@ -1460,10 +1411,6 @@ private fun CarPlayAppsScreen(ctx: android.content.Context) {
         }
     }
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// HELPERS COMPARTIDOS
-// ═══════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun ChatBubble(msg: ChatMessage, isDark: Boolean = false) {
