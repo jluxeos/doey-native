@@ -1,6 +1,6 @@
 package com.doey.ui
 
-import androidx.compose.animation.**
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
