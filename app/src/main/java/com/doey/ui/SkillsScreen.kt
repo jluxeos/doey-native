@@ -6,109 +6,111 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.doey.DoeyApplication
 import com.doey.agent.SkillInfo
 import kotlinx.coroutines.launch
 
+// ── Colores locales para consistencia ─────────────────────────────────────────
+private val Purple      = Color(0xFF6750A4)
+private val OnPurple    = Color(0xFFFFFFFF)
+private val Surface0Light  = Color(0xFFFFFBFE)
+private val Surface1Light  = Color(0xFFF3EDF7)
+private val Label1Light    = Color(0xFF1C1B1F)
+private val Label2Light    = Color(0xFF49454F)
+private val Label3Light    = Color(0xFF79747E)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SkillsScreen(vm: MainViewModel) {
     val state by vm.uiState.collectAsState()
-    val settings = vm.getSettings()
     val scope = rememberCoroutineScope()
 
-    val allSkills = remember { DoeyApplication.instance.skillLoader.getAllSkills().sortedBy { it.name } }
-    var enabledSkills by remember { mutableStateOf(setOf<String>()) }
-    var showAddDialog by remember { mutableStateOf(false) }
-    var selectedSkill by remember { mutableStateOf<SkillInfo?>(null) }
-
-    LaunchedEffect(Unit) {
-        enabledSkills = settings.getEnabledSkillsList().toSet()
+    // Habilidades que ya vienen integradas y no dependen de APIs externas
+    val defaultSkills = remember {
+        listOf(
+            DefaultSkill("Control de Medios", "Controla la música, pausa, siguiente y anterior en cualquier app.", Icons.Default.MusicNote),
+            DefaultSkill("Ajustes del Sistema", "Cambia el brillo, volumen, Wi-Fi y modo no molestar.", Icons.Default.Settings),
+            DefaultSkill("Navegación y Mapas", "Abre rutas, busca lugares cercanos y gasolineras.", Icons.Default.Navigation),
+            DefaultSkill("Comunicación", "Envía mensajes por WhatsApp, Telegram o haz llamadas por voz.", Icons.Default.Chat),
+            DefaultSkill("Accesibilidad", "Controla la pantalla y realiza acciones mediante comandos de voz.", Icons.Default.Accessibility),
+            DefaultSkill("Calendario y Alarmas", "Gestiona tus eventos, recordatorios y despiértate a tiempo.", Icons.Default.Alarm)
+        )
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Habilidades (Skills)", color = Label1Light, fontWeight = FontWeight.Bold) },
+                title = { Text("Habilidades de Doey", color = Label1Light, fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light)
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = Purple,
-                contentColor = OnPurple
-            ) {
-                Icon(Icons.Default.Add, "Añadir Skill")
-            }
         },
         containerColor = Surface0Light
     ) { pad ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(pad).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // ── Sección: Habilidades Predeterminadas ──
             item {
                 Text(
-                    "Las habilidades permiten a Doey realizar tareas específicas como enviar correos, buscar en mapas o controlar el clima.",
+                    "Habilidades Integradas",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Purple,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                Text(
+                    "Estas funciones están siempre activas y no requieren configuración adicional.",
                     color = Label2Light,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
 
-            items(allSkills) { skill ->
-                SkillItemCard(
-                    skill = skill,
-                    isEnabled = skill.name in enabledSkills,
-                    isExpert = state.isExpertMode,
-                    onToggle = { on ->
-                        enabledSkills = if (on) enabledSkills + skill.name else enabledSkills - skill.name
-                        scope.launch {
-                            settings.setEnabledSkills(enabledSkills.joinToString(","))
-                        }
-                    },
-                    onClick = { selectedSkill = skill }
+            items(defaultSkills) { skill ->
+                DefaultSkillCard(skill)
+            }
+
+            // ── Sección: Crear Skills ──
+            item {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Personalización",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Purple,
+                    modifier = Modifier.padding(bottom = 4.dp)
                 )
+            }
+
+            item {
+                CreateSkillInfoCard()
+            }
+            
+            item {
+                Spacer(Modifier.height(24.dp))
             }
         }
     }
-
-    if (showAddDialog) {
-        AddSkillDialog(onDismiss = { showAddDialog = false })
-    }
-
-    if (selectedSkill != null) {
-        SkillDetailDialog(
-            skill = selectedSkill!!,
-            isExpert = state.isExpertMode,
-            onDismiss = { selectedSkill = null }
-        )
-    }
 }
 
+data class DefaultSkill(val name: String, val description: String, val icon: ImageVector)
+
 @Composable
-fun SkillItemCard(
-    skill: SkillInfo,
-    isEnabled: Boolean,
-    isExpert: Boolean,
-    onToggle: (Boolean) -> Unit,
-    onClick: () -> Unit
-) {
+fun DefaultSkillCard(skill: DefaultSkill) {
     Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Surface1Light,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -116,16 +118,23 @@ fun SkillItemCard(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.Extension,
-                contentDescription = null,
-                tint = if (isEnabled) Purple else Label3Light,
-                modifier = Modifier.size(32.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(Purple.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = skill.icon,
+                    contentDescription = null,
+                    tint = Purple,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = skill.name.replaceFirstChar { it.uppercase() },
+                    text = skill.name,
                     fontWeight = FontWeight.Bold,
                     color = Label1Light,
                     fontSize = 16.sp
@@ -134,78 +143,64 @@ fun SkillItemCard(
                     text = skill.description,
                     color = Label3Light,
                     fontSize = 12.sp,
-                    maxLines = 2
+                    lineHeight = 16.sp
                 )
             }
-            Switch(
-                checked = isEnabled,
-                onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(checkedThumbColor = Purple)
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = "Activo",
+                tint = Color(0xFF34C759),
+                modifier = Modifier.size(20.dp)
             )
         }
     }
 }
 
 @Composable
-fun AddSkillDialog(onDismiss: () -> Unit) {
-    var skillText by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Añadir Nueva Habilidad") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Pega el código Markdown de la habilidad aquí:", fontSize = 12.sp)
-                OutlinedTextField(
-                    value = skillText,
-                    onValueChange = { skillText = it },
-                    modifier = Modifier.fillMaxWidth().height(200.dp),
-                    placeholder = { Text("--- \nname: mi-skill \n--- \n# Descripción...") },
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Purple)
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Guardar", color = Purple) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar") }
+fun CreateSkillInfoCard() {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = Purple.copy(alpha = 0.05f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Purple.copy(alpha = 0.2f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Code,
+                contentDescription = null,
+                tint = Purple,
+                modifier = Modifier.size(40.dp)
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "¿Quieres añadir más?",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = Label1Light,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Doey es capaz de aprender nuevas habilidades simplemente describiéndolas. No necesitas programar APIs complejas; gracias a su control de accesibilidad y razonamiento, puedes pedirle que aprenda a usar cualquier aplicación instalada.",
+                color = Label2Light,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "Para crear una skill, solo dile al asistente:\n\"Aprende a usar [Nombre de App] para [Acción]\"",
+                fontWeight = FontWeight.Medium,
+                color = Purple,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .background(Purple.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                    .padding(12.dp)
+            )
         }
-    )
-}
-
-@Composable
-fun SkillDetailDialog(skill: SkillInfo, isExpert: Boolean, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(skill.name.replaceFirstChar { it.uppercase() }) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(skill.description, fontWeight = FontWeight.Medium)
-                if (isExpert) {
-                    Divider()
-                    Text("Detalles Técnicos (Modo Experto):", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    Text("Categoría: ${skill.category}", fontSize = 11.sp)
-                    if (skill.androidPackage != null) Text("Paquete: ${skill.androidPackage}", fontSize = 11.sp)
-                    if (skill.permissions.isNotEmpty()) Text("Permisos: ${skill.permissions.joinToString()}", fontSize = 11.sp)
-
-                    Spacer(Modifier.height(8.dp))
-                    Surface(
-                        color = Color(0xFFF0F0F0),
-                        shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = skill.content.take(500) + if(skill.content.length > 500) "..." else "",
-                            modifier = Modifier.padding(8.dp),
-                            fontSize = 10.sp,
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Cerrar", color = Purple) }
-        }
-    )
+    }
 }
