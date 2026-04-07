@@ -56,6 +56,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private var pipeline: ConversationPipeline? = null
     private var speechRecognizer: DoeySpeechRecognizer? = null
     private var driveListenJob: Job? = null
+    private var pipelineStateJob: Job? = null
 
     init {
         initPipeline()
@@ -64,15 +65,16 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     private fun initPipeline() = viewModelScope.launch {
-        val provider   = settings.getProvider()
-        val model      = settings.getModel()
-        val language   = settings.getLanguage()
-        val drivingMode = settings.getDrivingMode().let { it } // force collect
-        val expertMode  = settings.getExpertMode().let { it }
+        val provider      = settings.getProvider()
+        val model         = settings.getModel()
+        val language      = settings.getLanguage()
+        val drivingMode   = settings.getDrivingMode().let { it } // force collect
+        val expertMode    = settings.getExpertMode().let { it }
+        val enabledSkills = settings.getEnabledSkillsList()
 
         val skillLoader = SkillLoader(app)
-        val tools       = buildTools(skillLoader)
-        
+        val tools       = buildTools(skillLoader, enabledSkills)
+
         val p = ConversationPipeline(
             provider           = com.doey.llm.LLMProviderFactory.create(provider, settings.getApiKey(provider), model, settings.getCustomModelUrl()),
             tools              = tools,
@@ -83,7 +85,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             personalMemory     = settings.getPersonalMemory(),
             maxIterations      = settings.getMaxIterations(),
             expertMode         = expertMode
-        )
+        ).apply {
+            setEnabledSkills(enabledSkills)
+        }
 
         p.onTranscript = { role, text ->
             _uiState.update { s ->
@@ -93,7 +97,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         }
         p.onError = { error -> _uiState.update { it.copy(errorMessage = error) } }
 
-        viewModelScope.launch {
+        pipelineStateJob?.cancel()
+        pipelineStateJob = viewModelScope.launch {
             p.state.collect { state ->
                 _uiState.update { it.copy(pipelineState = state, isListening = state == PipelineState.LISTENING) }
             }
@@ -110,7 +115,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun buildTools(skillLoader: SkillLoader) = ToolRegistry().apply {
+    private fun buildTools(skillLoader: SkillLoader, enabledSkills: List<String>) = ToolRegistry().apply {
         register(IntentTool())
         register(SmsTool())
         register(BeepTool())
@@ -132,6 +137,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         register(NotificationListenerTool())
         register(AlarmTool())
         register(AppSearchAndLaunchTool())
+
+        removeDisabledSkillTools(skillLoader.getDisabledExclusiveTools(enabledSkills))
     }
 
     // ── Observadores ─────────────────────────────────────────────────────────
@@ -335,6 +342,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         driveListenJob?.cancel()
+        pipelineStateJob?.cancel()
         speechRecognizer?.destroy()
         super.onCleared()
     }

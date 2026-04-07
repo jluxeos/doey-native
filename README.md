@@ -63,13 +63,24 @@ Add a new skill by creating a folder with a `SKILL.md` following the frontmatter
 
 Output: `app/build/outputs/apk/release/app-release.apk`
 
+### Signing behavior
+
+- If `app/doey-release.keystore` exists, release signing uses environment variables for credentials.
+- If no release keystore is present, the project falls back to the debug signing configuration so the release variant can still be built in development environments.
+
 ## Configuration
 
 1. Open the app → Settings tab
-2. Enter your **Groq API key** (free at [console.groq.com](https://console.groq.com))
-3. Optionally: OpenAI key, Picovoice key (for wake word), language
-4. Enable skills you want to use
+2. Enter your **provider API key** for the provider you selected in the app
+3. Optionally configure language, wake phrase, memory, personality, and enabled skills
+4. Enable only the skills you actually want Doey to use
 5. Tap **Save Settings**
+
+### Important notes
+
+- The main assistant now applies the enabled skills configuration consistently when building the system prompt.
+- Exclusive tools tied to disabled skills are removed from the active toolset, reducing prompt noise and preventing incoherent tool selection.
+- If you change provider, model, language, memory, or enabled skills, the pipeline is rebuilt so the new configuration takes effect immediately.
 
 ## Permissions Required
 
@@ -84,11 +95,13 @@ Output: `app/build/outputs/apk/release/app-release.apk`
 
 ## Wake Word
 
-Uses [Picovoice Porcupine](https://picovoice.ai/):
-1. Get a free access key at [console.picovoice.ai](https://console.picovoice.ai)
-2. Enter it in Settings → Wake Word
-3. Place a custom `.ppn` file in `app/src/main/assets/` for "Hey Doey"
-4. Default built-in keyword: "PORCUPINE"
+The current implementation uses Android's built-in `SpeechRecognizer` for continuous wake-phrase detection.
+
+1. Configure the wake phrase in Settings
+2. Enable Wake Word from the app
+3. Keep in mind that detection quality depends on the device speech services and microphone availability
+
+> This is not currently a Picovoice Porcupine integration. If you want Porcupine, it should be added explicitly in code and dependencies.
 
 ## CI/CD
 

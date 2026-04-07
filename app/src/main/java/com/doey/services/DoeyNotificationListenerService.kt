@@ -321,17 +321,20 @@ class DoeyNotificationListenerService : NotificationListenerService() {
         val apiKey   = settings.getApiKey(settings.getProvider())
         if (apiKey.isBlank()) return
 
-        val provider  = settings.getProvider()
-        val model     = settings.getModel()
-        val customUrl = settings.getCustomModelUrl()
-        val language  = settings.getLanguage()
-        val llm       = LLMProviderFactory.create(provider, apiKey, model, customUrl)
-        val tools     = ToolRegistry().apply {
+        val provider      = settings.getProvider()
+        val model         = settings.getModel()
+        val customUrl     = settings.getCustomModelUrl()
+        val language      = settings.getLanguage()
+        val enabledSkills = settings.getEnabledSkillsList()
+        val llm           = LLMProviderFactory.create(provider, apiKey, model, customUrl)
+        val tools         = ToolRegistry().apply {
             register(IntentTool()); register(SmsTool()); register(BeepTool())
             register(DateTimeTool()); register(DeviceTool()); register(QueryContactsTool())
             register(HttpTool()); register(TTSTool()); register(AppSearchTool())
             register(FileStorageTool()); register(SkillDetailTool(app.skillLoader))
             register(PersonalMemoryTool()); register(JournalTool())
+
+            removeDisabledSkillTools(app.skillLoader.getDisabledExclusiveTools(enabledSkills))
         }
 
         val pipeline = ConversationPipeline(
@@ -339,7 +342,7 @@ class DoeyNotificationListenerService : NotificationListenerService() {
             language    = language, soul = settings.getSoul(),
             personalMemory = settings.getPersonalMemory(), maxIterations = 8
         )
-        pipeline.setEnabledSkills(settings.getEnabledSkillsList())
+        pipeline.setEnabledSkills(enabledSkills)
 
         for (rule in rules) {
             val msg = buildString {

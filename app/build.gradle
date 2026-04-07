@@ -24,10 +24,15 @@ android {
             keyPassword 'android'
         }
         release {
-            storeFile file('doey-release.keystore')
-            storePassword 'doey2024'
-            keyAlias 'doey'
-            keyPassword 'doey2024'
+            def releaseKeystore = file('doey-release.keystore')
+            if (releaseKeystore.exists()) {
+                storeFile releaseKeystore
+                storePassword System.getenv('DOEY_RELEASE_STORE_PASSWORD') ?: ''
+                keyAlias System.getenv('DOEY_RELEASE_KEY_ALIAS') ?: 'doey'
+                keyPassword System.getenv('DOEY_RELEASE_KEY_PASSWORD') ?: ''
+            } else {
+                initWith(debug)
+            }
         }
     }
 
@@ -38,6 +43,7 @@ android {
         release {
             signingConfig signingConfigs.release
             minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

@@ -57,6 +57,8 @@ class SchedulerJobService : Service() {
             register(SkillDetailTool(app.skillLoader))
             register(PersonalMemoryTool()); register(JournalTool())
             register(TimerTool()); register(NotificationListenerTool())
+
+            removeDisabledSkillTools(app.skillLoader.getDisabledExclusiveTools(enabledSkills))
         }
 
         val pipeline = ConversationPipeline(
