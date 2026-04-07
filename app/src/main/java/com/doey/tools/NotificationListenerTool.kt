@@ -1,7 +1,8 @@
 package com.doey.tools
 
-import com.doey.services.DoeyNotificationListenerService
+import com.doey.DoeyApplication
 import com.doey.services.NotificationAccessManager
+import org.json.JSONArray
 import org.json.JSONObject
 
 class NotificationListenerTool : Tool {
@@ -12,30 +13,27 @@ class NotificationListenerTool : Tool {
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
         val action = args["action"] as? String ?: return errorResult("action required")
+        val context = DoeyApplication.instance
 
-        if (!NotificationAccessManager.isAccessGranted()) {
+        if (!NotificationAccessManager.isAccessGranted(context)) {
             return errorResult("Notification access not granted. Please enable it in Android Settings.")
         }
 
-        val service = DoeyNotificationListenerService.instance
-            ?: return errorResult("Notification listener service not running.")
-
         return when (action) {
             "read" -> {
-                val notifications = service.getBufferedNotifications()
-                if (notifications.length() == 0) {
+                val notifications = NotificationAccessManager.getRecentNotifications(context)
+                if (notifications.isEmpty()) {
                     successResult("No new notifications.")
                 } else {
                     val sb = StringBuilder("Buffered Notifications:\n")
-                    for (i in 0 until notifications.length()) {
-                        val notif = notifications.getJSONObject(i)
+                    notifications.forEach { notif ->
                         sb.append("- App: ${notif.optString("packageName")}, Title: ${notif.optString("title")}, Text: ${notif.optString("text")}\n")
                     }
                     successResult(sb.toString())
                 }
             }
             "clear" -> {
-                service.clearBufferedNotifications()
+                NotificationAccessManager.clearBuffer(context)
                 successResult("Notifications buffer cleared.")
             }
             else -> errorResult("Unknown action: $action")

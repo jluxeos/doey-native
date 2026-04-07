@@ -850,7 +850,10 @@ private fun CarPlayMiniPlayer(nowPlaying: NowPlayingInfo, vm: MainViewModel) {
                 },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                Icon(
+                    if (nowPlaying.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    null, tint = Color.White, modifier = Modifier.size(22.dp)
+                )
             }
             IconButton(
                 onClick = { vm.dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_NEXT) },
@@ -962,7 +965,10 @@ private fun CarPlayMusicScreen(vm: MainViewModel, state: MainUiState) {
                 },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(40.dp))
+                Icon(
+                    if (nowPlaying.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    null, tint = Color.White, modifier = Modifier.size(40.dp)
+                )
             }
             IconButton(
                 onClick = { vm.dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_NEXT) },
