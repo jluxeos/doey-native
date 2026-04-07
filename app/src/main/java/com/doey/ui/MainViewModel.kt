@@ -74,7 +74,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         val tools       = buildTools(skillLoader)
         
         val p = ConversationPipeline(
-            provider           = com.doey.llm.LLMProvider.create(provider, settings.getApiKey(provider), model, settings.getCustomModelUrl()),
+            provider           = com.doey.llm.LLMProviderFactory.create(provider, settings.getApiKey(provider), model, settings.getCustomModelUrl()),
             tools              = tools,
             skillLoader        = skillLoader,
             drivingMode        = drivingMode,
