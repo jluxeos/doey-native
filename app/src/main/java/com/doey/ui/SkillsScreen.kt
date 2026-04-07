@@ -21,15 +21,6 @@ import com.doey.DoeyApplication
 import com.doey.agent.SkillInfo
 import kotlinx.coroutines.launch
 
-// ── Colores locales para consistencia ─────────────────────────────────────────
-private val Purple      = Color(0xFF6750A4)
-private val OnPurple    = Color(0xFFFFFFFF)
-private val Surface0Light  = Color(0xFFFFFBFE)
-private val Surface1Light  = Color(0xFFF3EDF7)
-private val Label1Light    = Color(0xFF1C1B1F)
-private val Label2Light    = Color(0xFF49454F)
-private val Label3Light    = Color(0xFF79747E)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SkillsScreen(vm: MainViewModel) {
