@@ -81,12 +81,12 @@ class SkillLoader(private val context: Context) {
             val yamlLines = yamlBlock.lines()
             val yamlMap = parseYamlToMap(yamlLines)
 
-            name = yamlMap["name"]?.trimQuotes() ?: key
-            description = yamlMap["description"]?.trimQuotes() ?: ""
-            category = yamlMap["category"]?.trimQuotes() ?: "other"
-            testPrompt = yamlMap["test_prompt"]?.trimQuotes()
-            androidPackage = yamlMap["android_package"]?.trimQuotes()
-            exclusiveTool = yamlMap["exclusive_tool"]?.trimQuotes()
+            name = (yamlMap["name"] as? String)?.trimQuotes() ?: key
+            description = (yamlMap["description"] as? String)?.trimQuotes() ?: ""
+            category = (yamlMap["category"] as? String)?.trimQuotes() ?: "other"
+            testPrompt = (yamlMap["test_prompt"] as? String)?.trimQuotes()
+            androidPackage = (yamlMap["android_package"] as? String)?.trimQuotes()
+            exclusiveTool = (yamlMap["exclusive_tool"] as? String)?.trimQuotes()
 
             (yamlMap["permissions"] as? List<String>)?.let { permissions.addAll(it) }
             (yamlMap["credentials"] as? List<Map<String, String>>)?.forEach { credMap ->
