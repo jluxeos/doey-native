@@ -62,7 +62,7 @@ class SkillLoader(private val context: Context) {
     }
 
     private fun parseSkill(key: String, raw: String): SkillInfo {
-        val match = Regex("^---\\n([\\s\\S]*?)\\n---\\n([\\s\\S]*)", RegexOption.MULTILINE).find(raw)
+        val match = Regex("^---\\n([\\s\\S]*?)\\n---\\n?([\\s\\S]*)\$").find(raw)
 
         var name = key
         var description = ""
@@ -78,19 +78,56 @@ class SkillLoader(private val context: Context) {
             val yamlBlock = match.groupValues[1]
             body = match.groupValues[2]
 
-            val yamlLines = yamlBlock.lines()
-            val yamlMap = parseYamlToMap(yamlLines)
-
-            name = yamlMap["name"]?.trimQuotes() ?: key
-            description = yamlMap["description"]?.trimQuotes() ?: ""
-            category = yamlMap["category"]?.trimQuotes() ?: "other"
-            testPrompt = yamlMap["test_prompt"]?.trimQuotes()
-            androidPackage = yamlMap["android_package"]?.trimQuotes()
-            exclusiveTool = yamlMap["exclusive_tool"]?.trimQuotes()
-
-            (yamlMap["permissions"] as? List<String>)?.let { permissions.addAll(it) }
-            (yamlMap["credentials"] as? List<Map<String, String>>)?.forEach { credMap ->
-                credMap.toCredential()?.let { credentials.add(it) }
+            val lines = yamlBlock.lines()
+            var i = 0
+            while (i < lines.size) {
+                val line = lines[i]
+                val kv = Regex("^(\\w+):\\s*(.*)$").find(line)
+                if (kv != null) {
+                    val k = kv.groupValues[1]
+                    val v = kv.groupValues[2].trim().trimQuotes()
+                    when {
+                        v.isEmpty() -> {
+                            // Block / array
+                            val items = mutableListOf<String>()
+                            i++
+                            while (i < lines.size &&
+                                (lines[i].startsWith(" ") || lines[i].startsWith("\t"))) {
+                                items.add(lines[i].trim().removePrefix("- "))
+                                i++
+                            }
+                            when (k) {
+                                "permissions" -> permissions.addAll(items)
+                                "credentials" -> {
+                                    var cur = mutableMapOf<String, String>()
+                                    for (item in items) {
+                                        val m2 = Regex("^(\\w+):\\s*(.+)$").find(item)
+                                        if (m2 != null) {
+                                            val ck = m2.groupValues[1]
+                                            val cv = m2.groupValues[2].trimQuotes()
+                                            if (ck == "id" && cur.isNotEmpty()) {
+                                                cur.toCredential()?.let { credentials.add(it) }
+                                                cur = mutableMapOf()
+                                            }
+                                            cur[ck] = cv
+                                        }
+                                    }
+                                    cur.toCredential()?.let { credentials.add(it) }
+                                }
+                            }
+                            continue
+                        }
+                        else -> when (k) {
+                            "name" -> name = v
+                            "description" -> description = v
+                            "category" -> category = v
+                            "test_prompt" -> testPrompt = v
+                            "android_package" -> androidPackage = v
+                            "exclusive_tool" -> exclusiveTool = v
+                        }
+                    }
+                }
+                i++
             }
         } else {
             body = raw
@@ -144,59 +181,12 @@ class SkillLoader(private val context: Context) {
     private fun String.escapeXml() = replace("&", "&amp;")
         .replace("<", "&lt;").replace(">", "&gt;")
 
-    private fun parseYamlToMap(lines: List<String>): Map<String, Any?> {
-        val map = mutableMapOf<String, Any?>()
-        var i = 0
-        while (i < lines.size) {
-            val line = lines[i]
-            val kvMatch = Regex("^\\s*(\\w+):\\s*(.*)$").find(line)
-            if (kvMatch != null) {
-                val key = kvMatch.groupValues[1]
-                val value = kvMatch.groupValues[2].trim()
-                if (value.isEmpty()) {
-                    // It's a block or array
-                    val blockItems = mutableListOf<Any?>()
-                    i++
-                    while (i < lines.size && lines[i].startsWith(" ")) {
-                        val itemLine = lines[i].trim()
-                        if (itemLine.startsWith("-")) {
-                            // Array item
-                            val listItem = itemLine.removePrefix("-").trim()
-                            val subKvMatch = Regex("^(\\w+):\\s*(.*)$").find(listItem)
-                            if (subKvMatch != null) {
-                                // Map within array
-                                val subMap = mutableMapOf<String, String>()
-                                subMap[subKvMatch.groupValues[1]] = subKvMatch.groupValues[2].trimQuotes()
-                                blockItems.add(subMap)
-                            } else {
-                                blockItems.add(listItem.trimQuotes())
-                            }
-                        } else {
-                            // Simple block item (e.g., multiline string)
-                            blockItems.add(itemLine.trimQuotes())
-                        }
-                        i++
-                    }
-                    map[key] = blockItems
-                    i-- // Adjust index for next iteration
-                } else {
-                    map[key] = value.trimQuotes()
-                }
-            }
-            i++
-        }
-        return map
-    }
-
     private fun Map<String, String>.toCredential(): CredentialRequirement? {
         val id = this["id"] ?: return null
-        val type = this["type"] ?: "api_key"
-        val label = this["label"] ?: id
-
         return CredentialRequirement(
             id = id,
-            label = label,
-            type = type,
+            label = this["label"] ?: id,
+            type = this["type"] ?: "api_key",
             authProvider = this["auth_provider"]
         )
     }
