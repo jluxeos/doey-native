@@ -28,6 +28,19 @@ class SkillLoader(private val context: Context) {
 
     init {
         loadBundledSkills()
+        loadCustomSkills()
+    }
+
+    private fun loadCustomSkills() {
+        val customSkills = SettingsStore(context).getCustomSkills()
+        for ((name, content) in customSkills) {
+            try {
+                val skill = parseSkill(name, content)
+                skills[skill.name] = skill
+            } catch (e: Exception) {
+                // Skip unreadable custom skills
+            }
+        }
     }
 
     private fun loadBundledSkills() {
