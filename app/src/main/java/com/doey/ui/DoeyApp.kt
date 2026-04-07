@@ -152,6 +152,7 @@ fun DoeyApp() {
                             icon     = { Icon(screen.icon, screen.label) },
                             label    = { Text(screen.label) },
                             selected = current?.hierarchy?.any { it.route == screen.route } == true,
+                            alwaysShowLabel = false,
                             onClick  = {
                                 nav.navigate(screen.route) {
                                     popUpTo(nav.graph.findStartDestination().id) { saveState = true }
