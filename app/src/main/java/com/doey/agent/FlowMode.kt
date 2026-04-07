@@ -3,8 +3,11 @@ package com.doey.agent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.media.AudioManager
+import android.os.SystemClock
 import android.provider.ContactsContract
 import android.provider.Settings
+import android.view.KeyEvent
 import com.doey.DoeyApplication
 import com.doey.tools.*
 import com.doey.ui.parseMemoryEntries
@@ -105,13 +108,17 @@ object FlowModeEngine {
             FlowOption("llamar_bomberos",   "Bomberos (068)",       "🚒", command = dialNumber("068")),
         ))
 
+        // ── Nodo de música: usa el tool "media" moderno ────────────────────────
         "musica" -> FlowNode("musica", "Control de música", options = listOf(
-            FlowOption("mus_play",    "Reproducir/Pausar", "▶️", command = mediaCmd("togglepause")),
-            FlowOption("mus_next",    "Siguiente",         "⏭️", command = mediaCmd("next")),
-            FlowOption("mus_prev",    "Anterior",          "⏮️", command = mediaCmd("previous")),
-            FlowOption("mus_stop",    "Detener",           "⏹️", command = mediaCmd("stop")),
+            FlowOption("mus_play",    "Reproducir/Pausar", "▶️", command = mediaKeyCmd(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)),
+            FlowOption("mus_next",    "Siguiente",         "⏭️", command = mediaKeyCmd(KeyEvent.KEYCODE_MEDIA_NEXT)),
+            FlowOption("mus_prev",    "Anterior",          "⏮️", command = mediaKeyCmd(KeyEvent.KEYCODE_MEDIA_PREVIOUS)),
+            FlowOption("mus_stop",    "Detener",           "⏹️", command = mediaKeyCmd(KeyEvent.KEYCODE_MEDIA_STOP)),
+            FlowOption("mus_vol_up",  "Subir volumen",     "🔊", command = FlowCommand("device", mapOf("action" to "set_volume", "volume" to 80))),
+            FlowOption("mus_vol_dn",  "Bajar volumen",     "🔉", command = FlowCommand("device", mapOf("action" to "set_volume", "volume" to 40))),
             FlowOption("mus_spotify", "Abrir Spotify",     "🎵", command = launchPkg("com.spotify.music")),
             FlowOption("mus_yt",      "Abrir YouTube",     "▶️", command = launchPkg("com.google.android.youtube")),
+            FlowOption("mus_yt_music","Abrir YT Music",    "🎶", command = launchPkg("com.google.android.apps.youtube.music")),
         ))
 
         "wifi" -> FlowNode("wifi", "Configuración WiFi", options = listOf(
@@ -180,8 +187,8 @@ object FlowModeEngine {
             FlowOption("nav_gasolina",  "Gasolinera",       "⛽", command = navSearch("gasolinera")),
             FlowOption("nav_farmacia",  "Farmacia",         "💊", command = navSearch("farmacia")),
             FlowOption("nav_super",     "Supermercado",     "🛒", command = navSearch("supermercado")),
-            FlowOption("nav_restaurante","Restaurante",     "🍽️", command = navSearch("restaurante")),
-            FlowOption("nav_maps",      "Abrir Maps",       "🗺️", command = launchPkg("com.google.android.apps.maps")),
+            FlowOption("nav_restaur",   "Restaurante",      "🍽️", command = navSearch("restaurante")),
+            FlowOption("nav_parking",   "Aparcamiento",     "🅿️", command = navSearch("parking")),
         ))
 
         "sistema" -> FlowNode("sistema", "Sistema", options = listOf(
@@ -220,11 +227,15 @@ object FlowModeEngine {
     private fun dialNumber(number: String) =
         FlowCommand("intent", mapOf("action" to Intent.ACTION_DIAL, "uri" to "tel:$number"))
 
-    private fun mediaCmd(cmd: String) =
-        FlowCommand("intent", mapOf(
-            "action" to "com.android.music.musicservicecommand",
-            "extras" to listOf(mapOf("key" to "command", "value" to cmd))
-        ))
+    /**
+     * Control de música moderno: despacha un KeyEvent de media al AudioManager.
+     * Funciona con Spotify, YouTube Music, Google Play Music, VLC y cualquier
+     * app que registre un MediaSession — sin depender del broadcast obsoleto
+     * "com.android.music.musicservicecommand" que solo funcionaba con la app
+     * de música stock de Android 2.x.
+     */
+    private fun mediaKeyCmd(keyCode: Int) =
+        FlowCommand("media_key", mapOf("keyCode" to keyCode))
 
     private fun openSettings(action: String) =
         FlowCommand("intent", mapOf("action" to action))
@@ -276,6 +287,13 @@ object FlowModeEngine {
 
     suspend fun executeCommand(context: Context, command: FlowCommand): ToolResult =
         withContext(Dispatchers.Main) {
+            // Manejo especial de media_key: despacha KeyEvent al AudioManager
+            if (command.toolName == "media_key") {
+                val keyCode = (command.arguments["keyCode"] as? Number)?.toInt()
+                    ?: return@withContext errorResult("keyCode requerido")
+                return@withContext dispatchMediaKey(context, keyCode)
+            }
+
             val registry = ToolRegistry().apply {
                 register(IntentTool())
                 register(SmsTool())
@@ -296,6 +314,32 @@ object FlowModeEngine {
                 errorResult("Error: ${e.message}")
             }
         }
+
+    /**
+     * Despacha un KeyEvent de media al AudioManager.
+     * Este es el método moderno y universal para controlar la reproducción
+     * en Android 5.0+ (API 21+), compatible con cualquier MediaSession activa.
+     */
+    private fun dispatchMediaKey(context: Context, keyCode: Int): ToolResult {
+        return try {
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val now = SystemClock.uptimeMillis()
+            val down = KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0)
+            val up   = KeyEvent(now, now, KeyEvent.ACTION_UP,   keyCode, 0)
+            am.dispatchMediaKeyEvent(down)
+            am.dispatchMediaKeyEvent(up)
+            val label = when (keyCode) {
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> "▶️ Reproducir/Pausar"
+                KeyEvent.KEYCODE_MEDIA_NEXT       -> "⏭️ Siguiente canción"
+                KeyEvent.KEYCODE_MEDIA_PREVIOUS   -> "⏮️ Canción anterior"
+                KeyEvent.KEYCODE_MEDIA_STOP       -> "⏹️ Reproducción detenida"
+                else                              -> "🎵 Comando de media enviado"
+            }
+            successResult("Media key dispatched: $keyCode", label)
+        } catch (e: Exception) {
+            errorResult("No se pudo enviar el comando de media: ${e.message}")
+        }
+    }
 
     // ── Resolución dinámica de nodos ──────────────────────────────────────────
 
