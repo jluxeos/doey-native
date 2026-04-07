@@ -2,6 +2,7 @@ package com.doey.ui
 
 import android.app.Application
 import android.content.Intent
+import android.view.KeyEvent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.doey.DoeyApplication
@@ -11,6 +12,8 @@ import com.doey.llm.LLMProviderFactory
 import com.doey.services.DoeySpeechEvents
 import com.doey.services.DoeySpeechRecognizer
 import com.doey.services.DoeyTTSEngine
+import com.doey.services.NowPlayingInfo
+import com.doey.services.NowPlayingRepository
 import com.doey.services.WakeWordService
 import com.doey.tools.*
 import kotlinx.coroutines.*
@@ -32,7 +35,8 @@ data class MainUiState(
     val isWakeWordActive: Boolean = false,
     val isListening: Boolean = false,
     val settingsSaved: Boolean = false,
-    val isExpertMode: Boolean = false
+    val isExpertMode: Boolean = false,
+    val nowPlaying: NowPlayingInfo = NowPlayingInfo()
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -46,8 +50,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var pipeline: ConversationPipeline? = null
     private var speechRecognizer: DoeySpeechRecognizer? = null
 
+    // Control del bucle de escucha continua en modo conducción
+    private var driveListenJob: Job? = null
+
     init {
         observeSpeechEvents()
+        observeNowPlaying()
         viewModelScope.launch { initPipeline() }
     }
 
@@ -128,6 +136,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         register(AppSearchAndLaunchTool())
     }
 
+    // ── Observadores ─────────────────────────────────────────────────────────
+
+    private fun observeNowPlaying() {
+        viewModelScope.launch {
+            NowPlayingRepository.nowPlaying.collect { info ->
+                _uiState.update { it.copy(nowPlaying = info) }
+            }
+        }
+    }
+
     // ── User actions ──────────────────────────────────────────────────────────
 
     fun sendMessage(text: String, voiceEnabled: Boolean = true) {
@@ -136,12 +154,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             p.processUtterance(
                 userText = text,
-                onSpeak  = if (voiceEnabled && _uiState.value.isDrivingMode) { t, lang ->
-                    DoeyTTSEngine.speakAndWait(t, lang)
-                } else if (voiceEnabled) { t, lang ->
+                onSpeak  = if (voiceEnabled) { t, lang ->
                     DoeyTTSEngine.speakAndWait(t, lang)
                 } else null
             )
+            // En modo conducción con voz, reanudar escucha automáticamente
+            if (_uiState.value.isDrivingMode && voiceEnabled) {
+                delay(500)
+                startDrivingListen()
+            }
         }
     }
 
@@ -154,18 +175,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.Main) {
             try {
                 if (speechRecognizer == null) speechRecognizer = DoeySpeechRecognizer(app)
-                val lang = settings.getLanguage().let {
-                    when {
-                        it == "system"       -> java.util.Locale.getDefault().toLanguageTag()
-                        it.startsWith("es")  -> "es-ES"
-                        it.startsWith("en")  -> "en-US"
-                        it.startsWith("de")  -> "de-DE"
-                        it.startsWith("fr")  -> "fr-FR"
-                        it.startsWith("it")  -> "it-IT"
-                        it.startsWith("pt")  -> "pt-BR"
-                        else                 -> it
-                    }
-                }
+                val lang = resolveLanguage(settings.getLanguage())
                 val mode = settings.getSttMode()
                 val text = speechRecognizer!!.listen(lang, mode)
                 _uiState.update { it.copy(partialSpeech = "") }
@@ -175,6 +185,60 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update { it.copy(errorMessage = "Speech error: ${e.message}") }
             }
         }
+    }
+
+    /**
+     * Inicia una sesión de escucha única para el modo conducción.
+     * Diseñado para ser llamado desde la UI del Car Mode (botón de voz grande).
+     */
+    fun startDrivingListen() {
+        val p = pipeline ?: return
+        if (_uiState.value.isListening || _uiState.value.pipelineState == PipelineState.PROCESSING) return
+
+        driveListenJob?.cancel()
+        driveListenJob = viewModelScope.launch(Dispatchers.Main) {
+            p.startListening()
+            _uiState.update { it.copy(partialSpeech = "") }
+            try {
+                if (speechRecognizer == null) speechRecognizer = DoeySpeechRecognizer(app)
+                val lang = resolveLanguage(settings.getLanguage())
+                val mode = settings.getSttMode()
+                val text = speechRecognizer!!.listen(lang, mode)
+                _uiState.update { it.copy(partialSpeech = "") }
+                if (text.isNotBlank()) sendMessage(text, voiceEnabled = true)
+                else p.stopListening()
+            } catch (e: Exception) {
+                p.stopListening()
+                if (e !is CancellationException) {
+                    _uiState.update { it.copy(errorMessage = "Error de voz: ${e.message}") }
+                }
+            }
+        }
+    }
+
+    fun stopDrivingListen() {
+        driveListenJob?.cancel()
+        speechRecognizer?.stop()
+        pipeline?.stopListening()
+    }
+
+    // ── Control de media ──────────────────────────────────────────────────────
+
+    fun dispatchMediaKey(keyCode: Int) {
+        NowPlayingRepository.dispatchMediaKey(app, keyCode)
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private fun resolveLanguage(lang: String): String = when {
+        lang == "system"       -> java.util.Locale.getDefault().toLanguageTag()
+        lang.startsWith("es")  -> "es-ES"
+        lang.startsWith("en")  -> "en-US"
+        lang.startsWith("de")  -> "de-DE"
+        lang.startsWith("fr")  -> "fr-FR"
+        lang.startsWith("it")  -> "it-IT"
+        lang.startsWith("pt")  -> "pt-BR"
+        else                   -> lang
     }
 
     fun stopListening()  { speechRecognizer?.stop(); pipeline?.stopListening() }
@@ -187,22 +251,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         pipeline?.setDrivingMode(next)
         _uiState.update { it.copy(isDrivingMode = next) }
         viewModelScope.launch { settings.setDrivingMode(next) }
+        if (!next) stopDrivingListen()
     }
 
     // ── Wake word ─────────────────────────────────────────────────────────────
 
     private suspend fun startWakeWord() {
         val phrase   = settings.getWakePhrase()
-        val language = settings.getLanguage().let {
-            when {
-                it == "system"      -> java.util.Locale.getDefault().toLanguageTag()
-                it.startsWith("es") -> "es-ES"
-                it.startsWith("en") -> "en-US"
-                it.startsWith("de") -> "de-DE"
-                it.startsWith("fr") -> "fr-FR"
-                else                -> it
-            }
-        }
+        val language = resolveLanguage(settings.getLanguage())
 
         WakeWordService.onWakeWord = { _ ->
             viewModelScope.launch(Dispatchers.Main) { startListening() }
@@ -262,6 +318,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        driveListenJob?.cancel()
         speechRecognizer?.destroy()
         super.onCleared()
     }
