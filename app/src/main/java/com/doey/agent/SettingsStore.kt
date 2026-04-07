@@ -111,4 +111,28 @@ class SettingsStore(private val context: Context) {
             if (raw.isBlank()) emptyList()
             else raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
         }
+
+    // ── Custom Skills ─────────────────────────────────────────────────────────
+    suspend fun saveCustomSkill(name: String, content: String) {
+        val prefs = context.getSharedPreferences("custom_skills", Context.MODE_PRIVATE)
+        prefs.edit().putString(name, content).apply()
+        
+        // Add to enabled skills if not already there
+        val currentEnabled = getEnabledSkillsList().toMutableList()
+        if (!currentEnabled.contains(name)) {
+            currentEnabled.add(name)
+            setEnabledSkills(currentEnabled.joinToString(","))
+        }
+    }
+    
+    fun getCustomSkills(): Map<String, String> {
+        val prefs = context.getSharedPreferences("custom_skills", Context.MODE_PRIVATE)
+        val skills = mutableMapOf<String, String>()
+        prefs.all.forEach { (key, value) ->
+            if (value is String) {
+                skills[key] = value
+            }
+        }
+        return skills
+    }
 }
