@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 fun SkillsScreen(vm: MainViewModel) {
     val state by vm.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+    var showAddSkillDialog by remember { mutableStateOf(false) }
 
     // Habilidades que ya vienen integradas y no dependen de APIs externas
     val defaultSkills = remember {
@@ -90,7 +92,72 @@ fun SkillsScreen(vm: MainViewModel) {
             }
             
             item {
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = { showAddSkillDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Purple)
+                ) {
+                    Text("Añadir Skill Avanzada", color = Color.White)
+                }
+            }
+            
+            item {
                 Spacer(Modifier.height(24.dp))
+            }
+        }
+        
+        if (showAddSkillDialog) {
+            AddSkillDialog(
+                onDismiss = { showAddSkillDialog = false },
+                onSave = { name, content ->
+                    scope.launch {
+                        vm.getSettings().saveCustomSkill(name, content)
+                        showAddSkillDialog = false
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun AddSkillDialog(onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var content by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Surface1Light,
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Añadir Skill Avanzada", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Label1Light)
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nombre de la Skill") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = content,
+                    onValueChange = { content = it },
+                    label = { Text("Código Markdown") },
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    maxLines = 10
+                )
+                Spacer(Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = onDismiss) { Text("Cancelar", color = Purple) }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = { onSave(name, content) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Purple)
+                    ) { Text("Guardar", color = Color.White) }
+                }
             }
         }
     }
