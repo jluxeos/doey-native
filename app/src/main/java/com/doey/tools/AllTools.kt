@@ -732,7 +732,10 @@ class SkillDetailTool(private val skillLoader: SkillLoader) : Tool {
 
     override fun parameters() = mapOf<String, Any?>(
         "type" to "object",
-        "properties" to mapOf("skill_name" to mapOf("type" to "string")),
+        "properties" to mapOf(
+            "skill_name" to mapOf("type" to "string"),
+            "fragment" to mapOf("type" to "string", "description" to "Optional fragment name to load only a specific part of a mega skill")
+        ),
         "required" to listOf("skill_name")
     )
 
@@ -740,8 +743,18 @@ class SkillDetailTool(private val skillLoader: SkillLoader) : Tool {
         val name  = args["skill_name"] as? String ?: return errorResult("skill_name required")
         val skill = skillLoader.getSkill(name)    ?: return errorResult("Skill not found: $name")
 
+        val fragment = args["fragment"] as? String
         val expertMode = kotlinx.coroutines.runBlocking { DoeyApplication.instance.settingsStore.getExpertMode() }
-        val sb = StringBuilder("# Skill: ${skill.name}\n\n${skill.content}")
+        
+        val contentToReturn = if (fragment != null && skill.content.contains("## Fragmento: $fragment", ignoreCase = true)) {
+            val regex = Regex("## Fragmento: $fragment(?i)(.*?)(?=## Fragmento:|\$)", RegexOption.DOT_MATCHES_ALL)
+            val match = regex.find(skill.content)
+            match?.value?.trim() ?: skill.content
+        } else {
+            skill.content
+        }
+        
+        val sb = StringBuilder("# Skill: ${skill.name}\n\n$contentToReturn")
 
         if (!expertMode && skill.credentials.isNotEmpty()) {
             val credLabels = skill.credentials.joinToString { it.label }
