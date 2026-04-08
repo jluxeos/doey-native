@@ -46,7 +46,7 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
     var barHeight         by remember { mutableStateOf(72f) }
     var barOpacity        by remember { mutableStateOf(0.95f) }
     var showSaved         by remember { mutableStateOf(false) }
-    val isRunning         = FriendlyModeService.isRunning()
+    val isRunning         = FriendlyModeService.isRunning
 
     LaunchedEffect(Unit) {
         friendlyEnabled = settings.getFriendlyModeEnabled()

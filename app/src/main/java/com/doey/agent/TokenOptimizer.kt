@@ -26,7 +26,7 @@ object TokenOptimizer {
 
     // ── Cache de system prompt ─────────────────────────────────────────────────
 
-    private data class PromptCacheKey(
+    data class PromptCacheKey(
         val provider: String,
         val soul: String,
         val personalMemory: String,

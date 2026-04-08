@@ -27,7 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import com.doey.agent.ProfileStore
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.findStartDestination
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import kotlinx.coroutines.launch
 
 // ── Paleta Tau (tema oscuro premium) ─────────────────────────────────────────
@@ -49,6 +49,8 @@ val TauSeparator   = Color(0xFF1E1E2E)
 
 // Alias de compatibilidad
 val Purple         = TauAccent
+val PurpleDark     = TauAccentGlow
+val OnPurple       = Color.White
 val Surface0Light  = TauSurface1
 val Surface1Light  = TauSurface2
 val Surface2Light  = TauSurface3
@@ -247,7 +249,7 @@ private fun DoeyBottomBar(nav: NavController, onMenuClick: () -> Unit) {
                     selected = sel,
                     onClick  = {
                         nav.navigate(screen.route) {
-                            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                            popUpTo(nav.graph.findStartDestination().id)
                             launchSingleTop = true; restoreState = true
                         }
                     },
@@ -265,7 +267,7 @@ private fun DoeyBottomBar(nav: NavController, onMenuClick: () -> Unit) {
                 selected = current?.route == Screen.Settings.route,
                 onClick  = {
                     nav.navigate(Screen.Settings.route) {
-                        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                        popUpTo(nav.graph.findStartDestination().id)
                         launchSingleTop = true; restoreState = true
                     }
                 },
@@ -348,7 +350,7 @@ private fun DoeyDrawerContent(
                     onClick  = {
                         scope.launch { drawerState.close() }
                         nav.navigate(screen.route) {
-                            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                            popUpTo(nav.graph.findStartDestination().id)
                             launchSingleTop = true; restoreState = true
                         }
                     },

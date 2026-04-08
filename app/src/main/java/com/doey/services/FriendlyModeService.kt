@@ -51,8 +51,10 @@ import com.doey.agent.ConversationPipeline
 import com.doey.agent.LocalIntentProcessor
 import com.doey.agent.ProfileStore
 import com.doey.agent.SettingsStore
+import android.net.Uri
 import com.doey.agent.SystemPromptBuilder
-import com.doey.tools.ToolRegistry
+import com.doey.agent.SkillLoader
+import com.doey.tools.*
 import com.doey.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -171,18 +173,54 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
             try {
                 val app = DoeyApplication.instance
                 val settings = SettingsStore(app)
-                pipeline = ConversationPipeline(
-                    context          = app,
-                    settings         = settings,
-                    toolRegistry     = ToolRegistry(app),
-                    drivingMode      = false,
-                    language         = settings.getLanguage(),
-                    soul             = settings.getSoul(),
-                    personalMemory   = settings.getPersonalMemory(),
-                    expertMode       = settings.getExpertMode(),
-                    maxIterations    = minOf(settings.getMaxIterations(), 8), // Limitar iteraciones en modo Friendly
-                    enabledSkillNames = settings.getEnabledSkillsList()
+                
+                val provider = com.doey.llm.LLMProviderFactory.create(
+                    settings.getProvider(), 
+                    settings.getApiKey(settings.getProvider()), 
+                    settings.getModel(), 
+                    settings.getCustomModelUrl()
                 )
+                
+                val skillLoader = SkillLoader(app)
+                val enabledSkills = settings.getEnabledSkillsList()
+                val tools = ToolRegistry().apply {
+                    register(IntentTool())
+                    register(SmsTool())
+                    register(BeepTool())
+                    register(DateTimeTool())
+                    register(DeviceTool())
+                    register(QueryContactsTool())
+                    register(QuerySmsTool())
+                    register(QueryCallLogTool())
+                    register(HttpTool())
+                    register(TTSTool())
+                    register(AccessibilityTool())
+                    register(AppSearchTool())
+                    register(FileStorageTool())
+                    register(SkillDetailTool(skillLoader))
+                    register(PersonalMemoryTool())
+                    register(JournalTool())
+                    register(TimerTool())
+                    register(SchedulerTool())
+                    register(NotificationListenerTool())
+                    register(AlarmTool())
+                    register(AppSearchAndLaunchTool())
+                    removeDisabledSkillTools(skillLoader.getDisabledExclusiveTools(enabledSkills))
+                }
+
+                pipeline = ConversationPipeline(
+                    provider           = provider,
+                    tools              = tools,
+                    skillLoader        = skillLoader,
+                    drivingMode        = false,
+                    language           = settings.getLanguage(),
+                    soul               = settings.getSoul(),
+                    personalMemory     = settings.getPersonalMemory(),
+                    maxIterations      = minOf(settings.getMaxIterations(), 8),
+                    expertMode         = settings.getExpertMode()
+                ).apply {
+                    setEnabledSkills(enabledSkills)
+                }
             } catch (e: Exception) {
                 android.util.Log.e("FriendlyMode", "Error init pipeline: ${e.message}")
             }
