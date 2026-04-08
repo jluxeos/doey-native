@@ -534,9 +534,16 @@ private fun DoeyBubble(
                         Surface(
                             modifier = Modifier.weight(1f).height(44.dp).clickable {
                                 onToggleExpand()
-                                MainActivity.instance?.startService(Intent(MainActivity.instance, FriendlyModeService::class.java).apply {
-                                    action = "SHOW_BAR"
-                                })
+                                val ctx = MainActivity.instance ?: return@clickable
+                                val intent = Intent(ctx, FriendlyModeService::class.java).apply {
+                                    action = FriendlyModeService.ACTION_SHOW
+                                    putExtra(FriendlyModeService.EXTRA_CONTEXT_APP, "Doey Bubble")
+                                }
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                    ctx.startForegroundService(intent)
+                                } else {
+                                    ctx.startService(intent)
+                                }
                             },
                             shape = RoundedCornerShape(12.dp),
                             color = Color(0xFF00E676).copy(alpha = 0.1f),

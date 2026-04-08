@@ -62,12 +62,14 @@ class SchedulerJobService : Service() {
         }
 
         val pipeline = ConversationPipeline(
+            ctx            = app,
             provider       = llm,
             tools          = tools,
             skillLoader    = app.skillLoader,
             language       = language,
             soul           = soul,
             personalMemory = personalMem,
+            userName       = com.doey.agent.ProfileStore(app).getUserName(),
             maxIterations  = 10
         )
         pipeline.setEnabledSkills(enabledSkills)

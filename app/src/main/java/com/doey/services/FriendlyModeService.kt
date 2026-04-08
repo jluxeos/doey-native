@@ -209,6 +209,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
                 }
 
                 pipeline = ConversationPipeline(
+                    ctx                = app,
                     provider           = provider,
                     tools              = tools,
                     skillLoader        = skillLoader,
@@ -216,6 +217,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
                     language           = settings.getLanguage(),
                     soul               = settings.getSoul(),
                     personalMemory     = settings.getPersonalMemory(),
+                    userName           = com.doey.agent.ProfileStore(app).getUserName(),
                     maxIterations      = minOf(settings.getMaxIterations(), 8),
                     expertMode         = settings.getExpertMode()
                 ).apply {

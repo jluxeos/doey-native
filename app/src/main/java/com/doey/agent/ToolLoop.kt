@@ -103,7 +103,7 @@ suspend fun runToolLoop(
             // PUNTO 12: Verificación de éxito para acciones críticas
             if (tc.name == "intent" || tc.name == "accessibility" || tc.name == "send_sms") {
                 if (result.isError) {
-                    DoeyLogger.warning("Acción fallida: ${tc.name}. Intentando recuperación con accesibilidad...")
+                    DoeyLogger.info("Acción fallida: ${tc.name}. Intentando recuperación con accesibilidad...")
                 } else {
                     // Si fue un intent de música o mensaje, verificar con accesibilidad si se completó
                     val action = tc.arguments["action"] as? String ?: ""

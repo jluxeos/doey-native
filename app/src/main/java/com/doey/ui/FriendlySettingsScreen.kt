@@ -142,8 +142,15 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
                 onToggle = {
                     friendlyEnabled = it
                     if (it) {
-                        val intent = Intent(ctx, FriendlyModeService::class.java)
-                        ctx.startForegroundService(intent)
+                        val intent = Intent(ctx, FriendlyModeService::class.java).apply {
+                            action = FriendlyModeService.ACTION_SHOW
+                            putExtra(FriendlyModeService.EXTRA_CONTEXT_APP, "Ajustes")
+                        }
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            ctx.startForegroundService(intent)
+                        } else {
+                            ctx.startService(intent)
+                        }
                     } else {
                         ctx.stopService(Intent(ctx, FriendlyModeService::class.java))
                     }

@@ -11,6 +11,7 @@ import com.doey.agent.LocalIntentProcessor
 import com.doey.agent.PipelineState
 import com.doey.agent.SettingsStore
 import com.doey.agent.SkillLoader
+import com.doey.agent.ProfileStore
 import com.doey.services.DoeyNotificationListenerService
 import com.doey.services.DoeySpeechEvents
 import com.doey.services.DoeySpeechRecognizer

@@ -13,6 +13,8 @@ import android.provider.ContactsContract
 import android.provider.Telephony
 import android.telephony.SmsManager
 import android.util.Log
+import org.json.JSONArray
+import org.json.JSONObject
 import com.doey.DoeyApplication
 import com.doey.agent.SkillLoader
 import com.doey.ui.MemoryEntry
