@@ -196,7 +196,11 @@ private fun StandardFlowContent(
                         Toast.makeText(ctx, "Error al abrir modo Friendly", Toast.LENGTH_SHORT).show()
                     }
                 }) {
-                    Icon(Icons.Default.Spa, "Modo Friendly", tint = TauGreen)
+                    Icon(
+                        Icons.Default.Spa,
+                        "Modo Friendly",
+                        tint = if (com.doey.services.FriendlyModeService.isRunning) TauGreen else TauText3
+                    )
                 }
                 
                 IconButton(onClick = { vm.toggleWakeWord() }) {

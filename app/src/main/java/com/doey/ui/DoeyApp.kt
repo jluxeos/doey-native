@@ -28,6 +28,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.doey.agent.ProfileStore
+import com.doey.agent.SettingsStore
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -82,6 +83,18 @@ val DoeyColorsTau = darkColorScheme(
 // Alias para compatibilidad con pantallas que usan DoeyColorsLight/Dark
 val DoeyColorsLight = DoeyColorsTau
 val DoeyColorsDark  = DoeyColorsTau
+
+fun buildColorScheme(theme: String) = when (theme) {
+    "blue"   -> DoeyColorsTau.copy(primary = TauBlue,   primaryContainer = TauBlue.copy(alpha = 0.2f),
+                    secondary = TauBlue, onPrimary = Color.White)
+    "green"  -> DoeyColorsTau.copy(primary = TauGreen,  primaryContainer = TauGreen.copy(alpha = 0.2f),
+                    secondary = TauGreen, onPrimary = Color.Black)
+    "orange" -> DoeyColorsTau.copy(primary = TauOrange, primaryContainer = TauOrange.copy(alpha = 0.2f),
+                    secondary = TauOrange, onPrimary = Color.White)
+    "red"    -> DoeyColorsTau.copy(primary = TauRed,    primaryContainer = TauRed.copy(alpha = 0.2f),
+                    secondary = TauRed, onPrimary = Color.White)
+    else     -> DoeyColorsTau // "tau" por defecto
+}
 
 @Composable
 fun doeyFieldColors() = OutlinedTextFieldDefaults.colors(
@@ -138,15 +151,23 @@ fun DoeyApp() {
     val vm  = viewModel<MainViewModel>()
     val ctx = LocalContext.current
     val profileStore = remember { ProfileStore(ctx) }
+    val settingsStore = remember { SettingsStore(ctx) }
 
     var onboardingDone by remember { mutableStateOf(profileStore.isOnboardingDone()) }
     var userProfile    by remember { mutableStateOf(profileStore.getUserProfile()) }
     var isLowPower     by remember { mutableStateOf(profileStore.isLowPowerMode()) }
+    var activeTheme    by remember { mutableStateOf("tau") }
 
-    // FIX BUG-4: callback para que SettingsScreen notifique cambios de perfil
+    LaunchedEffect(Unit) {
+        activeTheme = settingsStore.getTheme()
+    }
+
+    // FIX BUG-4: callback para que SettingsScreen notifique cambios de perfil y tema
+    val scope2 = rememberCoroutineScope()
     val onProfileChanged: () -> Unit = {
         userProfile = profileStore.getUserProfile()
         isLowPower  = profileStore.isLowPowerMode()
+        scope2.launch { activeTheme = settingsStore.getTheme() }
     }
 
     // FIX BUG-6: Manejar invocación como asistente del sistema
@@ -171,7 +192,7 @@ fun DoeyApp() {
     }
 
     if (!onboardingDone) {
-        MaterialTheme(colorScheme = DoeyColorsTau) {
+        MaterialTheme(colorScheme = buildColorScheme(activeTheme)) {
             OnboardingFlow { name, profile, performance, provider, apiKey ->
                 profileStore.setUserName(name)
                 profileStore.setUserProfile(
@@ -199,7 +220,7 @@ fun DoeyApp() {
     val scope       = rememberCoroutineScope()
     val isAdvanced  = userProfile == ProfileStore.PROFILE_ADVANCED
 
-    MaterialTheme(colorScheme = DoeyColorsTau) {
+    MaterialTheme(colorScheme = buildColorScheme(activeTheme)) {
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {

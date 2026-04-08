@@ -21,37 +21,31 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.doey.agent.SettingsStore
 import com.doey.services.FriendlyModeService
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/**
- * Pantalla de configuración del Modo Friendly — Doey 23.4.9 Ultra (Tau Version)
- *
- * Permite configurar todos los aspectos del modo barra inferior:
- * - Activar/desactivar el modo
- * - Leer contexto de la app activa
- * - Auto-iniciar al arrancar
- * - Posición de la barra
- * - Altura y opacidad
- * - Tema de colores
- */
 @Composable
 fun FriendlySettingsScreen(vm: MainViewModel) {
     val ctx      = LocalContext.current
     val settings = remember { SettingsStore(ctx) }
     val scope    = rememberCoroutineScope()
 
-    var friendlyEnabled   by remember { mutableStateOf(true) }
-    var contextRead       by remember { mutableStateOf(true) }
-    var autoStart         by remember { mutableStateOf(false) }
-    var barHeight         by remember { mutableStateOf(72f) }
-    var barOpacity        by remember { mutableStateOf(0.95f) }
-    var showSaved         by remember { mutableStateOf(false) }
-    val isRunning         = FriendlyModeService.isRunning
+    var friendlyEnabled by remember { mutableStateOf(true) }
+    var contextRead     by remember { mutableStateOf(true) }
+    var autoStart       by remember { mutableStateOf(false) }
+    // Fix #5: valores iniciales desde SettingsStore (no hardcodeados)
+    var barHeight       by remember { mutableStateOf(72f) }
+    var barOpacity      by remember { mutableStateOf(0.95f) }
+    var showSaved       by remember { mutableStateOf(false) }
+    val isRunning       = FriendlyModeService.isRunning
 
+    // Fix #5: cargar todos los valores persistidos al iniciar
     LaunchedEffect(Unit) {
         friendlyEnabled = settings.getFriendlyModeEnabled()
         contextRead     = settings.getFriendlyContextRead()
         autoStart       = settings.getAutoStartFriendly()
+        barHeight       = settings.getFriendlyBarHeight()
+        barOpacity      = settings.getFriendlyBarOpacity()
     }
 
     Column(
@@ -62,11 +56,8 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ── Header ──────────────────────────────────────────────────────────────
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        // ── Header ──────────────────────────────────────────────────────────
+        Surface(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
             Box(
                 modifier = Modifier
                     .background(
@@ -82,28 +73,17 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Default.Spa,
-                            contentDescription = null,
-                            tint = Color(0xFF4CAF50),
+                            Icons.Default.Spa, null,
+                            tint     = Color(0xFF4CAF50),
                             modifier = Modifier.size(32.dp)
                         )
                         Spacer(Modifier.width(12.dp))
                         Column {
-                            Text(
-                                "Modo Friendly",
-                                color = TauText1,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                "Barra asistente siempre visible",
-                                color = TauText2,
-                                fontSize = 13.sp
-                            )
+                            Text("Modo Friendly", color = TauText1, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                            Text("Barra asistente siempre visible", color = TauText2, fontSize = 13.sp)
                         }
                     }
                     Spacer(Modifier.height(12.dp))
-                    // Estado del servicio
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = if (isRunning) Color(0xFF4CAF50).copy(0.2f) else TauSurface3
@@ -123,7 +103,7 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 if (isRunning) "Servicio activo" else "Servicio inactivo",
-                                color = if (isRunning) Color(0xFF4CAF50) else TauText3,
+                                color    = if (isRunning) Color(0xFF4CAF50) else TauText3,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -133,7 +113,7 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
             }
         }
 
-        // ── Controles principales ────────────────────────────────────────────────
+        // ── Activación ──────────────────────────────────────────────────────
         FriendlySection(title = "Activación", icon = Icons.Default.PowerSettingsNew) {
             FriendlySwitchRow(
                 title    = "Activar Modo Friendly",
@@ -164,6 +144,7 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
             )
         }
 
+        // ── Comportamiento ──────────────────────────────────────────────────
         FriendlySection(title = "Comportamiento", icon = Icons.Default.Tune) {
             FriendlySwitchRow(
                 title    = "Leer contexto de app activa",
@@ -173,57 +154,69 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
             )
         }
 
+        // ── Apariencia — Fix #5: sliders ahora persisten ────────────────────
         FriendlySection(title = "Apariencia", icon = Icons.Default.Palette) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Altura de la barra", color = TauText2, fontSize = 13.sp)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment     = Alignment.CenterVertically
+                ) {
+                    Text("Altura de la barra", color = TauText2, fontSize = 13.sp)
+                    Text("${barHeight.toInt()} dp", color = TauText3, fontSize = 12.sp)
+                }
                 Slider(
-                    value = barHeight,
+                    value         = barHeight,
                     onValueChange = { barHeight = it },
-                    valueRange = 56f..96f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color(0xFF4CAF50),
+                    valueRange    = 56f..96f,
+                    colors        = SliderDefaults.colors(
+                        thumbColor       = Color(0xFF4CAF50),
                         activeTrackColor = Color(0xFF4CAF50)
                     )
-                )
-                Text(
-                    "${barHeight.toInt()} dp",
-                    color = TauText3,
-                    fontSize = 12.sp
                 )
             }
-            Spacer(Modifier.height(8.dp))
+
+            Spacer(Modifier.height(4.dp))
+
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Opacidad del fondo", color = TauText2, fontSize = 13.sp)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment     = Alignment.CenterVertically
+                ) {
+                    Text("Opacidad del fondo", color = TauText2, fontSize = 13.sp)
+                    Text("${(barOpacity * 100).toInt()}%", color = TauText3, fontSize = 12.sp)
+                }
                 Slider(
-                    value = barOpacity,
+                    value         = barOpacity,
                     onValueChange = { barOpacity = it },
-                    valueRange = 0.5f..1.0f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color(0xFF4CAF50),
+                    valueRange    = 0.5f..1.0f,
+                    colors        = SliderDefaults.colors(
+                        thumbColor       = Color(0xFF4CAF50),
                         activeTrackColor = Color(0xFF4CAF50)
                     )
-                )
-                Text(
-                    "${(barOpacity * 100).toInt()}%",
-                    color = TauText3,
-                    fontSize = 12.sp
                 )
             }
         }
 
-        // ── Botón guardar ────────────────────────────────────────────────────────
+        // ── Guardar ─────────────────────────────────────────────────────────
         Button(
             onClick = {
                 scope.launch {
                     settings.setFriendlyModeEnabled(friendlyEnabled)
                     settings.setFriendlyContextRead(contextRead)
                     settings.setAutoStartFriendly(autoStart)
+                    // Fix #5: persistir apariencia
+                    settings.setFriendlyBarHeight(barHeight)
+                    settings.setFriendlyBarOpacity(barOpacity)
                     showSaved = true
+                    delay(2500)
+                    showSaved = false
                 }
             },
             modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C))
+            shape    = RoundedCornerShape(16.dp),
+            colors   = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C))
         ) {
             Icon(Icons.Default.Save, null)
             Spacer(Modifier.width(8.dp))
@@ -232,14 +225,11 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
 
         AnimatedVisibility(visible = showSaved) {
             Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF4CAF50).copy(alpha = 0.15f),
+                shape    = RoundedCornerShape(12.dp),
+                color    = Color(0xFF4CAF50).copy(alpha = 0.15f),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("¡Ajustes del Modo Friendly guardados!", color = Color(0xFF4CAF50), fontSize = 14.sp)
@@ -253,13 +243,13 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
 
 @Composable
 private fun FriendlySection(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    content: @Composable ColumnScope.() -> Unit
+    title   : String,
+    icon    : androidx.compose.ui.graphics.vector.ImageVector,
+    content : @Composable ColumnScope.() -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = TauSurface1,
+        shape    = RoundedCornerShape(16.dp),
+        color    = TauSurface1,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -276,24 +266,24 @@ private fun FriendlySection(
 
 @Composable
 private fun FriendlySwitchRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onToggle: (Boolean) -> Unit
+    title    : String,
+    subtitle : String,
+    checked  : Boolean,
+    onToggle : (Boolean) -> Unit
 ) {
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment     = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = TauText1, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(title,    color = TauText1, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             Text(subtitle, color = TauText3, fontSize = 12.sp)
         }
         Switch(
-            checked = checked,
+            checked         = checked,
             onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(
+            colors          = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
                 checkedTrackColor = Color(0xFF4CAF50)
             )

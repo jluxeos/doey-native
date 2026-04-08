@@ -126,6 +126,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
 
     private var pipeline: ConversationPipeline? = null
     private var pendingConfirmAction: (() -> Unit)? = null
+    private var speechRecognizer: com.doey.services.DoeySpeechRecognizer? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -161,6 +162,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         hideBar()
         serviceScope.cancel()
+        speechRecognizer?.destroy()
         instance = null
         isRunning = false
         super.onDestroy()
@@ -274,6 +276,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
                     inputText    = inputTextState.value,
                     onInputChange = { inputTextState.value = it },
                     onSend       = { processUserInput(inputTextState.value); inputTextState.value = "" },
+                    onMic        = { startVoiceInput() },
                     onPause      = { isPausedState.value = !isPausedState.value },
                     onClose      = { hideBar() },
                     onOpenApp    = { openMainApp() },
@@ -362,6 +365,30 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
             } catch (e: Exception) {
                 statusState.value   = FriendlyStatus.ERROR
                 responseState.value = "Error: ${e.message}"
+            }
+        }
+    }
+
+    fun startVoiceInput() {
+        if (isPausedState.value) return
+        serviceScope.launch(Dispatchers.Main) {
+            try {
+                statusState.value = FriendlyStatus.LISTENING
+                if (speechRecognizer == null) speechRecognizer = DoeySpeechRecognizer(this@FriendlyModeService)
+                val settings = SettingsStore(DoeyApplication.instance)
+                val lang     = settings.getLanguage().let { l ->
+                    if (l == "system") java.util.Locale.getDefault().toLanguageTag() else l
+                }
+                val text = speechRecognizer!!.listen(lang, "auto")
+                statusState.value = FriendlyStatus.IDLE
+                if (text.isNotBlank()) {
+                    inputTextState.value = text
+                    processUserInput(text)
+                    inputTextState.value = ""
+                }
+            } catch (e: Exception) {
+                statusState.value   = FriendlyStatus.ERROR
+                responseState.value = "Error de voz: ${e.message}"
             }
         }
     }
@@ -495,6 +522,7 @@ private fun FriendlyBar(
     inputText: String,
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
+    onMic: () -> Unit,
     onPause: () -> Unit,
     onClose: () -> Unit,
     onOpenApp: () -> Unit,
@@ -768,7 +796,7 @@ private fun FriendlyBar(
                     ) {
                         // Botón de micrófono
                         IconButton(
-                            onClick = { /* TODO: activar STT */ },
+                            onClick  = { onMic() },
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(

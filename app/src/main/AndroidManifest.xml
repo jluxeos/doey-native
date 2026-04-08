@@ -162,9 +162,9 @@
             </intent-filter>
         </service>
 
-        <!-- NUEVO: Asistente de voz del sistema (VoiceInteractionService) -->
+        <!-- Fix #1: Servicio raíz de asistente (VoiceInteractionService) -->
         <service
-            android:name=".services.DoeyAssistantService"
+            android:name=".services.DoeyVoiceInteractionService"
             android:enabled="true"
             android:exported="true"
             android:permission="android.permission.BIND_VOICE_INTERACTION">
@@ -175,6 +175,13 @@
                 android:name="android.voice_interaction"
                 android:resource="@xml/interaction_service" />
         </service>
+
+        <!-- Fix #1: Sesión del asistente (VoiceInteractionSessionService) -->
+        <service
+            android:name=".services.DoeyAssistantService"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION" />
 
         <!-- Accessibility Service -->
         <service

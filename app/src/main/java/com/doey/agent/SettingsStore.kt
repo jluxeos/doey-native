@@ -40,6 +40,8 @@ class SettingsStore(private val context: Context) {
     private val KEY_OVERLAY_ENABLED       = booleanPreferencesKey("overlay_enabled")
     private val KEY_NOTIF_ENABLED         = booleanPreferencesKey("notif_enabled")
     private val KEY_AUTO_START_FRIENDLY   = booleanPreferencesKey("auto_start_friendly")
+    private val KEY_FRIENDLY_BAR_HEIGHT   = floatPreferencesKey("friendly_bar_height")
+    private val KEY_FRIENDLY_BAR_OPACITY  = floatPreferencesKey("friendly_bar_opacity")
 
     // ── Encrypted SharedPreferences (API keys, secrets) ───────────────────────
     private val encPrefs: SharedPreferences by lazy {
@@ -116,6 +118,8 @@ class SettingsStore(private val context: Context) {
     suspend fun setOverlayEnabled(v: Boolean)           = context.dataStore.edit { it[KEY_OVERLAY_ENABLED] = v }
     suspend fun setNotifEnabled(v: Boolean)             = context.dataStore.edit { it[KEY_NOTIF_ENABLED] = v }
     suspend fun setAutoStartFriendly(v: Boolean)        = context.dataStore.edit { it[KEY_AUTO_START_FRIENDLY] = v }
+    suspend fun setFriendlyBarHeight(v: Float)          = context.dataStore.edit { it[KEY_FRIENDLY_BAR_HEIGHT] = v }
+    suspend fun setFriendlyBarOpacity(v: Float)         = context.dataStore.edit { it[KEY_FRIENDLY_BAR_OPACITY] = v }
 
     // ── Suspend getters (first emission) ──────────────────────────────────────
     suspend fun getProvider()        = provider.first()
@@ -142,6 +146,8 @@ class SettingsStore(private val context: Context) {
     suspend fun getOverlayEnabled()             = context.dataStore.data.map { it[KEY_OVERLAY_ENABLED] ?: false }.first()
     suspend fun getNotifEnabled()               = context.dataStore.data.map { it[KEY_NOTIF_ENABLED] ?: false }.first()
     suspend fun getAutoStartFriendly()          = context.dataStore.data.map { it[KEY_AUTO_START_FRIENDLY] ?: false }.first()
+    suspend fun getFriendlyBarHeight()          = context.dataStore.data.map { it[KEY_FRIENDLY_BAR_HEIGHT] ?: 72f }.first()
+    suspend fun getFriendlyBarOpacity()         = context.dataStore.data.map { it[KEY_FRIENDLY_BAR_OPACITY] ?: 0.95f }.first()
 
     suspend fun getEnabledSkillsList(): List<String> =
         enabledSkills.first().let { raw ->
