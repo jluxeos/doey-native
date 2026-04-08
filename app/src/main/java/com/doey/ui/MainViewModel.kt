@@ -326,6 +326,10 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         NowPlayingRepository.dispatchMediaKey(app, keyCode)
     }
 
+    fun togglePlayback() = dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+    fun skipToNext() = dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_NEXT)
+    fun skipToPrevious() = dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_PREVIOUS)
+
     fun stopListening()  { speechRecognizer?.stop(); pipeline?.stopListening() }
     fun stopSpeaking()   { DoeyTTSEngine.stop(); pipeline?.setIdle() }
     fun clearHistory()   { pipeline?.clearHistory(); _uiState.update { it.copy(messages = emptyList()) } }

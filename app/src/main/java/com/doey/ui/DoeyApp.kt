@@ -178,7 +178,7 @@ fun DoeyApp() {
                     if (profile == UserProfile.BASIC) ProfileStore.PROFILE_BASIC else ProfileStore.PROFILE_ADVANCED
                 )
                 profileStore.setPerformanceMode(
-                    if (performance == PerformanceMode.LOW_POWER) ProfileStore.PERF_LOW_POWER else ProfileStore.PERF_HIGH_PERFORMANCE
+                    if (performance == PerformanceMode.LOW_POWER) ProfileStore.PERF_LOW_POWER else ProfileStore.PERF_HIGH
                 )
                 profileStore.setOnboardingDone(true)
                 if (apiKey.isNotBlank()) {

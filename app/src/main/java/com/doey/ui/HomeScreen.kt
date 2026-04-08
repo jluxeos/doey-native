@@ -542,10 +542,9 @@ private fun ChatBubble(msg: ChatMessage, isFlow: Boolean) {
                          color = if (isFlow) Color(0xFFBB86FC) else Purple, modifier = Modifier.padding(bottom = 4.dp))
                 }
                 MarkdownText(
-                    markdown  = msg.content,
+                    text      = msg.content,
                     color     = textColor,
-                    fontSize  = 15.sp,
-                    isFlow    = isFlow
+                    fontSize  = 15.sp
                 )
             }
         }
@@ -573,7 +572,7 @@ private fun PartialBubble(text: String) {
 
 @Composable
 private fun FriendlyMessageBubble() {
-    val msg = remember { FriendlyMessagesProvider.getRandomMessage() }
+    val msg = remember { FriendlyMessagesProvider.getWaitingMessage() }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
         Surface(
             shape = RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp),
@@ -1282,7 +1281,7 @@ private fun CarPlayChatBubble(msg: ChatMessage) {
             ).padding(12.dp)
         ) {
             Text(
-                msg.content,
+                text = msg.content,
                 fontFamily = CarPlayFont,
                 fontSize = 15.sp,
                 color = if (isUser) Color.White else CPText
