@@ -275,7 +275,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape    = RoundedCornerShape(10.dp),
-                    colors   = OutlinedButtonDefaults.outlinedButtonColors(contentColor = TauAccentLight)
+                    colors   = ButtonDefaults.outlinedButtonColors(contentColor = TauAccentLight)
                 ) {
                     Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
