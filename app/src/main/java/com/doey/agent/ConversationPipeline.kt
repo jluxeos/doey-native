@@ -14,6 +14,7 @@ private const val TAG = "Pipeline"
 enum class PipelineState { IDLE, LISTENING, PROCESSING, SPEAKING, ERROR }
 
 class ConversationPipeline(
+    private val ctx: android.content.Context,
     private var provider: LLMProvider,
     private val tools: ToolRegistry,
     private val skillLoader: SkillLoader,
@@ -21,6 +22,7 @@ class ConversationPipeline(
     private var language: String = "en",
     private var soul: String = "",
     private var personalMemory: String = "",
+    private var userName: String = "",
     private var maxIterations: Int = 10,
     private var maxHistoryMessages: Int = 20,
     private var expertMode: Boolean = false
@@ -43,6 +45,7 @@ class ConversationPipeline(
     fun setLanguage(v: String)               { language = v; systemPromptDirty = true }
     fun setSoul(v: String)                   { soul = v; systemPromptDirty = true }
     fun setPersonalMemory(v: String)         { personalMemory = v; systemPromptDirty = true }
+    fun setUserName(v: String)               { userName = v; systemPromptDirty = true }
     fun setExpertMode(v: Boolean)            { expertMode = v; systemPromptDirty = true }
     fun setProvider(p: LLMProvider)          { provider = p }
     fun clearHistory()                       { history.clear() }
@@ -82,6 +85,17 @@ class ConversationPipeline(
             if (!silent) onTranscript?.invoke("user", userText)
             DoeyLogger.userInput(userText)
             Log.d(TAG, "Processing: ${userText.take(80)}")
+
+            // PUNTO 7: Detección de peticiones para Google Gemini manual
+            val geminiTriggers = listOf("escribe una canción", "genera una imagen", "dibuja", "componer canción", "crea un poema largo")
+            if (geminiTriggers.any { userText.lowercase().contains(it) }) {
+                DoeyLogger.info("Redirigiendo a Google Gemini manual...")
+                val intent = ctx.packageManager.getLaunchIntentForPackage("com.google.android.apps.bard")
+                if (intent != null) {
+                    ctx.startActivity(intent)
+                    return "Abriendo Google Gemini para ayudarte con eso..."
+                }
+            }
 
             // ── Optimización de tokens ─────────────────────────────────────
             val complexity = TokenOptimizer.classifyComplexity(userText)
@@ -157,6 +171,22 @@ class ConversationPipeline(
         } catch (e: Exception) {
             Log.e(TAG, "Pipeline error: ${e.message}")
             DoeyLogger.error("Pipeline", e.message ?: "Error desconocido")
+            
+            // PUNTO 8: Sistema ARIA (Asistente de Respaldo de Inteligencia Artificial)
+            DoeyLogger.info("Iniciando sistema ARIA de respaldo...")
+            try {
+                // Intentar usar Gemini (el más fiable) como respaldo si el actual falló
+                val backupProvider = com.doey.llm.LLMProviderFactory.create("gemini", "", "gemini-2.5-flash")
+                val backupResult = backupProvider.chat(
+                    messages = listOf(Message("system", "Eres ARIA, el sistema de respaldo de Doey. El sistema principal falló. Ayuda al usuario brevemente.")),
+                    tools = emptyList()
+                )
+                onTranscript?.invoke("assistant", "[ARIA]: ${backupResult.content}")
+                return backupResult.content
+            } catch (backupEx: Exception) {
+                DoeyLogger.error("ARIA", "Fallo crítico total")
+            }
+
             _state.value = PipelineState.ERROR
             DoeyLogger.pipelineState("PROCESSING", "ERROR")
             onError?.invoke(e.message ?: "Unknown error")
@@ -181,7 +211,8 @@ class ConversationPipeline(
             language           = language,
             soul               = soul,
             personalMemory     = personalMemory,
-            expertMode         = expertMode
+            expertMode         = expertMode,
+            userName           = userName
         )
         cachedSystemPrompt = prompt
         systemPromptDirty  = false

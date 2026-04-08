@@ -77,6 +77,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         val tools       = buildTools(skillLoader, enabledSkills)
 
         val p = ConversationPipeline(
+            ctx                = app,
             provider           = com.doey.llm.LLMProviderFactory.create(provider, settings.getApiKey(provider), model, settings.getCustomModelUrl()),
             tools              = tools,
             skillLoader        = skillLoader,
@@ -84,6 +85,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             language           = resolveLanguage(language),
             soul               = settings.getSoul(),
             personalMemory     = settings.getPersonalMemory(),
+            userName           = ProfileStore(app).getUserName(),
             maxIterations      = settings.getMaxIterations(),
             expertMode         = expertMode
         ).apply {

@@ -40,6 +40,7 @@ private val OBCardBorder    = Color(0xFF3A3A5C)
 
 enum class OnboardingStep {
     WELCOME,
+    USER_NAME,
     USER_PROFILE,
     PERFORMANCE_MODE,
     PERMISSIONS,
@@ -75,9 +76,10 @@ enum class PerformanceMode(val title: String, val subtitle: String, val icon: Im
 
 @Composable
 fun OnboardingFlow(
-    onComplete: (profile: UserProfile, performance: PerformanceMode, provider: String, apiKey: String) -> Unit
+    onComplete: (name: String, profile: UserProfile, performance: PerformanceMode, provider: String, apiKey: String) -> Unit
 ) {
     var currentStep by remember { mutableStateOf(OnboardingStep.WELCOME) }
+    var userName by remember { mutableStateOf("") }
     var selectedProfile by remember { mutableStateOf<UserProfile?>(null) }
     var selectedPerformance by remember { mutableStateOf<PerformanceMode?>(null) }
     var selectedProvider by remember { mutableStateOf("openrouter") }
@@ -100,13 +102,19 @@ fun OnboardingFlow(
         ) { step ->
             when (step) {
                 OnboardingStep.WELCOME -> WelcomeStep(
-                    onNext = { currentStep = OnboardingStep.USER_PROFILE }
+                    onNext = { currentStep = OnboardingStep.USER_NAME }
+                )
+                OnboardingStep.USER_NAME -> UserNameStep(
+                    name = userName,
+                    onNameChange = { userName = it },
+                    onNext = { currentStep = OnboardingStep.USER_PROFILE },
+                    onBack = { currentStep = OnboardingStep.WELCOME }
                 )
                 OnboardingStep.USER_PROFILE -> UserProfileStep(
                     selected = selectedProfile,
                     onSelect = { selectedProfile = it },
                     onNext = { currentStep = OnboardingStep.PERFORMANCE_MODE },
-                    onBack = { currentStep = OnboardingStep.WELCOME }
+                    onBack = { currentStep = OnboardingStep.USER_NAME }
                 )
                 OnboardingStep.PERFORMANCE_MODE -> PerformanceModeStep(
                     selected = selectedPerformance,
@@ -125,6 +133,7 @@ fun OnboardingFlow(
                     onApiKeyChange = { apiKey = it },
                     onNext = {
                         onComplete(
+                            userName,
                             selectedProfile ?: UserProfile.BASIC,
                             selectedPerformance ?: PerformanceMode.LOW_POWER,
                             selectedProvider,
@@ -183,6 +192,89 @@ private fun OnboardingProgressIndicator(
                         }
                     )
             )
+        }
+    }
+}
+
+@Composable
+private fun UserNameStep(
+    name: String,
+    onNameChange: (String) -> Unit,
+    onNext: () -> Unit,
+    onBack: () -> Unit
+) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(Modifier.height(100.dp))
+
+        Text(
+            "¿Cómo te llamas?",
+            fontSize = 32.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = OBText,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        Text(
+            "Me gustaría saber tu nombre para dirigirme a ti de forma más personal.",
+            fontSize = 15.sp,
+            color = OBTextSub,
+            textAlign = TextAlign.Center,
+            lineHeight = 22.sp
+        )
+
+        Spacer(Modifier.height(48.dp))
+
+        OutlinedTextField(
+            value = name,
+            onValueChange = onNameChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Tu nombre", color = OBTextSub.copy(0.5f)) },
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = OBText,
+                unfocusedTextColor = OBText,
+                focusedBorderColor = OBAccent,
+                unfocusedBorderColor = OBCardBorder,
+                cursorColor = OBAccent
+            )
+        )
+
+        Spacer(Modifier.height(64.dp))
+
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = onBack,
+                modifier = Modifier.weight(1f).height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = OBAccentLight),
+                border = androidx.compose.foundation.BorderStroke(1.dp, OBAccent)
+            ) {
+                Text("Atrás")
+            }
+
+            Button(
+                onClick = onNext,
+                enabled = name.isNotBlank(),
+                modifier = Modifier.weight(2f).height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = OBAccent),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("Continuar", fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(8.dp))
+                Icon(Icons.Default.ArrowForward, null)
+            }
         }
     }
 }

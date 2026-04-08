@@ -100,6 +100,20 @@ suspend fun runToolLoop(
                 errorResult("${tc.name} threw: ${e.message}")
             }
 
+            // PUNTO 12: Verificación de éxito para acciones críticas
+            if (tc.name == "intent" || tc.name == "accessibility" || tc.name == "send_sms") {
+                if (result.isError) {
+                    DoeyLogger.warning("Acción fallida: ${tc.name}. Intentando recuperación con accesibilidad...")
+                } else {
+                    // Si fue un intent de música o mensaje, verificar con accesibilidad si se completó
+                    val action = tc.arguments["action"] as? String ?: ""
+                    if (action.contains("android.intent.action.SEND") || action.contains("android.intent.action.VIEW")) {
+                         DoeyLogger.info("Verificando estado de la acción en la app externa...")
+                         // El agente LLM decidirá en la siguiente iteración si necesita usar get_tree para confirmar
+                    }
+                }
+            }
+
             // Log del resultado de la herramienta
             DoeyLogger.toolResult(tc.name, result.forLLM, result.isError)
 

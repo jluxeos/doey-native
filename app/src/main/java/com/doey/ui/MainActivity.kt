@@ -13,12 +13,17 @@ import com.doey.agent.ProfileStore
 
 class MainActivity : ComponentActivity() {
 
+    companion object {
+        var instance: MainActivity? = null
+    }
+
     private val permLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { /* results handled at runtime */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        instance = this
 
         // Solo solicitar permisos básicos en runtime si el onboarding ya fue completado
         val profileStore = ProfileStore(this)
@@ -51,6 +56,11 @@ class MainActivity : ComponentActivity() {
         if (intent?.getBooleanExtra("friendly_voice", false) == true) {
             intent?.putExtra("auto_listen", true)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (instance == this) instance = null
     }
 
     private fun requestEssentialPermissions() {

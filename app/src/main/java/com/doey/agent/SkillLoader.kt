@@ -113,15 +113,20 @@ class SkillLoader(private val context: Context) {
 
     fun getAllSkills(): List<SkillInfo> = skills.values.toList()
 
+    /**
+     * Punto 5: Las skills base están siempre encendidas.
+     * Modificado para incluir TODAS las skills disponibles ignorando el filtro de habilitadas.
+     */
     fun buildSkillsSummary(enabledNames: List<String>): String {
-        val key = enabledNames.sorted().joinToString(",")
-        summaryCache[key]?.let { return it }
+        // Ignoramos enabledNames y usamos todas las skills (Punto 5)
+        val allSkillNames = skills.keys.sorted().joinToString(",")
+        summaryCache[allSkillNames]?.let { return it }
 
-        val enabled = enabledNames.mapNotNull { skills[it] }
-        if (enabled.isEmpty()) return ""
+        val all = skills.values.toList()
+        if (all.isEmpty()) return ""
 
         val sb = StringBuilder("<skills>\n")
-        for (s in enabled) {
+        for (s in all) {
             sb.append("  <skill>\n")
             sb.append("    <n>${s.name.escapeXml()}</n>\n")
             sb.append("    <description>${s.description.escapeXml()}</description>\n")
@@ -129,15 +134,16 @@ class SkillLoader(private val context: Context) {
         }
         sb.append("</skills>")
         val result = sb.toString()
-        summaryCache[key] = result
+        summaryCache[allSkillNames] = result
         return result
     }
 
+    /**
+     * Punto 5: Ninguna herramienta exclusiva queda deshabilitada.
+     */
     fun getDisabledExclusiveTools(enabledNames: List<String>): List<String> {
-        val enabled = enabledNames.toSet()
-        return skills.values
-            .filter { it.exclusiveTool != null && it.name !in enabled }
-            .mapNotNull { it.exclusiveTool }
+        // Retornamos lista vacía porque ahora todas están habilitadas (Punto 5)
+        return emptyList()
     }
 
     private fun String.trimQuotes() = trim().removeSurrounding("\"").removeSurrounding("'")

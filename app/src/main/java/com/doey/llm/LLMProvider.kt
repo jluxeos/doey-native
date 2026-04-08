@@ -391,16 +391,22 @@ object LLMProviderFactory {
         when (provider) {
             "openrouter" -> OpenAIProvider(
                 apiKey  = apiKey,
-                model   = model.ifBlank { "openrouter/auto" },
+                model   = if (model.isBlank()) "openrouter/free" else model, // Punto 6: openrouter/free
                 baseUrl = "https://openrouter.ai/api/v1/chat/completions"
             )
-            "gemini" -> GeminiProvider(apiKey, model.ifBlank { "gemini-2.5-flash-preview-04-17" })
+            "gemini" -> GeminiProvider(
+                apiKey, 
+                if (model.isBlank()) "gemini-2.5-flash" else model // Punto 6: gemini-2.5-flash
+            )
             "openai" -> OpenAIProvider(apiKey, model.ifBlank { "gpt-4o" },
                 "https://api.openai.com/v1/chat/completions")
-            "groq"   -> OpenAIProvider(apiKey, model.ifBlank { "llama-3.3-70b-versatile" },
-                "https://api.groq.com/openai/v1/chat/completions")
+            "groq"   -> OpenAIProvider(
+                apiKey, 
+                if (model.isBlank()) "llama-3.1-70b-versatile" else model, // Punto 6: Groq más útil
+                "https://api.groq.com/openai/v1/chat/completions"
+            )
             "custom" -> OpenAIProvider(apiKey, model, customUrl)
-            else     -> OpenAIProvider(apiKey, model.ifBlank { "openrouter/auto" },
+            else     -> OpenAIProvider(apiKey, model.ifBlank { "openrouter/free" },
                 "https://openrouter.ai/api/v1/chat/completions")
         }
 }

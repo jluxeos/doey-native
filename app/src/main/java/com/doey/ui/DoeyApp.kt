@@ -1,11 +1,14 @@
 package com.doey.ui
 
+import android.content.Intent
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -148,11 +151,17 @@ fun DoeyApp() {
 
     // FIX BUG-6: Manejar invocación como asistente del sistema
     val activity = ctx as? android.app.Activity
+
     LaunchedEffect(Unit) {
         val intent = activity?.intent
         if (intent?.getBooleanExtra("auto_listen", false) == true) {
             intent.removeExtra("auto_listen")
             vm.startListening()
+        }
+        if (intent?.getBooleanExtra("stop_all", false) == true) {
+            intent.removeExtra("stop_all")
+            vm.stopSpeaking()
+            vm.stopListening()
         }
         val pendingQuery = intent?.getStringExtra("pending_query")
         if (!pendingQuery.isNullOrBlank()) {
@@ -163,7 +172,8 @@ fun DoeyApp() {
 
     if (!onboardingDone) {
         MaterialTheme(colorScheme = DoeyColorsTau) {
-            OnboardingFlow { profile, performance, provider, apiKey ->
+            OnboardingFlow { name, profile, performance, provider, apiKey ->
+                profileStore.setUserName(name)
                 profileStore.setUserProfile(
                     if (profile == UserProfile.BASIC) ProfileStore.PROFILE_BASIC else ProfileStore.PROFILE_ADVANCED
                 )
@@ -296,7 +306,7 @@ private fun DoeyDrawerContent(
     val sections = if (isAdvanced) DRAWER_ITEMS_ADVANCED else DRAWER_ITEMS_BASIC
 
     ModalDrawerSheet(drawerContainerColor = TauSurface1, modifier = Modifier.width(288.dp)) {
-        // Header con gradiente
+        // Header con gradiente (estático arriba)
         Box(
             Modifier.fillMaxWidth()
                 .background(Brush.verticalGradient(listOf(Color(0xFF1A0A3E), Color(0xFF0D0D1A))))
@@ -334,41 +344,47 @@ private fun DoeyDrawerContent(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
-
-        sections.forEach { section ->
-            Text(section.title.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold,
-                color = TauText3, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                letterSpacing = 1.5.sp)
-            section.items.forEach { screen ->
-                val sel = currentRoute == screen.route
-                NavigationDrawerItem(
-                    icon     = { Icon(screen.icon, screen.label, modifier = Modifier.size(20.dp)) },
-                    label    = { Text(screen.label, fontSize = 14.sp,
-                        fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal) },
-                    selected = sel,
-                    onClick  = {
-                        scope.launch { drawerState.close() }
-                        nav.navigate(screen.route) {
-                            popUpTo(nav.graph.findStartDestination().id)
-                            launchSingleTop = true; restoreState = true
-                        }
-                    },
-                    colors = NavigationDrawerItemDefaults.colors(
-                        selectedContainerColor = TauAccent.copy(0.15f),
-                        selectedIconColor = TauAccent, selectedTextColor = TauAccentLight,
-                        unselectedIconColor = TauText2, unselectedTextColor = TauText2
-                    ),
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 1.dp)
-                )
-            }
-            Spacer(Modifier.height(4.dp))
-            if (section != sections.last()) {
-                HorizontalDivider(color = TauSeparator, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+        // Cuerpo con SCROLL (Punto 9)
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 8.dp)
+        ) {
+            sections.forEach { section ->
+                Text(section.title.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold,
+                    color = TauText3, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    letterSpacing = 1.5.sp)
+                section.items.forEach { screen ->
+                    val sel = currentRoute == screen.route
+                    NavigationDrawerItem(
+                        icon     = { Icon(screen.icon, screen.label, modifier = Modifier.size(20.dp)) },
+                        label    = { Text(screen.label, fontSize = 14.sp,
+                            fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal) },
+                        selected = sel,
+                        onClick  = {
+                            scope.launch { drawerState.close() }
+                            nav.navigate(screen.route) {
+                                popUpTo(nav.graph.findStartDestination().id)
+                                launchSingleTop = true; restoreState = true
+                            }
+                        },
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = TauAccent.copy(0.15f),
+                            selectedIconColor = TauAccent, selectedTextColor = TauAccentLight,
+                            unselectedIconColor = TauText2, unselectedTextColor = TauText2
+                        ),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 1.dp)
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                if (section != sections.last()) {
+                    HorizontalDivider(color = TauSeparator, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+                }
             }
         }
 
-        Spacer(Modifier.weight(1f))
+        // Footer estático abajo
         HorizontalDivider(color = TauSeparator, modifier = Modifier.padding(horizontal = 20.dp))
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),

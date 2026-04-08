@@ -890,6 +890,18 @@ class AlarmTool : Tool {
                     val recurring = args["recurring"] as? Boolean ?: false
                     com.doey.services.AlarmScheduler.scheduleAlarmAtTime(alarmId, title, desc, hour, minute, recurring)
                     
+                    // Persistir alarma para la UI de Reloj
+                    val prefs = ctx.getSharedPreferences("doey_alarms_store", 0)
+                    val alarms = JSONArray(prefs.getString("alarms", "[]"))
+                    alarms.put(JSONObject().apply {
+                        put("id", alarmId)
+                        put("title", title)
+                        put("time", String.format("%02d:%02d", hour, minute))
+                        put("enabled", true)
+                        put("recurring", recurring)
+                    })
+                    prefs.edit().putString("alarms", alarms.toString()).apply()
+
                     try {
                         val intent = Intent("android.intent.action.SET_ALARM").apply {
                             putExtra("android.intent.extra.alarm.HOUR", hour)

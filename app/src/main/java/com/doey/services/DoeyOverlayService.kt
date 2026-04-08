@@ -504,17 +504,85 @@ private fun DoeyBubble(
 
                     Spacer(Modifier.height(10.dp))
 
-                    // Botón abrir app
+                    // PUNTO 3: Funciones útiles en la burbuja
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Acción 1: Escuchar (Voz)
+                        Surface(
+                            modifier = Modifier.weight(1f).height(44.dp).clickable {
+                                onToggleExpand()
+                                val intent = Intent(MainActivity.instance, MainActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    putExtra("auto_listen", true)
+                                }
+                                MainActivity.instance?.startActivity(intent)
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            color = accentColor.copy(alpha = 0.1f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.3f))
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                Icon(Icons.Default.Mic, null, tint = accentColor, modifier = Modifier.size(18.dp))
+                                Text("Escuchar", fontSize = 9.sp, color = accentColor, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        
+                        // Acción 2: Modo Friendly
+                        Surface(
+                            modifier = Modifier.weight(1f).height(44.dp).clickable {
+                                onToggleExpand()
+                                MainActivity.instance?.startService(Intent(MainActivity.instance, FriendlyModeService::class.java).apply {
+                                    action = "SHOW_BAR"
+                                })
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF00E676).copy(alpha = 0.1f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00E676).copy(alpha = 0.3f))
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                Icon(Icons.Default.Spa, null, tint = Color(0xFF00E676), modifier = Modifier.size(18.dp))
+                                Text("Friendly", fontSize = 9.sp, color = Color(0xFF00E676), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        
+                        // Acción 3: Detener todo
+                        Surface(
+                            modifier = Modifier.weight(1f).height(44.dp).clickable {
+                                onToggleExpand()
+                                // Aquí se llamaría a vm.stopEverything() si tuviéramos acceso directo, 
+                                // por ahora usamos un intent o acción global
+                                val intent = Intent(MainActivity.instance, MainActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    putExtra("stop_all", true)
+                                }
+                                MainActivity.instance?.startActivity(intent)
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFFF1744).copy(alpha = 0.1f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF1744).copy(alpha = 0.3f))
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                Icon(Icons.Default.Stop, null, tint = Color(0xFFFF1744), modifier = Modifier.size(18.dp))
+                                Text("Parar", fontSize = 9.sp, color = Color(0xFFFF1744), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    // Botón abrir app completo
                     Button(
                         onClick = onOpenApp,
-                        modifier = Modifier.fillMaxWidth().height(36.dp),
+                        modifier = Modifier.fillMaxWidth().height(38.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = accentColor),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.OpenInFull, null, tint = Color.White, modifier = Modifier.size(14.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Abrir Doey", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.OpenInFull, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Abrir Doey", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }
