@@ -56,7 +56,7 @@ interface LLMProvider {
     suspend fun testConnection(): Pair<Boolean, String?>
 }
 
-// ── OpenAI-compatible provider (Groq / OpenAI / custom) ──────────────────────
+// ── OpenAI-compatible provider (Groq / OpenAI / OpenRouter / custom) ──────────
 
 class OpenAIProvider(
     private val apiKey: String,
@@ -85,8 +85,12 @@ class OpenAIProvider(
             }
             val resp = client.newCall(buildRequest(body)).execute()
             val ok   = resp.isSuccessful
+            val errorMsg = if (!ok) {
+                val bodyStr = resp.body?.string() ?: ""
+                parseErrorMessage(resp.code, bodyStr)
+            } else null
             resp.close()
-            Pair(ok, if (!ok) "HTTP ${resp.code}" else null)
+            Pair(ok, errorMsg)
         } catch (e: Exception) {
             Pair(false, e.message)
         }
@@ -107,7 +111,6 @@ class OpenAIProvider(
             if (tools.isNotEmpty()) {
                 put("tools", JSONArray().apply { tools.forEach { put(toolToJson(it)) } })
                 put("tool_choice", "auto")
-                // OpenRouter: forzar function calling
                 put("top_p", 1.0)
                 put("frequency_penalty", 0.0)
                 put("presence_penalty", 0.0)
@@ -116,7 +119,9 @@ class OpenAIProvider(
 
         val resp     = client.newCall(buildRequest(body)).execute()
         val respBody = resp.body?.string() ?: throw Exception("Cuerpo de respuesta vacío")
-        if (!resp.isSuccessful) throw Exception("Error LLM ${resp.code}: $respBody")
+        if (!resp.isSuccessful) {
+            throw Exception(parseErrorMessage(resp.code, respBody))
+        }
 
         parseResponse(JSONObject(respBody))
     }
@@ -188,6 +193,26 @@ class OpenAIProvider(
             finishReason = if (finish == "tool_calls") "tool_calls" else "stop"
         )
     }
+
+    /** Extrae un mensaje de error legible del cuerpo de respuesta HTTP */
+    private fun parseErrorMessage(code: Int, body: String): String {
+        return try {
+            val json = JSONObject(body)
+            val errorObj = json.optJSONObject("error")
+            val msg = errorObj?.optString("message") ?: json.optString("message", "")
+            when {
+                msg.isNotBlank() -> "Error $code: $msg"
+                code == 401 -> "Error 401: API key inválida o sin autorización"
+                code == 429 -> "Error 429: Límite de solicitudes alcanzado. Espera un momento."
+                code == 404 -> "Error 404: Modelo '$model' no encontrado. Verifica el nombre en Ajustes."
+                code == 500 -> "Error 500: Error interno del servidor. Intenta de nuevo."
+                code == 503 -> "Error 503: Servicio no disponible temporalmente."
+                else -> "Error HTTP $code"
+            }
+        } catch (_: Exception) {
+            "Error HTTP $code"
+        }
+    }
 }
 
 // ── Gemini provider (Generative Language API con function calling) ─────────────
@@ -221,8 +246,12 @@ class GeminiProvider(
             }
             val resp = client.newCall(buildRequest(body)).execute()
             val ok   = resp.isSuccessful
+            val errorMsg = if (!ok) {
+                val bodyStr = resp.body?.string() ?: ""
+                parseGeminiError(resp.code, bodyStr)
+            } else null
             resp.close()
-            Pair(ok, if (!ok) "HTTP ${resp.code}" else null)
+            Pair(ok, errorMsg)
         } catch (e: Exception) {
             Pair(false, e.message)
         }
@@ -280,6 +309,14 @@ class GeminiProvider(
             }
         }
 
+        // Si no hay mensajes de conversación, agregar un mensaje vacío para evitar error
+        if (contents.length() == 0) {
+            contents.put(JSONObject().apply {
+                put("role", "user")
+                put("parts", JSONArray().put(JSONObject().apply { put("text", "Hola") }))
+            })
+        }
+
         val body = JSONObject().apply {
             if (systemMsg != null) {
                 put("systemInstruction", JSONObject().apply {
@@ -308,12 +345,14 @@ class GeminiProvider(
 
         val resp     = client.newCall(buildRequest(body)).execute()
         val respBody = resp.body?.string() ?: throw Exception("Cuerpo de respuesta vacío")
-        if (!resp.isSuccessful) throw Exception("Error Gemini ${resp.code}: $respBody")
+        if (!resp.isSuccessful) {
+            throw Exception(parseGeminiError(resp.code, respBody))
+        }
 
         parseGeminiResponse(JSONObject(respBody))
     }
 
-    /** Limpia el schema JSON para compatibilidad con Gemini (elimina 'additionalProperties', etc.) */
+    /** Limpia el schema JSON para compatibilidad con Gemini */
     private fun cleanSchema(obj: JSONObject): JSONObject {
         val result = JSONObject()
         val blacklist = setOf("additionalProperties", "\$schema", "default")
@@ -348,10 +387,40 @@ class GeminiProvider(
             .build()
 
     private fun parseGeminiResponse(json: JSONObject): LLMResponse {
-        val candidate = json.getJSONArray("candidates").getJSONObject(0)
-        val content   = candidate.getJSONObject("content")
-        val parts     = content.getJSONArray("parts")
+        // Verificar si hay error en la respuesta
+        if (json.has("error")) {
+            val error = json.getJSONObject("error")
+            val msg   = error.optString("message", "Error desconocido de Gemini")
+            val code  = error.optInt("code", 0)
+            throw Exception(parseGeminiError(code, json.toString()))
+        }
+
+        val candidates = json.optJSONArray("candidates")
+        if (candidates == null || candidates.length() == 0) {
+            // Verificar si hay promptFeedback con bloqueo
+            val feedback = json.optJSONObject("promptFeedback")
+            val blockReason = feedback?.optString("blockReason", "")
+            if (!blockReason.isNullOrBlank()) {
+                throw Exception("Gemini bloqueó la solicitud: $blockReason. Intenta reformular tu pregunta.")
+            }
+            throw Exception("Gemini no devolvió candidatos en la respuesta")
+        }
+
+        val candidate = candidates.getJSONObject(0)
+
+        // Verificar finish reason
         val finishRaw = candidate.optString("finishReason", "STOP")
+        if (finishRaw == "SAFETY") {
+            throw Exception("Gemini bloqueó la respuesta por políticas de seguridad. Intenta reformular.")
+        }
+        if (finishRaw == "RECITATION") {
+            throw Exception("Gemini detectó posible plagio. Intenta con una pregunta diferente.")
+        }
+
+        val content   = candidate.optJSONObject("content")
+            ?: return LLMResponse("", emptyList(), "stop")
+        val parts     = content.optJSONArray("parts")
+            ?: return LLMResponse("", emptyList(), "stop")
 
         val toolCalls  = mutableListOf<ToolCall>()
         val textParts  = mutableListOf<String>()
@@ -382,31 +451,76 @@ class GeminiProvider(
             finishReason = if (toolCalls.isNotEmpty()) "tool_calls" else "stop"
         )
     }
+
+    /** Extrae un mensaje de error legible de la respuesta de Gemini */
+    private fun parseGeminiError(code: Int, body: String): String {
+        return try {
+            val json = JSONObject(body)
+            val error = json.optJSONObject("error")
+            val msg   = error?.optString("message", "") ?: ""
+            when {
+                msg.isNotBlank() -> "Gemini Error $code: $msg"
+                code == 400 -> "Gemini Error 400: Solicitud inválida. Verifica el modelo y los parámetros."
+                code == 401 -> "Gemini Error 401: API key de Gemini inválida. Ve a Ajustes para actualizarla."
+                code == 403 -> "Gemini Error 403: Sin acceso. Verifica que tu API key tenga permisos para este modelo."
+                code == 404 -> "Gemini Error 404: Modelo '$model' no encontrado. Prueba con 'gemini-2.5-flash-preview-04-17'."
+                code == 429 -> "Gemini Error 429: Límite de solicitudes alcanzado. Espera un momento."
+                code == 500 -> "Gemini Error 500: Error interno. Intenta de nuevo en unos segundos."
+                code == 503 -> "Gemini Error 503: Servicio no disponible. Intenta más tarde."
+                else -> "Gemini Error HTTP $code"
+            }
+        } catch (_: Exception) {
+            "Gemini Error HTTP $code"
+        }
+    }
 }
 
-// ── Factory ────────────────────────────────────────────────
+// ── Factory ────────────────────────────────────────────────────────────────────
 
 object LLMProviderFactory {
+    /**
+     * Modelos por defecto actualizados y verificados (Abril 2025):
+     * - Gemini: gemini-2.5-flash-preview-04-17 (más reciente y estable)
+     * - Groq: llama-3.3-70b-versatile (mejor relación calidad/velocidad)
+     * - OpenRouter: meta-llama/llama-3.2-3b-instruct:free (gratuito y funcional)
+     * - OpenAI: gpt-4o-mini (más económico que gpt-4o)
+     */
     fun create(provider: String, apiKey: String, model: String, customUrl: String = ""): LLMProvider =
         when (provider) {
             "openrouter" -> OpenAIProvider(
                 apiKey  = apiKey,
-                model   = if (model.isBlank()) "openrouter/free" else model, // Punto 6: openrouter/free
+                model   = when {
+                    model.isNotBlank() -> model
+                    else -> "meta-llama/llama-3.2-3b-instruct:free" // Gratuito y funcional
+                },
                 baseUrl = "https://openrouter.ai/api/v1/chat/completions"
             )
             "gemini" -> GeminiProvider(
-                apiKey, 
-                if (model.isBlank()) "gemini-2.5-flash" else model // Punto 6: gemini-2.5-flash
+                apiKey = apiKey,
+                model  = when {
+                    model.isNotBlank() -> model
+                    else -> "gemini-2.5-flash-preview-04-17" // Modelo más reciente y estable
+                }
             )
-            "openai" -> OpenAIProvider(apiKey, model.ifBlank { "gpt-4o" },
-                "https://api.openai.com/v1/chat/completions")
-            "groq"   -> OpenAIProvider(
-                apiKey, 
-                if (model.isBlank()) "llama-3.1-70b-versatile" else model, // Punto 6: Groq más útil
-                "https://api.groq.com/openai/v1/chat/completions"
+            "openai" -> OpenAIProvider(
+                apiKey  = apiKey,
+                model   = model.ifBlank { "gpt-4o-mini" }, // Más económico por defecto
+                baseUrl = "https://api.openai.com/v1/chat/completions"
             )
-            "custom" -> OpenAIProvider(apiKey, model, customUrl)
-            else     -> OpenAIProvider(apiKey, model.ifBlank { "openrouter/free" },
-                "https://openrouter.ai/api/v1/chat/completions")
+            "groq" -> OpenAIProvider(
+                apiKey  = apiKey,
+                model   = model.ifBlank { "llama-3.3-70b-versatile" },
+                baseUrl = "https://api.groq.com/openai/v1/chat/completions"
+            )
+            "custom" -> OpenAIProvider(
+                apiKey  = apiKey,
+                model   = model,
+                baseUrl = customUrl.ifBlank { "https://api.openai.com/v1/chat/completions" }
+            )
+            else -> OpenAIProvider(
+                apiKey  = apiKey,
+                model   = model.ifBlank { "meta-llama/llama-3.2-3b-instruct:free" },
+                baseUrl = "https://openrouter.ai/api/v1/chat/completions"
+            )
         }
 }

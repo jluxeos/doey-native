@@ -338,12 +338,19 @@ class DoeyNotificationListenerService : NotificationListenerService() {
         }
 
         val pipeline = ConversationPipeline(
-            ctx         = app,
-            provider    = llm, tools = tools, skillLoader = app.skillLoader,
-            language    = language, soul = settings.getSoul(),
-            personalMemory = settings.getPersonalMemory(), 
-            userName    = com.doey.agent.ProfileStore(app).getUserName(),
-            maxIterations = 8
+            ctx                       = app,
+            provider                  = llm,
+            tools                     = tools,
+            skillLoader               = app.skillLoader,
+            language                  = language,
+            soul                      = settings.getSoul(),
+            personalMemory            = settings.getPersonalMemory(),
+            userName                  = com.doey.agent.ProfileStore(app).getUserName(),
+            maxIterations             = minOf(8, settings.getMaxIterations()),
+            maxHistoryMessages        = settings.getMaxHistoryMessages(),
+            tokenOptimizerEnabled     = settings.getTokenOptimizerEnabled(),
+            promptCacheEnabled        = settings.getSystemPromptCacheEnabled(),
+            historyCompressionEnabled = settings.getHistoryCompressionEnabled()
         )
         pipeline.setEnabledSkills(enabledSkills)
 

@@ -25,7 +25,11 @@ class ConversationPipeline(
     private var userName: String = "",
     private var maxIterations: Int = 10,
     private var maxHistoryMessages: Int = 20,
-    private var expertMode: Boolean = false
+    private var expertMode: Boolean = false,
+    // ── Ajustes de optimización de tokens (ahora controlables desde UI) ────────
+    private var tokenOptimizerEnabled: Boolean = true,
+    private var promptCacheEnabled: Boolean = true,
+    private var historyCompressionEnabled: Boolean = true
 ) {
     private val _state = MutableStateFlow(PipelineState.IDLE)
     val state: StateFlow<PipelineState> = _state.asStateFlow()
@@ -41,18 +45,23 @@ class ConversationPipeline(
     private var systemPromptDirty: Boolean = true
 
     fun setEnabledSkills(names: List<String>) { enabledSkillNames = names; systemPromptDirty = true }
-    fun setDrivingMode(v: Boolean)           { drivingMode = v; systemPromptDirty = true }
-    fun setLanguage(v: String)               { language = v; systemPromptDirty = true }
-    fun setSoul(v: String)                   { soul = v; systemPromptDirty = true }
-    fun setPersonalMemory(v: String)         { personalMemory = v; systemPromptDirty = true }
-    fun setUserName(v: String)               { userName = v; systemPromptDirty = true }
-    fun setExpertMode(v: Boolean)            { expertMode = v; systemPromptDirty = true }
-    fun setProvider(p: LLMProvider)          { provider = p }
-    fun clearHistory()                       { history.clear() }
-    fun exportHistory(): List<Message>       = history.toList()
-    fun importHistory(msgs: List<Message>)   { history.clear(); history.addAll(msgs) }
-    fun appendToHistory(msgs: List<Message>) { history.addAll(msgs); trimHistory() }
-    fun setIdle()                            { _state.value = PipelineState.IDLE }
+    fun setDrivingMode(v: Boolean)            { drivingMode = v; systemPromptDirty = true }
+    fun setLanguage(v: String)                { language = v; systemPromptDirty = true }
+    fun setSoul(v: String)                    { soul = v; systemPromptDirty = true }
+    fun setPersonalMemory(v: String)          { personalMemory = v; systemPromptDirty = true }
+    fun setUserName(v: String)                { userName = v; systemPromptDirty = true }
+    fun setExpertMode(v: Boolean)             { expertMode = v; systemPromptDirty = true }
+    fun setProvider(p: LLMProvider)           { provider = p }
+    fun clearHistory()                        { history.clear() }
+    fun exportHistory(): List<Message>        = history.toList()
+    fun importHistory(msgs: List<Message>)    { history.clear(); history.addAll(msgs) }
+    fun appendToHistory(msgs: List<Message>)  { history.addAll(msgs); trimHistory() }
+    fun setIdle()                             { _state.value = PipelineState.IDLE }
+
+    // Actualizar ajustes de optimización desde UI
+    fun setTokenOptimizerEnabled(v: Boolean)     { tokenOptimizerEnabled = v }
+    fun setPromptCacheEnabled(v: Boolean)         { promptCacheEnabled = v; if (!v) systemPromptDirty = true }
+    fun setHistoryCompressionEnabled(v: Boolean)  { historyCompressionEnabled = v }
 
     fun startListening() {
         if (_state.value == PipelineState.IDLE || _state.value == PipelineState.SPEAKING) {
@@ -86,43 +95,54 @@ class ConversationPipeline(
             DoeyLogger.userInput(userText)
             Log.d(TAG, "Processing: ${userText.take(80)}")
 
-            // PUNTO 7: Detección de peticiones para Google Gemini manual
+            // Detección de peticiones para Google Gemini manual (creación de contenido)
             val geminiTriggers = listOf("escribe una canción", "genera una imagen", "dibuja", "componer canción", "crea un poema largo")
             if (geminiTriggers.any { userText.lowercase().contains(it) }) {
                 DoeyLogger.info("Redirigiendo a Google Gemini manual...")
                 val intent = ctx.packageManager.getLaunchIntentForPackage("com.google.android.apps.bard")
                 if (intent != null) {
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     ctx.startActivity(intent)
                     return "Abriendo Google Gemini para ayudarte con eso..."
                 }
             }
 
-            // ── Optimización de tokens ─────────────────────────────────────
-            val complexity = TokenOptimizer.classifyComplexity(userText)
-            val strategy   = TokenOptimizer.getStrategy(complexity, maxIterations)
-            Log.d(TAG, "Complexity: $complexity, maxIter=${strategy.maxIterations}")
-
-            val systemPrompt = if (strategy.useMinimalPrompt) {
-                TokenOptimizer.buildMinimalSystemPrompt(language, soul)
+            // ── Optimización de tokens ─────────────────────────────────────────
+            val complexity = if (tokenOptimizerEnabled) {
+                TokenOptimizer.classifyComplexity(userText)
             } else {
-                getOrBuildSystemPrompt(strategy)
+                TokenOptimizer.CommandComplexity.COMPLEX // Sin optimización: siempre complejo
+            }
+            val strategy = TokenOptimizer.getStrategy(complexity, maxIterations)
+            Log.d(TAG, "Complexity: $complexity, maxIter=${strategy.maxIterations}, tokenOpt=$tokenOptimizerEnabled")
+
+            val systemPrompt = when {
+                !tokenOptimizerEnabled -> getOrBuildSystemPrompt(strategy) // Sin optimización: siempre completo
+                strategy.useMinimalPrompt -> TokenOptimizer.buildMinimalSystemPrompt(language, soul)
+                else -> if (promptCacheEnabled) getOrBuildSystemPrompt(strategy)
+                        else buildFreshSystemPrompt(strategy)
             }
 
             val systemMsg = Message(role = "system", content = systemPrompt)
             val userMsg   = Message(role = "user",   content = userText)
 
-            // Comprimir historial según estrategia
-            val workingHistory = if (strategy.compressHistory && history.size > strategy.maxHistoryMessages) {
-                TokenOptimizer.compressHistory(history, keepLast = strategy.maxHistoryMessages)
-            } else {
-                history.takeLast(strategy.maxHistoryMessages)
+            // Comprimir historial según estrategia y ajustes
+            val workingHistory = when {
+                !historyCompressionEnabled -> history.takeLast(maxHistoryMessages)
+                strategy.compressHistory && history.size > strategy.maxHistoryMessages ->
+                    TokenOptimizer.compressHistory(history, keepLast = strategy.maxHistoryMessages)
+                else -> history.takeLast(strategy.maxHistoryMessages)
             }
-            val cleanHistory = TokenOptimizer.deduplicateToolResults(workingHistory)
+            val cleanHistory = if (tokenOptimizerEnabled) {
+                TokenOptimizer.deduplicateToolResults(workingHistory)
+            } else {
+                workingHistory
+            }
             val messages = listOf(systemMsg) + cleanHistory + listOf(userMsg)
 
             val estimatedTokens = TokenOptimizer.estimateMessageTokens(messages)
             Log.d(TAG, "Estimated tokens: ~$estimatedTokens")
-            DoeyLogger.info("Tokens estimados: ~$estimatedTokens (complejidad: $complexity)")
+            DoeyLogger.info("Tokens estimados: ~$estimatedTokens (complejidad: $complexity, optimizador: $tokenOptimizerEnabled)")
 
             history.add(userMsg)
 
@@ -168,23 +188,20 @@ class ConversationPipeline(
             }
 
             assistantText
+
         } catch (e: Exception) {
             Log.e(TAG, "Pipeline error: ${e.message}")
             DoeyLogger.error("Pipeline", e.message ?: "Error desconocido")
-            
-            // PUNTO 8: Sistema ARIA (Asistente de Respaldo de Inteligencia Artificial)
+
+            // ── Sistema ARIA mejorado (Asistente de Respaldo de Inteligencia Artificial) ──
+            // CORRECCIÓN: ahora usa la misma API key del proveedor actual como respaldo,
+            // y si el proveedor ya es Gemini, intenta con OpenRouter gratuito.
             DoeyLogger.info("Iniciando sistema ARIA de respaldo...")
-            try {
-                // Intentar usar Gemini (el más fiable) como respaldo si el actual falló
-                val backupProvider = com.doey.llm.LLMProviderFactory.create("gemini", "", "gemini-2.5-flash")
-                val backupResult = backupProvider.chat(
-                    messages = listOf(Message("system", "Eres ARIA, el sistema de respaldo de Doey. El sistema principal falló. Ayuda al usuario brevemente.")),
-                    tools = emptyList()
-                )
-                onTranscript?.invoke("assistant", "[ARIA]: ${backupResult.content}")
-                return backupResult.content
-            } catch (backupEx: Exception) {
-                DoeyLogger.error("ARIA", "Fallo crítico total")
+            val ariaResponse = tryAriaFallback(e.message ?: "Error desconocido")
+            if (ariaResponse != null) {
+                onTranscript?.invoke("assistant", ariaResponse)
+                _state.value = PipelineState.IDLE
+                return ariaResponse
             }
 
             _state.value = PipelineState.ERROR
@@ -196,6 +213,52 @@ class ConversationPipeline(
         }
     }
 
+    /**
+     * Sistema ARIA mejorado: intenta responder con un proveedor de respaldo.
+     * Usa la API key del proveedor actual si es compatible, o respuesta local si no hay conectividad.
+     */
+    private suspend fun tryAriaFallback(errorMsg: String): String? {
+        // Respuestas locales para errores comunes (sin consumir tokens)
+        val localResponse = when {
+            errorMsg.contains("401") || errorMsg.contains("Unauthorized") || errorMsg.contains("API key") ->
+                "No puedo conectarme: la API key parece incorrecta o expirada. Ve a Ajustes > Cerebro de Doey para actualizarla."
+            errorMsg.contains("429") || errorMsg.contains("rate limit") || errorMsg.contains("quota") ->
+                "He alcanzado el límite de solicitudes. Espera un momento e inténtalo de nuevo."
+            errorMsg.contains("timeout") || errorMsg.contains("connect") || errorMsg.contains("network") ->
+                "No hay conexión a internet o el servidor tardó demasiado. Verifica tu conexión."
+            errorMsg.contains("model") && errorMsg.contains("not found") ->
+                "El modelo configurado no existe. Ve a Ajustes > Cerebro de Doey y verifica el nombre del modelo."
+            else -> null
+        }
+
+        if (localResponse != null) {
+            DoeyLogger.info("ARIA: respuesta local sin tokens para error: $errorMsg")
+            return "[ARIA]: $localResponse"
+        }
+
+        // Intentar con proveedor de respaldo (OpenRouter gratuito, sin API key necesaria)
+        return try {
+            val backupProvider = com.doey.llm.LLMProviderFactory.create(
+                "openrouter", "", "meta-llama/llama-3.2-3b-instruct:free"
+            )
+            val backupResult = backupProvider.chat(
+                messages = listOf(
+                    Message("system", "Eres ARIA, asistente de respaldo de Doey. El sistema principal falló con: $errorMsg. Responde brevemente y en español, sugiriendo al usuario qué hacer."),
+                    Message("user", "El sistema principal falló. ¿Qué puedo hacer?")
+                ),
+                tools = emptyList()
+            )
+            if (backupResult.content.isNotBlank()) {
+                DoeyLogger.info("ARIA: respaldo exitoso con OpenRouter gratuito")
+                "[ARIA]: ${backupResult.content}"
+            } else null
+        } catch (backupEx: Exception) {
+            DoeyLogger.error("ARIA", "Fallo crítico: ${backupEx.message}")
+            // Último recurso: mensaje de error amigable sin IA
+            "[ARIA]: Ocurrió un error inesperado. Por favor verifica tu conexión y la API key en Ajustes."
+        }
+    }
+
     // ── Cache de system prompt ─────────────────────────────────────────────────
 
     private fun getOrBuildSystemPrompt(strategy: TokenOptimizer.OptimizationStrategy): String {
@@ -203,6 +266,10 @@ class ConversationPipeline(
             Log.d(TAG, "Using cached system prompt")
             return cachedSystemPrompt
         }
+        return buildFreshSystemPrompt(strategy)
+    }
+
+    private fun buildFreshSystemPrompt(strategy: TokenOptimizer.OptimizationStrategy): String {
         val prompt = SystemPromptBuilder.build(
             skillLoader        = skillLoader,
             toolRegistry       = tools,
@@ -225,8 +292,8 @@ class ConversationPipeline(
         var start = history.size - maxHistoryMessages
         while (start < history.size) {
             val msg = history[start]
-            if (msg.role == "tool")                                   { start++; continue }
-            if (msg.role == "assistant" && !msg.toolCalls.isNullOrEmpty()) { start++; continue }
+            if (msg.role == "tool")                                           { start++; continue }
+            if (msg.role == "assistant" && !msg.toolCalls.isNullOrEmpty())    { start++; continue }
             break
         }
         repeat(start) { if (history.isNotEmpty()) history.removeAt(0) }

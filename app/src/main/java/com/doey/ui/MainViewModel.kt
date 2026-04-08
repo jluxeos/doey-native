@@ -54,7 +54,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
-    private val settings = SettingsStore(app)
+    private val settings    = SettingsStore(app)
+    private val profileStore = ProfileStore(app)
     private var pipeline: ConversationPipeline? = null
     private var speechRecognizer: DoeySpeechRecognizer? = null
     private var driveListenJob: Job? = null
@@ -67,28 +68,47 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     private fun initPipeline() = viewModelScope.launch {
-        val provider      = settings.getProvider()
-        val model         = settings.getModel()
-        val language      = settings.getLanguage()
-        val drivingMode   = settings.getDrivingMode().let { it } // force collect
-        val expertMode    = settings.getExpertMode().let { it }
-        val enabledSkills = settings.getEnabledSkillsList()
+        val provider            = settings.getProvider()
+        val model               = settings.getModel()
+        val language            = settings.getLanguage()
+        val drivingMode         = settings.getDrivingMode()
+        val expertMode          = settings.getExpertMode()
+        val enabledSkills       = settings.getEnabledSkillsList()
+        val maxHistory          = settings.getMaxHistoryMessages()
+        // ── Ajustes de optimización de tokens ─────────────────────────────────
+        val tokenOptimizer      = settings.getTokenOptimizerEnabled()
+        val promptCache         = settings.getSystemPromptCacheEnabled()
+        val historyCompression  = settings.getHistoryCompressionEnabled()
+        // ── Modo de rendimiento afecta iteraciones y historial ─────────────────
+        val isLowPower          = profileStore.isLowPowerMode()
+        val effectiveMaxIter    = if (isLowPower) minOf(settings.getMaxIterations(), 6) else settings.getMaxIterations()
+        val effectiveMaxHistory = if (isLowPower) minOf(maxHistory, 12) else maxHistory
 
         val skillLoader = SkillLoader(app)
         val tools       = buildTools(skillLoader, enabledSkills)
 
         val p = ConversationPipeline(
-            ctx                = app,
-            provider           = com.doey.llm.LLMProviderFactory.create(provider, settings.getApiKey(provider), model, settings.getCustomModelUrl()),
-            tools              = tools,
-            skillLoader        = skillLoader,
-            drivingMode        = drivingMode,
-            language           = resolveLanguage(language),
-            soul               = settings.getSoul(),
-            personalMemory     = settings.getPersonalMemory(),
-            userName           = ProfileStore(app).getUserName(),
-            maxIterations      = settings.getMaxIterations(),
-            expertMode         = expertMode
+            ctx                      = app,
+            provider                 = com.doey.llm.LLMProviderFactory.create(
+                                           provider,
+                                           settings.getApiKey(provider),
+                                           model,
+                                           settings.getCustomModelUrl()
+                                       ),
+            tools                    = tools,
+            skillLoader              = skillLoader,
+            drivingMode              = drivingMode,
+            language                 = resolveLanguage(language),
+            soul                     = settings.getSoul(),
+            personalMemory           = settings.getPersonalMemory(),
+            userName                 = ProfileStore(app).getUserName(),
+            maxIterations            = effectiveMaxIter,
+            maxHistoryMessages       = effectiveMaxHistory,
+            expertMode               = expertMode,
+            // Pasar ajustes de optimización al pipeline
+            tokenOptimizerEnabled    = tokenOptimizer,
+            promptCacheEnabled       = promptCache,
+            historyCompressionEnabled = historyCompression
         ).apply {
             setEnabledSkills(enabledSkills)
         }
@@ -241,13 +261,56 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "Volumen ajustado al ${action.level}%"
                 }
                 is LocalIntentProcessor.LocalAction.ToggleFlashlight -> {
-                    // Usar intent para la linterna
-                    ""
+                    // Usar CameraManager para la linterna
+                    try {
+                        val cm = app.getSystemService(android.content.Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
+                        val cameraId = cm.cameraIdList.firstOrNull() ?: return ""
+                        cm.setTorchMode(cameraId, action.enable)
+                        if (action.enable) "Linterna encendida" else "Linterna apagada"
+                    } catch (e: Exception) {
+                        "" // Delegar a IA si falla
+                    }
+                }
+                is LocalIntentProcessor.LocalAction.Navigate -> {
+                    val uri = android.net.Uri.parse("google.navigation:q=${android.net.Uri.encode(action.destination)}")
+                    val navIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri).apply {
+                        setPackage("com.google.android.apps.maps")
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    try {
+                        app.startActivity(navIntent)
+                        "Abriendo navegación a ${action.destination}"
+                    } catch (e: Exception) {
+                        // Intentar con cualquier app de mapas
+                        val fallbackUri = android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(action.destination)}")
+                        val fallbackIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, fallbackUri).apply {
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        app.startActivity(fallbackIntent)
+                        "Abriendo navegación a ${action.destination}"
+                    }
+                }
+                is LocalIntentProcessor.LocalAction.OpenApp -> {
+                    // Buscar la app por nombre y abrirla
+                    val pm = app.packageManager
+                    val apps = pm.getInstalledApplications(android.content.pm.PackageManager.GET_META_DATA)
+                    val target = apps.firstOrNull { appInfo ->
+                        val label = pm.getApplicationLabel(appInfo).toString().lowercase()
+                        label.contains(action.query.lowercase())
+                    }
+                    if (target != null) {
+                        val launchIntent = pm.getLaunchIntentForPackage(target.packageName)
+                        if (launchIntent != null) {
+                            launchIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            app.startActivity(launchIntent)
+                            "Abriendo ${pm.getApplicationLabel(target)}"
+                        } else ""
+                    } else ""
                 }
                 else -> "" // Para otras acciones, delegar a IA
             }
         } catch (e: Exception) {
-            ""
+            "" // Si falla cualquier acción local, delegar a IA
         }
     }
 
@@ -341,7 +404,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         _uiState.update { it.copy(isDrivingMode = next) }
         viewModelScope.launch { 
             settings.setDrivingMode(next)
-            // En modo conducción, si la wake word está activa, reiniciarla para asegurar que use el modo correcto
+            // En modo conducción, si la wake word está activa, reiniciarla
             if (_uiState.value.isWakeWordActive) {
                 startWakeWord()
             }
@@ -414,7 +477,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun getSettings() = settings
 
-    // ── FIX BUG-2: toggleOverlay mejorado ───────────────────────────────────────────────────────────
+    // ── FIX: toggleOverlay mejorado ───────────────────────────────────────────
     fun toggleOverlay(enabled: Boolean) = viewModelScope.launch {
         settings.setOverlayEnabled(enabled)
         val ctx = app.applicationContext
@@ -422,22 +485,19 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             if (android.provider.Settings.canDrawOverlays(ctx)) {
                 val overlayInstance = com.doey.services.DoeyOverlayService.instance
                 if (overlayInstance != null) {
-                    // FIX BUG-2: servicio ya corre, solo mostrar la burbuja
                     overlayInstance.showBubble()
                 } else {
-                    // Iniciar el servicio con foreground
                     val intent = Intent(ctx, com.doey.services.DoeyOverlayService::class.java)
                     ctx.startForegroundService(intent)
                 }
             }
         } else {
-            // Detener completamente el servicio
             val intent = Intent(ctx, com.doey.services.DoeyOverlayService::class.java)
             ctx.stopService(intent)
         }
     }
 
-    // ── Speech events ─────────────────────────────────────────────────────────────────
+    // ── Speech events ─────────────────────────────────────────────────────────
     private fun observeSpeechEvents() {
         DoeySpeechEvents.onPartialResult = { partial -> _uiState.update { it.copy(partialSpeech = partial) } }
     }

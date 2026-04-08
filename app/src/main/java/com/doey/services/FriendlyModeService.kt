@@ -210,18 +210,28 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
                     removeDisabledSkillTools(skillLoader.getDisabledExclusiveTools(enabledSkills))
                 }
 
+                val profileStore = com.doey.agent.ProfileStore(app)
+                val isLowPower   = profileStore.isLowPowerMode()
+                val maxIter      = if (isLowPower) minOf(settings.getMaxIterations(), 5)
+                                   else minOf(settings.getMaxIterations(), 8)
+                val maxHistory   = if (isLowPower) 10 else settings.getMaxHistoryMessages()
+
                 pipeline = ConversationPipeline(
-                    ctx                = app,
-                    provider           = provider,
-                    tools              = tools,
-                    skillLoader        = skillLoader,
-                    drivingMode        = false,
-                    language           = settings.getLanguage(),
-                    soul               = settings.getSoul(),
-                    personalMemory     = settings.getPersonalMemory(),
-                    userName           = com.doey.agent.ProfileStore(app).getUserName(),
-                    maxIterations      = minOf(settings.getMaxIterations(), 8),
-                    expertMode         = settings.getExpertMode()
+                    ctx                       = app,
+                    provider                  = provider,
+                    tools                     = tools,
+                    skillLoader               = skillLoader,
+                    drivingMode               = false,
+                    language                  = settings.getLanguage(),
+                    soul                      = settings.getSoul(),
+                    personalMemory            = settings.getPersonalMemory(),
+                    userName                  = profileStore.getUserName(),
+                    maxIterations             = maxIter,
+                    maxHistoryMessages        = maxHistory,
+                    expertMode                = settings.getExpertMode(),
+                    tokenOptimizerEnabled     = settings.getTokenOptimizerEnabled(),
+                    promptCacheEnabled        = settings.getSystemPromptCacheEnabled(),
+                    historyCompressionEnabled = settings.getHistoryCompressionEnabled()
                 ).apply {
                     setEnabledSkills(enabledSkills)
                 }
