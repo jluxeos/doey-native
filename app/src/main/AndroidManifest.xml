@@ -87,7 +87,18 @@
             </intent-filter>
         </activity>
 
-        <!-- NUEVO: Servicio de overlay/burbuja flotante -->
+        <!-- FriendlyModeService: barra inferior modo Friendly (Tau) -->
+        <service
+            android:name=".services.FriendlyModeService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="friendly_assistant" />
+        </service>
+
+        <!-- Servicio de overlay/burbuja flotante -->
         <service
             android:name=".services.DoeyOverlayService"
             android:enabled="true"

@@ -54,6 +54,11 @@ class DoeyAccessibilityService : AccessibilityService() {
 
     @Volatile
     private var currentPackageName: String = ""
+    @Volatile
+    private var currentAppLabel: String = ""
+
+    /** Devuelve el nombre legible de la app activa (para modo Friendly) */
+    fun getCurrentAppLabel(): String = currentAppLabel.ifBlank { currentPackageName }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -88,6 +93,13 @@ class DoeyAccessibilityService : AccessibilityService() {
         val pkg = event.packageName
         if (pkg != null && pkg.isNotBlank()) {
             currentPackageName = pkg.toString()
+            // Actualizar etiqueta legible de la app activa
+            try {
+                val appInfo = packageManager.getApplicationInfo(pkg.toString(), 0)
+                currentAppLabel = packageManager.getApplicationLabel(appInfo).toString()
+            } catch (_: Exception) {
+                currentAppLabel = pkg.toString()
+            }
         }
     }
 

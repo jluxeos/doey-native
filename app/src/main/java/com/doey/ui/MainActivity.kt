@@ -32,11 +32,23 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
-        // Manejar invocación desde asistente del sistema
+
+        // Manejar invocación desde asistente del sistema (FIX BUG-6)
         if (intent?.action == Intent.ACTION_ASSIST ||
             intent?.action == Intent.ACTION_VOICE_COMMAND ||
             intent?.getBooleanExtra("from_assistant", false) == true) {
             // Marcar para que DoeyApp inicie escucha automáticamente
+            intent?.putExtra("auto_listen", true)
+        }
+
+        // Manejar query del Modo Friendly
+        val friendlyQuery = intent?.getStringExtra("friendly_query")
+        if (!friendlyQuery.isNullOrBlank()) {
+            intent?.putExtra("pending_query", friendlyQuery)
+        }
+
+        // Manejar voz del Modo Friendly
+        if (intent?.getBooleanExtra("friendly_voice", false) == true) {
             intent?.putExtra("auto_listen", true)
         }
     }

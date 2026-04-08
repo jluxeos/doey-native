@@ -27,7 +27,19 @@ class SettingsStore(private val context: Context) {
     private val KEY_MAX_ITERATIONS = intPreferencesKey("max_iterations")
     private val KEY_SOUL           = stringPreferencesKey("soul_md")
     private val KEY_PERSONAL_MEM   = stringPreferencesKey("personal_memory_md")
-    private val KEY_EXPERT_MODE    = booleanPreferencesKey("expert_mode")
+    private val KEY_EXPERT_MODE          = booleanPreferencesKey("expert_mode")
+    private val KEY_MAX_HISTORY           = intPreferencesKey("max_history_messages")
+    private val KEY_BUBBLE_POSITION       = stringPreferencesKey("bubble_position")
+    private val KEY_THEME                 = stringPreferencesKey("theme")
+    private val KEY_FRIENDLY_MODE         = booleanPreferencesKey("friendly_mode_enabled")
+    private val KEY_FRIENDLY_CONTEXT      = booleanPreferencesKey("friendly_context_read")
+    private val KEY_TOKEN_OPTIMIZER       = booleanPreferencesKey("token_optimizer_enabled")
+    private val KEY_PROMPT_CACHE          = booleanPreferencesKey("system_prompt_cache")
+    private val KEY_HISTORY_COMPRESSION   = booleanPreferencesKey("history_compression")
+    private val KEY_DEBUG_MODE            = booleanPreferencesKey("debug_mode")
+    private val KEY_OVERLAY_ENABLED       = booleanPreferencesKey("overlay_enabled")
+    private val KEY_NOTIF_ENABLED         = booleanPreferencesKey("notif_enabled")
+    private val KEY_AUTO_START_FRIENDLY   = booleanPreferencesKey("auto_start_friendly")
 
     // ── Encrypted SharedPreferences (API keys, secrets) ───────────────────────
     private val encPrefs: SharedPreferences by lazy {
@@ -91,7 +103,19 @@ class SettingsStore(private val context: Context) {
     suspend fun setMaxIterations(v: Int)        = context.dataStore.edit { it[KEY_MAX_ITERATIONS] = v }
     suspend fun setSoul(v: String)              = context.dataStore.edit { it[KEY_SOUL] = v }
     suspend fun setPersonalMemory(v: String)    = context.dataStore.edit { it[KEY_PERSONAL_MEM] = v }
-    suspend fun setExpertMode(v: Boolean)       = context.dataStore.edit { it[KEY_EXPERT_MODE] = v }
+    suspend fun setExpertMode(v: Boolean)               = context.dataStore.edit { it[KEY_EXPERT_MODE] = v }
+    suspend fun setMaxHistoryMessages(v: Int)           = context.dataStore.edit { it[KEY_MAX_HISTORY] = v }
+    suspend fun setBubblePosition(v: String)            = context.dataStore.edit { it[KEY_BUBBLE_POSITION] = v }
+    suspend fun setTheme(v: String)                     = context.dataStore.edit { it[KEY_THEME] = v }
+    suspend fun setFriendlyModeEnabled(v: Boolean)      = context.dataStore.edit { it[KEY_FRIENDLY_MODE] = v }
+    suspend fun setFriendlyContextRead(v: Boolean)      = context.dataStore.edit { it[KEY_FRIENDLY_CONTEXT] = v }
+    suspend fun setTokenOptimizerEnabled(v: Boolean)    = context.dataStore.edit { it[KEY_TOKEN_OPTIMIZER] = v }
+    suspend fun setSystemPromptCacheEnabled(v: Boolean) = context.dataStore.edit { it[KEY_PROMPT_CACHE] = v }
+    suspend fun setHistoryCompressionEnabled(v: Boolean)= context.dataStore.edit { it[KEY_HISTORY_COMPRESSION] = v }
+    suspend fun setDebugMode(v: Boolean)                = context.dataStore.edit { it[KEY_DEBUG_MODE] = v }
+    suspend fun setOverlayEnabled(v: Boolean)           = context.dataStore.edit { it[KEY_OVERLAY_ENABLED] = v }
+    suspend fun setNotifEnabled(v: Boolean)             = context.dataStore.edit { it[KEY_NOTIF_ENABLED] = v }
+    suspend fun setAutoStartFriendly(v: Boolean)        = context.dataStore.edit { it[KEY_AUTO_START_FRIENDLY] = v }
 
     // ── Suspend getters (first emission) ──────────────────────────────────────
     suspend fun getProvider()        = provider.first()
@@ -105,6 +129,19 @@ class SettingsStore(private val context: Context) {
     suspend fun getPersonalMemory()  = personalMemory.first()
     suspend fun getMaxIterations()   = maxIterations.first()
     suspend fun getExpertMode()      = expertMode.first()
+
+    suspend fun getMaxHistoryMessages()         = context.dataStore.data.map { it[KEY_MAX_HISTORY] ?: 20 }.first()
+    suspend fun getBubblePosition()             = context.dataStore.data.map { it[KEY_BUBBLE_POSITION] ?: "right" }.first()
+    suspend fun getTheme()                      = context.dataStore.data.map { it[KEY_THEME] ?: "tau" }.first()
+    suspend fun getFriendlyModeEnabled()        = context.dataStore.data.map { it[KEY_FRIENDLY_MODE] ?: true }.first()
+    suspend fun getFriendlyContextRead()        = context.dataStore.data.map { it[KEY_FRIENDLY_CONTEXT] ?: true }.first()
+    suspend fun getTokenOptimizerEnabled()      = context.dataStore.data.map { it[KEY_TOKEN_OPTIMIZER] ?: true }.first()
+    suspend fun getSystemPromptCacheEnabled()   = context.dataStore.data.map { it[KEY_PROMPT_CACHE] ?: true }.first()
+    suspend fun getHistoryCompressionEnabled()  = context.dataStore.data.map { it[KEY_HISTORY_COMPRESSION] ?: true }.first()
+    suspend fun getDebugMode()                  = context.dataStore.data.map { it[KEY_DEBUG_MODE] ?: false }.first()
+    suspend fun getOverlayEnabled()             = context.dataStore.data.map { it[KEY_OVERLAY_ENABLED] ?: false }.first()
+    suspend fun getNotifEnabled()               = context.dataStore.data.map { it[KEY_NOTIF_ENABLED] ?: false }.first()
+    suspend fun getAutoStartFriendly()          = context.dataStore.data.map { it[KEY_AUTO_START_FRIENDLY] ?: false }.first()
 
     suspend fun getEnabledSkillsList(): List<String> =
         enabledSkills.first().let { raw ->

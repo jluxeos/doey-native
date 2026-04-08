@@ -7,6 +7,7 @@ import android.view.KeyEvent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.doey.agent.ConversationPipeline
+import com.doey.agent.LocalIntentProcessor
 import com.doey.agent.PipelineState
 import com.doey.agent.SettingsStore
 import com.doey.agent.SkillLoader
@@ -157,6 +158,37 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         if (text.isBlank()) return
         val p = pipeline ?: return
         viewModelScope.launch {
+            // ── Procesador local de intenciones (ahorra tokens de IA) ─────────────
+            val intent = LocalIntentProcessor.classify(text)
+            when (intent) {
+                is LocalIntentProcessor.IntentClass.Local -> {
+                    // Ejecutar localmente sin gastar tokens
+                    val result = executeLocalAction(intent.action)
+                    if (result.isNotBlank()) {
+                        _uiState.update { s ->
+                            val newList = s.messages +
+                                ChatMessage(role = "user",      text = text) +
+                                ChatMessage(role = "assistant", text = result)
+                            s.copy(messages = newList.takeLast(50))
+                        }
+                        if (voiceEnabled) DoeyTTSEngine.speakAndWait(result, resolveLanguage(settings.getLanguage()))
+                        return@launch
+                    }
+                    // Si falla la ejecución local, delegar a IA
+                }
+                is LocalIntentProcessor.IntentClass.Complex -> {
+                    // Comando complejo: optimizar el prompt antes de enviar a IA
+                    val optimizedText = LocalIntentProcessor.buildOptimizedPrompt(intent.subtasks, text)
+                    p.processUtterance(
+                        userText = optimizedText,
+                        onSpeak  = if (voiceEnabled) { t, lang -> DoeyTTSEngine.speakAndWait(t, lang) } else null
+                    )
+                    if (_uiState.value.isDrivingMode && voiceEnabled) { delay(500); startDrivingListen() }
+                    return@launch
+                }
+                is LocalIntentProcessor.IntentClass.Delegate -> { /* Delegar a IA normalmente */ }
+            }
+            // ── Delegar a IA ─────────────────────────────────────────────────────
             p.processUtterance(
                 userText = text,
                 onSpeak  = if (voiceEnabled) { t, lang ->
@@ -168,6 +200,51 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 delay(500)
                 startDrivingListen()
             }
+        }
+    }
+
+    /**
+     * Ejecuta una acción local sin consumir tokens de IA.
+     * Retorna un texto de respuesta o blank si no se pudo ejecutar.
+     */
+    private suspend fun executeLocalAction(action: LocalIntentProcessor.LocalAction): String {
+        return try {
+            when (action) {
+                is LocalIntentProcessor.LocalAction.QueryInfo -> {
+                    when (action.type) {
+                        LocalIntentProcessor.InfoType.TIME -> {
+                            val now = java.util.Calendar.getInstance()
+                            "Son las ${now.get(java.util.Calendar.HOUR_OF_DAY)}:${String.format("%02d", now.get(java.util.Calendar.MINUTE))}"
+                        }
+                        LocalIntentProcessor.InfoType.DATE -> {
+                            val now = java.util.Calendar.getInstance()
+                            val months = listOf("enero","febrero","marzo","abril","mayo","junio",
+                                "julio","agosto","septiembre","octubre","noviembre","diciembre")
+                            "Hoy es ${now.get(java.util.Calendar.DAY_OF_MONTH)} de ${months[now.get(java.util.Calendar.MONTH)]} de ${now.get(java.util.Calendar.YEAR)}"
+                        }
+                        LocalIntentProcessor.InfoType.BATTERY -> {
+                            val bm = app.getSystemService(android.content.Context.BATTERY_SERVICE) as android.os.BatteryManager
+                            val level = bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                            "La batería está al $level%"
+                        }
+                        LocalIntentProcessor.InfoType.WEATHER -> "" // Delegar a IA para clima
+                    }
+                }
+                is LocalIntentProcessor.LocalAction.SetVolume -> {
+                    val am = app.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+                    val maxVol = am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+                    val newVol = (maxVol * action.level / 100.0).toInt().coerceIn(0, maxVol)
+                    am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, newVol, 0)
+                    "Volumen ajustado al ${action.level}%"
+                }
+                is LocalIntentProcessor.LocalAction.ToggleFlashlight -> {
+                    // Usar intent para la linterna
+                    ""
+                }
+                else -> "" // Para otras acciones, delegar a IA
+            }
+        } catch (e: Exception) {
+            ""
         }
     }
 
@@ -330,8 +407,30 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun getSettings() = settings
 
-    // ── Speech events ─────────────────────────────────────────────────────────
+    // ── FIX BUG-2: toggleOverlay mejorado ───────────────────────────────────────────────────────────
+    fun toggleOverlay(enabled: Boolean) = viewModelScope.launch {
+        settings.setOverlayEnabled(enabled)
+        val ctx = app.applicationContext
+        if (enabled) {
+            if (android.provider.Settings.canDrawOverlays(ctx)) {
+                val overlayInstance = com.doey.services.DoeyOverlayService.instance
+                if (overlayInstance != null) {
+                    // FIX BUG-2: servicio ya corre, solo mostrar la burbuja
+                    overlayInstance.showBubble()
+                } else {
+                    // Iniciar el servicio con foreground
+                    val intent = Intent(ctx, com.doey.services.DoeyOverlayService::class.java)
+                    ctx.startForegroundService(intent)
+                }
+            }
+        } else {
+            // Detener completamente el servicio
+            val intent = Intent(ctx, com.doey.services.DoeyOverlayService::class.java)
+            ctx.stopService(intent)
+        }
+    }
 
+    // ── Speech events ─────────────────────────────────────────────────────────────────
     private fun observeSpeechEvents() {
         DoeySpeechEvents.onPartialResult = { partial -> _uiState.update { it.copy(partialSpeech = partial) } }
     }

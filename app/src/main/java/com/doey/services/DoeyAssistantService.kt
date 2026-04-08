@@ -5,7 +5,10 @@ import android.os.Bundle
 import android.service.voice.VoiceInteractionSession
 import android.service.voice.VoiceInteractionSessionService
 import android.util.Log
+import com.doey.agent.SettingsStore
 import com.doey.ui.MainActivity
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 
 private const val TAG = "DoeyAssistant"
 
@@ -25,28 +28,44 @@ class DoeyAssistantService : VoiceInteractionSessionService() {
     }
 }
 
-class DoeyVoiceSession(context: android.content.Context) : VoiceInteractionSession(context) {
+// FIX BUG-6: usar ctx en lugar de context para evitar ambigüedad con VoiceInteractionSession.context
+class DoeyVoiceSession(private val ctx: android.content.Context) : VoiceInteractionSession(ctx) {
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
         Log.i(TAG, "Sesión de voz mostrada, flags=$showFlags")
-        
-        // Lanzar MainActivity con flag de asistente
-        val intent = Intent(context, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            putExtra("from_assistant", true)
-            putExtra("auto_listen", true)
-        }
-        context.startActivity(intent)
-        
-        // También mostrar overlay si está disponible
-        if (android.provider.Settings.canDrawOverlays(context)) {
-            val overlayIntent = Intent(context, DoeyOverlayService::class.java).apply {
-                action = DoeyOverlayService.ACTION_SHOW
+
+        // Leer ajustes para decidir qué modo usar
+        MainScope().launch {
+            val settings = SettingsStore(ctx)
+            val friendlyEnabled = settings.getFriendlyModeEnabled()
+            val contextRead     = settings.getFriendlyContextRead()
+
+            // Obtener contexto de la app activa si está habilitado
+            val appContext = if (contextRead) {
+                DoeyAccessibilityService.instance?.getCurrentAppLabel() ?: ""
+            } else ""
+
+            if (friendlyEnabled && android.provider.Settings.canDrawOverlays(ctx)) {
+                // ── Modo Friendly: mostrar barra inferior ────────────────────────────
+                val friendlyIntent = Intent(ctx, FriendlyModeService::class.java).apply {
+                    action = FriendlyModeService.ACTION_SHOW
+                    putExtra(FriendlyModeService.EXTRA_CONTEXT_APP, appContext)
+                }
+                ctx.startForegroundService(friendlyIntent)
+            } else {
+                // ── Modo normal: abrir MainActivity ──────────────────────────────────
+                val intent = Intent(ctx, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    putExtra("from_assistant", true)
+                    putExtra("auto_listen", true)
+                    putExtra("app_context", appContext)
+                }
+                ctx.startActivity(intent)
             }
-            context.startForegroundService(overlayIntent)
         }
-        
+
+        // Ocultar la sesión del sistema inmediatamente
         hide()
     }
 

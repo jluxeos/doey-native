@@ -95,9 +95,10 @@ class DoeyOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
 
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
-    private var isExpanded = mutableStateOf(false)
-    private var statusState = mutableStateOf(OverlayStatus.IDLE)
-    private var messageState = mutableStateOf("Doey listo")
+    private var isExpanded      = mutableStateOf(false)
+    private var isBubbleVisible = mutableStateOf(true)   // FIX BUG-2: controla visibilidad sin destruir la vista
+    private var statusState     = mutableStateOf(OverlayStatus.IDLE)
+    private var messageState    = mutableStateOf("Doey listo")
     private var nextActionState = mutableStateOf("")
 
     override fun onCreate() {
@@ -132,7 +133,11 @@ class DoeyOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
 
     override fun onDestroy() {
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
-        hideOverlay()
+        // En onDestroy sí removemos la vista completamente
+        overlayView?.let {
+            try { windowManager?.removeView(it) } catch (_: Exception) {}
+        }
+        overlayView = null
         instance = null
         super.onDestroy()
     }
@@ -172,20 +177,29 @@ class DoeyOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
             setViewTreeSavedStateRegistryOwner(this@DoeyOverlayService)
             setContent {
                 MaterialTheme {
-                    DoeyBubble(
-                        isExpanded = isExpanded.value,
-                        status = statusState.value,
-                        message = messageState.value,
-                        nextAction = nextActionState.value,
-                        onToggleExpand = { isExpanded.value = !isExpanded.value },
-                        onOpenApp = {
-                            val i = Intent(this@DoeyOverlayService, MainActivity::class.java).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                            }
-                            startActivity(i)
-                        },
-                        onClose = { hideOverlay() }
-                    )
+                    // FIX BUG-2: AnimatedVisibility controla la burbuja sin destruir el servicio
+                    AnimatedVisibility(
+                        visible = isBubbleVisible.value,
+                        enter   = scaleIn() + fadeIn(),
+                        exit    = scaleOut() + fadeOut()
+                    ) {
+                        DoeyBubble(
+                            isExpanded = isExpanded.value,
+                            status     = statusState.value,
+                            message    = messageState.value,
+                            nextAction = nextActionState.value,
+                            onToggleExpand = { isExpanded.value = !isExpanded.value },
+                            onOpenApp = {
+                                val i = Intent(this@DoeyOverlayService, MainActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                                }
+                                startActivity(i)
+                            },
+                            // FIX BUG-2: cerrar solo colapsa, no destruye
+                            onClose    = { isBubbleVisible.value = false },
+                            onDismiss  = { dismissOverlay() }
+                        )
+                    }
                 }
             }
         }
@@ -224,11 +238,24 @@ class DoeyOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
         windowManager?.addView(composeView, params)
     }
 
+    // FIX BUG-2: hideOverlay ahora solo colapsa la burbuja (no destruye el servicio)
     private fun hideOverlay() {
+        isBubbleVisible.value = false
+        isExpanded.value = false
+    }
+
+    // Muestra la burbuja nuevamente (para el switch de ajustes)
+    fun showBubble() {
+        isBubbleVisible.value = true
+    }
+
+    // Cierre completo: remueve la vista y detiene el servicio
+    private fun dismissOverlay() {
         overlayView?.let {
             try { windowManager?.removeView(it) } catch (_: Exception) {}
         }
         overlayView = null
+        stopSelf()
     }
 
     private fun createNotificationChannel() {
@@ -277,7 +304,8 @@ private fun DoeyBubble(
     nextAction: String,
     onToggleExpand: () -> Unit,
     onOpenApp: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onDismiss: () -> Unit = onClose  // FIX BUG-2: onDismiss para cierre completo
 ) {
     val bubbleColor = when (status) {
         DoeyOverlayService.OverlayStatus.IDLE -> Color(0xFF1E1E2E)
@@ -406,14 +434,27 @@ private fun DoeyBubble(
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
+                            // FIX BUG-2: este botón minimiza (no destruye)
                             IconButton(
                                 onClick = onClose,
                                 modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.Close,
-                                    null,
+                                    Icons.Default.VisibilityOff,
+                                    "Ocultar",
                                     tint = Color(0xFF9E9E9E),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            // Botón de cierre completo (apaga el servicio)
+                            IconButton(
+                                onClick = onDismiss,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.PowerSettingsNew,
+                                    "Apagar burbuja",
+                                    tint = Color(0xFFFF5252),
                                     modifier = Modifier.size(16.dp)
                                 )
                             }

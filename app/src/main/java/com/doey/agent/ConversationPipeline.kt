@@ -2,6 +2,7 @@ package com.doey.agent
 
 import android.util.Log
 import com.doey.llm.LLMProvider
+import com.doey.llm.LLMOptions
 import com.doey.llm.Message
 import com.doey.tools.ToolRegistry
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,12 +34,16 @@ class ConversationPipeline(
     var onTranscript: ((role: String, text: String) -> Unit)? = null
     var onError: ((error: String) -> Unit)? = null
 
-    fun setEnabledSkills(names: List<String>) { enabledSkillNames = names }
-    fun setDrivingMode(v: Boolean)           { drivingMode = v }
-    fun setLanguage(v: String)               { language = v }
-    fun setSoul(v: String)                   { soul = v }
-    fun setPersonalMemory(v: String)         { personalMemory = v }
-    fun setExpertMode(v: Boolean)            { expertMode = v }
+    // ── Cache de system prompt ─────────────────────────────────────────────────
+    private var cachedSystemPrompt: String = ""
+    private var systemPromptDirty: Boolean = true
+
+    fun setEnabledSkills(names: List<String>) { enabledSkillNames = names; systemPromptDirty = true }
+    fun setDrivingMode(v: Boolean)           { drivingMode = v; systemPromptDirty = true }
+    fun setLanguage(v: String)               { language = v; systemPromptDirty = true }
+    fun setSoul(v: String)                   { soul = v; systemPromptDirty = true }
+    fun setPersonalMemory(v: String)         { personalMemory = v; systemPromptDirty = true }
+    fun setExpertMode(v: Boolean)            { expertMode = v; systemPromptDirty = true }
     fun setProvider(p: LLMProvider)          { provider = p }
     fun clearHistory()                       { history.clear() }
     fun exportHistory(): List<Message>       = history.toList()
@@ -78,20 +83,32 @@ class ConversationPipeline(
             DoeyLogger.userInput(userText)
             Log.d(TAG, "Processing: ${userText.take(80)}")
 
-            val systemPrompt = SystemPromptBuilder.build(
-                skillLoader        = skillLoader,
-                toolRegistry       = tools,
-                enabledSkillNames  = enabledSkillNames,
-                drivingMode        = drivingMode,
-                language           = language,
-                soul               = soul,
-                personalMemory     = personalMemory,
-                expertMode         = expertMode
-            )
+            // ── Optimización de tokens ─────────────────────────────────────
+            val complexity = TokenOptimizer.classifyComplexity(userText)
+            val strategy   = TokenOptimizer.getStrategy(complexity, maxIterations)
+            Log.d(TAG, "Complexity: $complexity, maxIter=${strategy.maxIterations}")
+
+            val systemPrompt = if (strategy.useMinimalPrompt) {
+                TokenOptimizer.buildMinimalSystemPrompt(language, soul)
+            } else {
+                getOrBuildSystemPrompt(strategy)
+            }
 
             val systemMsg = Message(role = "system", content = systemPrompt)
             val userMsg   = Message(role = "user",   content = userText)
-            val messages  = listOf(systemMsg) + history + listOf(userMsg)
+
+            // Comprimir historial según estrategia
+            val workingHistory = if (strategy.compressHistory && history.size > strategy.maxHistoryMessages) {
+                TokenOptimizer.compressHistory(history, keepLast = strategy.maxHistoryMessages)
+            } else {
+                history.takeLast(strategy.maxHistoryMessages)
+            }
+            val cleanHistory = TokenOptimizer.deduplicateToolResults(workingHistory)
+            val messages = listOf(systemMsg) + cleanHistory + listOf(userMsg)
+
+            val estimatedTokens = TokenOptimizer.estimateMessageTokens(messages)
+            Log.d(TAG, "Estimated tokens: ~$estimatedTokens")
+            DoeyLogger.info("Tokens estimados: ~$estimatedTokens (complejidad: $complexity)")
 
             history.add(userMsg)
 
@@ -99,7 +116,7 @@ class ConversationPipeline(
                 provider      = provider,
                 tools         = tools,
                 messages      = messages,
-                maxIterations = maxIterations
+                maxIterations = strategy.maxIterations
             )
 
             val assistantText = result.content.ifBlank { "Done." }
@@ -147,6 +164,29 @@ class ConversationPipeline(
             _state.value = PipelineState.IDLE
             ""
         }
+    }
+
+    // ── Cache de system prompt ─────────────────────────────────────────────────
+
+    private fun getOrBuildSystemPrompt(strategy: TokenOptimizer.OptimizationStrategy): String {
+        if (!systemPromptDirty && cachedSystemPrompt.isNotBlank()) {
+            Log.d(TAG, "Using cached system prompt")
+            return cachedSystemPrompt
+        }
+        val prompt = SystemPromptBuilder.build(
+            skillLoader        = skillLoader,
+            toolRegistry       = tools,
+            enabledSkillNames  = if (strategy.includeSkills) enabledSkillNames else emptyList(),
+            drivingMode        = drivingMode,
+            language           = language,
+            soul               = soul,
+            personalMemory     = personalMemory,
+            expertMode         = expertMode
+        )
+        cachedSystemPrompt = prompt
+        systemPromptDirty  = false
+        Log.d(TAG, "System prompt built and cached (${prompt.length} chars)")
+        return prompt
     }
 
     private fun trimHistory() {
