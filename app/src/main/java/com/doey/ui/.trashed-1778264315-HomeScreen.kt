@@ -542,7 +542,7 @@ private fun ChatBubble(msg: ChatMessage, isFlow: Boolean) {
                          color = if (isFlow) Color(0xFFBB86FC) else Purple, modifier = Modifier.padding(bottom = 4.dp))
                 }
                 MarkdownText(
-                    text      = msg.text,
+                    text      = msg.content,
                     color     = textColor,
                     fontSize  = 15.sp
                 )
@@ -1281,7 +1281,7 @@ private fun CarPlayChatBubble(msg: ChatMessage) {
             ).padding(12.dp)
         ) {
             Text(
-                text = msg.text,
+                text = msg.content,
                 fontFamily = CarPlayFont,
                 fontSize = 15.sp,
                 color = if (isUser) Color.White else CPText
