@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ── PALETA DE COLORES "CHIDA" (Glass Themes) ──────────────────────────────────
-// Nombres inspirados en elementos naturales y futuristas
 
 object GlassThemes {
     val NebulaPurple = Color(0xFF8E24AA)
@@ -32,34 +31,51 @@ object GlassThemes {
     val CrimsonVoid  = Color(0xFFD50000)
     val CyberWhite   = Color(0xFFF5F5F5)
     
-    // Colores de fondo base (Oscuro profundo para que el cristal resalte)
     val AbyssBlack   = Color(0xFF050505)
-    val GlassSurface = Color(0x1AFFFFFF) // Blanco muy traslúcido
-    val GlassBorder  = Color(0x33FFFFFF) // Borde sutil
 }
 
-// Alias para compatibilidad con el código existente pero con el nuevo estilo
-val TauBg       = GlassThemes.AbyssBlack
-val TauSurface1 = Color(0x0DFFFFFF)
-val TauSurface2 = Color(0x1AFFFFFF)
-val TauSurface3 = Color(0x26FFFFFF)
+// Variables globales que se actualizan según el tema seleccionado
+var TauBg       by mutableStateOf(GlassThemes.AbyssBlack)
+var TauAccent   by mutableStateOf(GlassThemes.DeepSeaBlue)
+var TauAccentGlow by mutableStateOf(Color(0x4D0091EA))
+var TauAccentLight by mutableStateOf(Color(0xFF40C4FF))
+
+// Colores estáticos de soporte
 val TauText1    = Color(0xFFFFFFFF)
 val TauText2    = Color(0xB3FFFFFF)
 val TauText3    = Color(0x80FFFFFF)
-val TauAccent   = GlassThemes.DeepSeaBlue
-val TauAccentLight = Color(0xFF40C4FF)
-val TauAccentGlow  = Color(0x4D0091EA)
-val TauSeparator   = Color(0x1AFFFFFF)
-val TauGreen       = GlassThemes.AuroraGreen
-val TauRed         = GlassThemes.CrimsonVoid
-val TauBlue        = GlassThemes.DeepSeaBlue
-val TauOrange      = GlassThemes.SolarOrange
+val TauSurface1 = Color(0x0DFFFFFF)
+val TauSurface2 = Color(0x1AFFFFFF)
+val TauSurface3 = Color(0x26FFFFFF)
+val TauSeparator = Color(0x1AFFFFFF)
+val TauGreen    = GlassThemes.AuroraGreen
+val TauRed      = GlassThemes.CrimsonVoid
+val TauBlue     = GlassThemes.DeepSeaBlue
+val TauOrange   = GlassThemes.SolarOrange
+
+// Estado global de opacidad del vidrio (0.0 a 1.0)
+var GlassOpacity by mutableStateOf(0.12f)
+
+// Función para actualizar el tema globalmente
+fun updateGlassTheme(themeName: String) {
+    val color = when(themeName) {
+        "NebulaPurple" -> GlassThemes.NebulaPurple
+        "AuroraGreen"  -> GlassThemes.AuroraGreen
+        "SolarOrange"  -> GlassThemes.SolarOrange
+        "CrimsonVoid"  -> GlassThemes.CrimsonVoid
+        else           -> GlassThemes.DeepSeaBlue
+    }
+    TauAccent = color
+    TauAccentGlow = color.copy(alpha = 0.3f)
+    TauAccentLight = color.copy(alpha = 0.7f)
+}
 
 // ── COMPONENTES MAESTROS GLASSMORPHISM ────────────────────────────────────────
 
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
+    opacity: Float = GlassOpacity,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Box(
@@ -68,8 +84,8 @@ fun GlassCard(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.12f),
-                        Color.White.copy(alpha = 0.04f)
+                        Color.White.copy(alpha = opacity),
+                        Color.White.copy(alpha = opacity * 0.3f)
                     )
                 )
             )
@@ -77,7 +93,7 @@ fun GlassCard(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.2f),
+                        Color.White.copy(alpha = opacity + 0.1f),
                         Color.Transparent,
                         Color.White.copy(alpha = 0.05f)
                     )
@@ -211,6 +227,41 @@ fun TauSwitchRow(
     }
 }
 
+// ── COMPONENTES DEL DRAWER (MENÚ LATERAL) ─────────────────────────────────────
+
+@Composable
+fun DrawerItem(
+    icon: ImageVector,
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isSelected) TauAccent.copy(alpha = 0.15f) else Color.Transparent)
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon, 
+            null, 
+            tint = if (isSelected) TauAccent else TauText2, 
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(Modifier.width(16.dp))
+        Text(
+            label, 
+            color = if (isSelected) TauAccent else TauText1, 
+            fontSize = 15.sp, 
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+        )
+    }
+}
+
 @Composable
 fun DrawerSectionHeader(title: String) {
     Text(
@@ -218,19 +269,8 @@ fun DrawerSectionHeader(title: String) {
         fontSize = 10.sp,
         fontWeight = FontWeight.ExtraBold,
         color = TauText3,
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+        modifier = Modifier.padding(horizontal = 28.dp, vertical = 12.dp),
         letterSpacing = 1.5.sp
-    )
-}
-
-@Composable
-fun DrawerSubHeader(title: String) {
-    Text(
-        text = title,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
-        color = TauAccentLight.copy(alpha = 0.6f), 
-        modifier = Modifier.padding(horizontal = 30.dp, vertical = 4.dp)
     )
 }
 

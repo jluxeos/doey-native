@@ -36,7 +36,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     var apiKey           by remember { mutableStateOf("") }
     var model            by remember { mutableStateOf("") }
     var customUrl        by remember { mutableStateOf("") }
-    var theme            by remember { mutableStateOf("tau") }
+    var theme            by remember { mutableStateOf("DeepSeaBlue") }
     var maxIterations    by remember { mutableStateOf(10) }
     var maxHistory       by remember { mutableStateOf(20) }
     var expertMode       by remember { mutableStateOf(false) }
@@ -47,6 +47,9 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     var showApiSaved     by remember { mutableStateOf(false) }
     var showSettingsSaved by remember { mutableStateOf(false) }
     
+    // Glass Opacity
+    var currentGlassOpacity by remember { mutableStateOf(GlassOpacity) }
+
     // Hidden Settings (Exposed)
     var friendlyMode     by remember { mutableStateOf(true) }
     var autoStartFriendly by remember { mutableStateOf(false) }
@@ -72,6 +75,8 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
         autoStartFriendly = settings.getAutoStartFriendly()
         friendlyBarHeight = settings.getFriendlyBarHeight()
         friendlyBarOpacity = settings.getFriendlyBarOpacity()
+        
+        updateGlassTheme(theme)
     }
 
     LaunchedEffect(provider) {
@@ -82,19 +87,13 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     val themes    = listOf(
         "DeepSeaBlue"  to GlassThemes.DeepSeaBlue,
         "NebulaPurple" to GlassThemes.NebulaPurple,
-        "AuroraGreen"  to GlassThemes.AuroraGreen,
-        "SolarOrange"  to GlassThemes.SolarOrange,
-        "CrimsonVoid"  to GlassThemes.CrimsonVoid
+        "AuroraGreen"  -> GlassThemes.AuroraGreen,
+        "SolarOrange"  -> GlassThemes.SolarOrange,
+        "CrimsonVoid"  -> GlassThemes.CrimsonVoid
     )
 
     Box(Modifier.fillMaxSize()) {
-        GlassBackground(accentColor = when(theme) {
-            "NebulaPurple" -> GlassThemes.NebulaPurple
-            "AuroraGreen"  -> GlassThemes.AuroraGreen
-            "SolarOrange"  -> GlassThemes.SolarOrange
-            "CrimsonVoid"  -> GlassThemes.CrimsonVoid
-            else           -> GlassThemes.DeepSeaBlue
-        })
+        GlassBackground(accentColor = TauAccent)
 
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             TopAppBar(
@@ -216,7 +215,57 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                     }
                 }
 
-                // ── 3. Modo Friendly (Oculto) ─────────────────────────────────────
+                // ── 3. Apariencia (Glass & Temas) ──────────────────────────────────
+                TauSettingsSection(title = "Apariencia", icon = Icons.Default.Palette) {
+                    Text("Temas Glass", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        val themeList = listOf("DeepSeaBlue", "NebulaPurple", "AuroraGreen", "SolarOrange", "CrimsonVoid")
+                        themeList.forEach { name ->
+                            val color = when(name) {
+                                "NebulaPurple" -> GlassThemes.NebulaPurple
+                                "AuroraGreen"  -> GlassThemes.AuroraGreen
+                                "SolarOrange"  -> GlassThemes.SolarOrange
+                                "CrimsonVoid"  -> GlassThemes.CrimsonVoid
+                                else           -> GlassThemes.DeepSeaBlue
+                            }
+                            val isSelected = theme == name
+                            Box(
+                                Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .clickable { 
+                                        theme = name
+                                        updateGlassTheme(name)
+                                    }
+                                    .border(if(isSelected) 3.dp else 0.dp, Color.White, CircleShape)
+                            )
+                        }
+                    }
+                    
+                    Spacer(Modifier.height(24.dp))
+                    Text("Opacidad del Vidrio: ${(currentGlassOpacity * 100).toInt()}%", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
+                    Slider(
+                        value = currentGlassOpacity,
+                        onValueChange = { 
+                            currentGlassOpacity = it
+                            GlassOpacity = it
+                        },
+                        valueRange = 0.05f..0.4f
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+                    TauSwitchRow(
+                        title = "Modo Experto",
+                        subtitle = "Más opciones en el menú",
+                        icon = Icons.Default.Star,
+                        checked = expertMode,
+                        onToggle = { expertMode = it }
+                    )
+                }
+
+                // ── 4. Modo Friendly (Oculto) ─────────────────────────────────────
                 TauSettingsSection(title = "Modo Friendly (Oculto)", icon = Icons.Default.Spa) {
                     TauSwitchRow(
                         title = "Habilitar Modo Friendly",
@@ -229,36 +278,8 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                     Text("Altura de Barra: ${friendlyBarHeight.toInt()}dp", color = TauText1, fontSize = 14.sp)
                     Slider(value = friendlyBarHeight, onValueChange = { friendlyBarHeight = it }, valueRange = 40f..120f)
                     
-                    Text("Opacidad: ${(friendlyBarOpacity * 100).toInt()}%", color = TauText1, fontSize = 14.sp)
+                    Text("Opacidad de Barra: ${(friendlyBarOpacity * 100).toInt()}%", color = TauText1, fontSize = 14.sp)
                     Slider(value = friendlyBarOpacity, onValueChange = { friendlyBarOpacity = it }, valueRange = 0.5f..1.0f)
-                }
-
-                // ── 4. Apariencia (Temas Chidos) ──────────────────────────────────
-                TauSettingsSection(title = "Apariencia", icon = Icons.Default.Palette) {
-                    Text("Temas Glass", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
-                    Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        themes.forEach { (name, color) ->
-                            val isSelected = theme == name
-                            Box(
-                                Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(color)
-                                    .clickable { theme = name }
-                                    .border(if(isSelected) 3.dp else 0.dp, Color.White, CircleShape)
-                            )
-                        }
-                    }
-                    
-                    Spacer(Modifier.height(16.dp))
-                    TauSwitchRow(
-                        title = "Modo Experto",
-                        subtitle = "Más opciones en el menú",
-                        icon = Icons.Default.Star,
-                        checked = expertMode,
-                        onToggle = { expertMode = it }
-                    )
                 }
 
                 // ── Botón Guardar Todo ────────────────────────────────────────────

@@ -55,6 +55,7 @@ fun ProfileScreen(vm: MainViewModel) {
 
     LaunchedEffect(Unit) {
         theme = settings.getTheme()
+        updateGlassTheme(theme)
         while (true) {
             checkAssistantStatus()
             delay(2000)
@@ -62,13 +63,7 @@ fun ProfileScreen(vm: MainViewModel) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        GlassBackground(accentColor = when(theme) {
-            "NebulaPurple" -> GlassThemes.NebulaPurple
-            "AuroraGreen"  -> GlassThemes.AuroraGreen
-            "SolarOrange"  -> GlassThemes.SolarOrange
-            "CrimsonVoid"  -> GlassThemes.CrimsonVoid
-            else           -> GlassThemes.DeepSeaBlue
-        })
+        GlassBackground(accentColor = TauAccent)
 
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             TopAppBar(

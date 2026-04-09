@@ -37,6 +37,7 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
 
     LaunchedEffect(Unit) {
         theme = settings.getTheme()
+        updateGlassTheme(theme)
     }
 
     LaunchedEffect(state.messages.size) {
@@ -44,18 +45,15 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        GlassBackground(accentColor = when(theme) {
-            "NebulaPurple" -> GlassThemes.NebulaPurple
-            "AuroraGreen"  -> GlassThemes.AuroraGreen
-            "SolarOrange"  -> GlassThemes.SolarOrange
-            "CrimsonVoid"  -> GlassThemes.CrimsonVoid
-            else           -> GlassThemes.DeepSeaBlue
-        })
+        GlassBackground(accentColor = TauAccent)
 
         Column(Modifier.fillMaxSize()) {
             // Top Bar
             TopAppBar(
                 title = { Text("Doey AI", fontWeight = FontWeight.ExtraBold, color = TauText1) },
+                navigationIcon = {
+                    // El icono de menú se maneja en DoeyApp.kt
+                },
                 actions = {
                     IconButton(onClick = { nav.navigate("settings") }) {
                         Icon(Icons.Default.Settings, null, tint = TauText1)
@@ -78,7 +76,8 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
                     ) {
                         GlassCard(
-                            modifier = Modifier.widthIn(max = 280.dp)
+                            modifier = Modifier.widthIn(max = 280.dp),
+                            opacity = GlassOpacity
                         ) {
                             Text(
                                 text = msg.text,
@@ -93,7 +92,8 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
 
             // Input Area
             GlassCard(
-                modifier = Modifier.fillMaxWidth().padding(16.dp)
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                opacity = GlassOpacity
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextField(
