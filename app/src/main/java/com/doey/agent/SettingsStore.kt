@@ -92,6 +92,7 @@ class SettingsStore(private val context: Context) {
     val soul: Flow<String>             = context.dataStore.data.map { it[KEY_SOUL] ?: "" }
     val personalMemory: Flow<String>   = context.dataStore.data.map { it[KEY_PERSONAL_MEM] ?: "" }
     val expertMode: Flow<Boolean>      = context.dataStore.data.map { it[KEY_EXPERT_MODE] ?: false }
+    val debugMode: Flow<Boolean>       = context.dataStore.data.map { it[KEY_DEBUG_MODE] ?: false }
 
     // ── DataStore setters ─────────────────────────────────────────────────────
     suspend fun setProvider(v: String)          = context.dataStore.edit { it[KEY_PROVIDER] = v }

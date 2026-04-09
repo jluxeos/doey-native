@@ -29,7 +29,7 @@ import com.doey.agent.ProfileStore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(vm: MainViewModel, nav: NavController) {
+fun HomeScreen(vm: MainViewModel, nav: NavController, onMenuClick: () -> Unit) {
     val state by vm.uiState.collectAsState()
     val ctx = LocalContext.current
     val profileStore = remember { ProfileStore(ctx) }
@@ -47,7 +47,7 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             HomeTopBar(
                 isAdvanced = isAdvanced,
                 isWakeWordActive = state.isWakeWordActive,
-                onMenuClick = { /* Manejado por DoeyApp drawer */ },
+                onMenuClick = onMenuClick,
                 onNotifClick = { Toast.makeText(ctx, "Markdown consejos - próximamente", Toast.LENGTH_SHORT).show() }
             )
         },

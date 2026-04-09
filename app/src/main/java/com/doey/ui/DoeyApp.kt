@@ -153,17 +153,19 @@ fun DoeyApp() {
         ) {
             Scaffold(containerColor = TauBg) { pad ->
                 NavHost(nav, startDestination = Screen.Home.route, Modifier.padding(pad)) {
-                    composable(Screen.Home.route) { HomeScreen(vm, nav) }
+                    composable(Screen.Home.route) { 
+                        HomeScreen(vm, nav, onMenuClick = { scope.launch { drawerState.open() } }) 
+                    }
                     composable(Screen.Settings.route) { SettingsScreen(vm) }
                     composable(Screen.Profile.route) { ProfileScreen(vm) }
                     composable(Screen.Permissions.route) { PermissionsScreen() }
-                    composable(Screen.Skills.route) { SkillsScreen() }
-                    composable(Screen.Memories.route) { MemoriesScreen() }
-                    composable(Screen.Schedules.route) { SchedulesScreen() }
-                    composable(Screen.Journal.route) { JournalScreen() }
+                    composable(Screen.Skills.route) { SkillsScreen(vm) }
+                    composable(Screen.Memories.route) { MemoriesScreen(vm) }
+                    composable(Screen.Schedules.route) { SchedulesScreen(vm) }
+                    composable(Screen.Journal.route) { JournalScreen(vm) }
                     composable(Screen.Logs.route) { LogScreen() }
                     composable(Screen.FlowMode.route) { FlowModeScreen() }
-                    composable(Screen.FriendlySettings.route) { FriendlySettingsScreen() }
+                    composable(Screen.FriendlySettings.route) { FriendlySettingsScreen(vm) }
                 }
             }
         }

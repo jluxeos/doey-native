@@ -59,12 +59,14 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private var pipelineStateJob: Job? = null
 
     init {
-        initPipeline()
+        viewModelScope.launch {
+            initPipeline()
+        }
         observeSpeechEvents()
         observeNowPlaying()
     }
 
-    private fun initPipeline() = viewModelScope.launch {
+    private suspend fun initPipeline() {
         val provider            = settings.getProvider()
         val model               = settings.getModel()
         val language            = settings.getLanguage()
@@ -183,7 +185,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     }
                 }
                 is LocalIntentProcessor.IntentClass.Complex -> {
-                    val optimizedText = LocalIntentProcessor.buildOptimizedPrompt(intent.subtasks, text)
+                    // Optimized prompt building
+                    val optimizedText = "El usuario tiene varias peticiones: ${intent.subtasks.joinToString(". ")}. Petición original: $text"
                     p.processUtterance(
                         userText = optimizedText,
                         onSpeak  = if (voiceEnabled) { t, lang -> DoeyTTSEngine.speakAndWait(t, lang) } else null
@@ -224,18 +227,24 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                             val bm = app.getSystemService(android.content.Context.BATTERY_SERVICE) as android.os.BatteryManager
                             "Tienes un ${bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)}% de batería"
                         }
+                        LocalIntentProcessor.InfoType.WEATHER -> "Consultando el clima..."
                     }
                 }
-                is LocalIntentProcessor.LocalAction.DeviceControl -> {
-                    when (action.type) {
-                        LocalIntentProcessor.DeviceAction.FLASHLIGHT_ON -> { DeviceTool().toggleFlashlight(app, true); "Linterna encendida" }
-                        LocalIntentProcessor.DeviceAction.FLASHLIGHT_OFF -> { DeviceTool().toggleFlashlight(app, false); "Linterna apagada" }
-                        LocalIntentProcessor.DeviceAction.VOLUME_UP -> { DeviceTool().adjustVolume(app, true); "Volumen subido" }
-                        LocalIntentProcessor.DeviceAction.VOLUME_DOWN -> { DeviceTool().adjustVolume(app, false); "Volumen bajado" }
-                    }
+                is LocalIntentProcessor.LocalAction.ToggleFlashlight -> {
+                    DeviceTool().toggleFlashlight(app, action.enable)
+                    if (action.enable) "Linterna encendida" else "Linterna apagada"
                 }
-                is LocalIntentProcessor.LocalAction.Navigation -> "Abriendo navegación a ${action.destination}"
-                is LocalIntentProcessor.LocalAction.OpenApp -> "Abriendo ${action.appName}"
+                is LocalIntentProcessor.LocalAction.SetVolume -> "Volumen ajustado al ${action.level}%"
+                is LocalIntentProcessor.LocalAction.Navigate -> "Abriendo navegación a ${action.destination}"
+                is LocalIntentProcessor.LocalAction.OpenApp -> "Abriendo ${action.query}"
+                is LocalIntentProcessor.LocalAction.Call -> "Llamando a ${action.contact}"
+                is LocalIntentProcessor.LocalAction.SendSms -> "Enviando SMS a ${action.contact}"
+                is LocalIntentProcessor.LocalAction.SendWhatsApp -> "Enviando WhatsApp a ${action.contact}"
+                is LocalIntentProcessor.LocalAction.PlayMusic -> "Reproduciendo ${action.query} en ${action.app}"
+                is LocalIntentProcessor.LocalAction.ToggleWifi -> if (action.enable) "Activando Wi-Fi" else "Desactivando Wi-Fi"
+                is LocalIntentProcessor.LocalAction.ToggleBluetooth -> if (action.enable) "Activando Bluetooth" else "Desactivando Bluetooth"
+                is LocalIntentProcessor.LocalAction.SetAlarm -> "Alarma programada a las ${action.hour}:${action.minute}"
+                is LocalIntentProcessor.LocalAction.SetTimer -> "Temporizador iniciado por ${action.seconds} segundos"
             }
         } catch (e: Exception) { "" }
     }
@@ -278,7 +287,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         if (!next) stopDrivingListen()
     }
 
-    private fun startWakeWord() {
+    private suspend fun startWakeWord() {
         val phrase   = settings.getWakePhrase()
         val language = resolveLanguage(settings.getLanguage())
         WakeWordService.onWakeWord = { _ ->

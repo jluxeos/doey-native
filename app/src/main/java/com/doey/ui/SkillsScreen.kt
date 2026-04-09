@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SkillsScreen() {
+fun SkillsScreen(vm: MainViewModel) {
     val scope = rememberCoroutineScope()
     var showAddSkillDialog by remember { mutableStateOf(false) }
 
