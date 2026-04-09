@@ -81,7 +81,7 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                             modifier = Modifier.widthIn(max = 280.dp)
                         ) {
                             Text(
-                                text = msg.content,
+                                text = msg.text,
                                 color = if (isUser) TauText1 else TauText2,
                                 fontSize = 15.sp,
                                 lineHeight = 20.sp
