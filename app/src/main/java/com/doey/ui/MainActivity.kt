@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.doey.agent.ProfileStore
@@ -24,6 +25,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         instance = this
+
+        // Habilitar diseño de borde a borde para eliminar barras de sistema de colores fijos
+        enableEdgeToEdge()
 
         // Solo solicitar permisos básicos en runtime si el onboarding ya fue completado
         val profileStore = ProfileStore(this)

@@ -47,8 +47,9 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     var showApiSaved     by remember { mutableStateOf(false) }
     var showSettingsSaved by remember { mutableStateOf(false) }
     
-    // Glass Opacity
+    // Glass Controls
     var currentGlassOpacity by remember { mutableStateOf(GlassOpacity) }
+    var currentGlassBlur    by remember { mutableStateOf(GlassBlur) }
 
     // Hidden Settings (Exposed)
     var friendlyMode     by remember { mutableStateOf(true) }
@@ -84,13 +85,6 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     }
 
     val providers = listOf("gemini", "groq", "openrouter", "openai", "custom")
-    val themes    = listOf(
-        "DeepSeaBlue"  to GlassThemes.DeepSeaBlue,
-        "NebulaPurple" to GlassThemes.NebulaPurple,
-        "AuroraGreen"  to GlassThemes.AuroraGreen,
-        "SolarOrange"  to GlassThemes.SolarOrange,
-        "CrimsonVoid"  to GlassThemes.CrimsonVoid
-    )
 
     Box(Modifier.fillMaxSize()) {
         GlassBackground(accentColor = TauAccent)
@@ -217,7 +211,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
 
                 // ── 3. Apariencia (Glass & Temas) ──────────────────────────────────
                 TauSettingsSection(title = "Apariencia", icon = Icons.Default.Palette) {
-                    Text("Temas Glass", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
+                    Text("Temas Glass (Base Blanca)", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         val themeList = listOf("DeepSeaBlue", "NebulaPurple", "AuroraGreen", "SolarOrange", "CrimsonVoid")
@@ -239,82 +233,114 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                                         theme = name
                                         updateGlassTheme(name)
                                     }
-                                    .border(if(isSelected) 3.dp else 0.dp, Color.White, CircleShape)
+                                    .border(if (isSelected) 3.dp else 0.dp, TauText1, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isSelected) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(24.dp))
+                    Text("Configuración de Vidrio", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
+                    
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Opacidad: ${(currentGlassOpacity * 100).toInt()}%", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
+                            Slider(
+                                value = currentGlassOpacity,
+                                onValueChange = { 
+                                    currentGlassOpacity = it
+                                    GlassOpacity = it
+                                },
+                                valueRange = 0.05f..0.8f,
+                                modifier = Modifier.width(140.dp)
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Desenfoque: ${currentGlassBlur.toInt()}dp", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
+                            Slider(
+                                value = currentGlassBlur,
+                                onValueChange = { 
+                                    currentGlassBlur = it
+                                    GlassBlur = it
+                                },
+                                valueRange = 0f..50f,
+                                modifier = Modifier.width(140.dp)
                             )
                         }
                     }
-                    
-                    Spacer(Modifier.height(24.dp))
-                    Text("Opacidad del Vidrio: ${(currentGlassOpacity * 100).toInt()}%", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
-                    Slider(
-                        value = currentGlassOpacity,
-                        onValueChange = { 
-                            currentGlassOpacity = it
-                            GlassOpacity = it
-                        },
-                        valueRange = 0.05f..0.4f
-                    )
-
-                    Spacer(Modifier.height(16.dp))
-                    TauSwitchRow(
-                        title = "Modo Experto",
-                        subtitle = "Más opciones en el menú",
-                        icon = Icons.Default.Star,
-                        checked = expertMode,
-                        onToggle = { expertMode = it }
-                    )
                 }
 
-                // ── 4. Modo Friendly (Oculto) ─────────────────────────────────────
-                TauSettingsSection(title = "Modo Friendly (Oculto)", icon = Icons.Default.Spa) {
+                // ── 4. Modo Friendly (Hidden Exposed) ──────────────────────────────
+                TauSettingsSection(title = "Modo Friendly", icon = Icons.Default.Spa) {
                     TauSwitchRow(
                         title = "Habilitar Modo Friendly",
-                        subtitle = "Mensajes de compañía",
-                        icon = Icons.Default.ChatBubbleOutline,
+                        subtitle = "Barra de compañía interactiva",
+                        icon = Icons.Default.Visibility,
                         checked = friendlyMode,
                         onToggle = { friendlyMode = it }
                     )
+                    TauSwitchRow(
+                        title = "Inicio Automático",
+                        subtitle = "Al encender el dispositivo",
+                        icon = Icons.Default.PowerSettingsNew,
+                        checked = autoStartFriendly,
+                        onToggle = { autoStartFriendly = it }
+                    )
                     
-                    Text("Altura de Barra: ${friendlyBarHeight.toInt()}dp", color = TauText1, fontSize = 14.sp)
-                    Slider(value = friendlyBarHeight, onValueChange = { friendlyBarHeight = it }, valueRange = 40f..120f)
+                    Spacer(Modifier.height(12.dp))
+                    Text("Personalización de Barra", fontWeight = FontWeight.Bold, color = TauText2, fontSize = 13.sp)
                     
-                    Text("Opacidad de Barra: ${(friendlyBarOpacity * 100).toInt()}%", color = TauText1, fontSize = 14.sp)
-                    Slider(value = friendlyBarOpacity, onValueChange = { friendlyBarOpacity = it }, valueRange = 0.5f..1.0f)
-                }
-
-                // ── Botón Guardar Todo ────────────────────────────────────────────
-                GlassButton(
-                    onClick = {
-                        scope.launch {
-                            vm.saveSettings(
-                                provider, apiKey, model, customUrl, settings.getLanguage(), settings.getWakePhrase(),
-                                settings.getEnabledSkillsList(), settings.getSoul(),
-                                settings.getPersonalMemory(), maxIterations, settings.getSttMode(), expertMode
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Altura: ${friendlyBarHeight.toInt()}dp", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
+                            Slider(
+                                value = friendlyBarHeight,
+                                onValueChange = { friendlyBarHeight = it },
+                                valueRange = 40f..120f,
+                                modifier = Modifier.width(140.dp)
                             )
-                            settings.setTheme(theme)
-                            settings.setTokenOptimizerEnabled(tokenOptimizer)
-                            settings.setSystemPromptCacheEnabled(promptCache)
-                            settings.setHistoryCompressionEnabled(historyCompress)
-                            settings.setDebugMode(debugMode)
-                            settings.setFriendlyModeEnabled(friendlyMode)
-                            settings.setAutoStartFriendly(autoStartFriendly)
-                            settings.setFriendlyBarHeight(friendlyBarHeight)
-                            settings.setFriendlyBarOpacity(friendlyBarOpacity)
-                            
-                            showSettingsSaved = true
-                            onProfileChanged()
-                            delay(2000)
-                            showSettingsSaved = false
                         }
-                    },
-                    containerColor = TauAccent,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Save, null)
-                    Spacer(Modifier.width(12.dp))
-                    Text(if (showSettingsSaved) "¡AJUSTES APLICADOS!" else "APLICAR TODOS LOS CAMBIOS", fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Opacidad Barra: ${(friendlyBarOpacity * 100).toInt()}%", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
+                            Slider(
+                                value = friendlyBarOpacity,
+                                onValueChange = { friendlyBarOpacity = it },
+                                valueRange = 0.5f..1.0f,
+                                modifier = Modifier.width(140.dp)
+                            )
+                        }
+                    }
                 }
 
+                Spacer(Modifier.height(12.dp))
+                GlassButton(onClick = {
+                    scope.launch {
+                        settings.setProvider(provider)
+                        settings.setTheme(theme)
+                        settings.setMaxIterations(maxIterations)
+                        settings.setMaxHistoryMessages(maxHistory)
+                        settings.setExpertMode(expertMode)
+                        settings.setTokenOptimizerEnabled(tokenOptimizer)
+                        settings.setSystemPromptCacheEnabled(promptCache)
+                        settings.setHistoryCompressionEnabled(historyCompress)
+                        settings.setDebugMode(debugMode)
+                        
+                        settings.setFriendlyModeEnabled(friendlyMode)
+                        settings.setAutoStartFriendly(autoStartFriendly)
+                        settings.setFriendlyBarHeight(friendlyBarHeight)
+                        settings.setFriendlyBarOpacity(friendlyBarOpacity)
+                        
+                        showSettingsSaved = true
+                        delay(2000)
+                        showSettingsSaved = false
+                        onProfileChanged()
+                    }
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (showSettingsSaved) "¡TODO GUARDADO!" else "GUARDAR TODOS LOS AJUSTES", fontWeight = FontWeight.Bold)
+                }
+                
                 Spacer(Modifier.height(40.dp))
             }
         }

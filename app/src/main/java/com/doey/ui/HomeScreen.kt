@@ -48,20 +48,9 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
         GlassBackground(accentColor = TauAccent)
 
         Column(Modifier.fillMaxSize()) {
-            // Top Bar
-            TopAppBar(
-                title = { Text("Doey AI", fontWeight = FontWeight.ExtraBold, color = TauText1) },
-                navigationIcon = {
-                    // El icono de menú se maneja en DoeyApp.kt
-                },
-                actions = {
-                    IconButton(onClick = { nav.navigate("settings") }) {
-                        Icon(Icons.Default.Settings, null, tint = TauText1)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
-
+            // Top Bar (Empty space for system bars)
+            Spacer(Modifier.height(32.dp))
+            
             // Chat Area
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp),
@@ -77,11 +66,12 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                     ) {
                         GlassCard(
                             modifier = Modifier.widthIn(max = 280.dp),
-                            opacity = GlassOpacity
+                            opacity = if (isUser) GlassOpacity else GlassOpacity * 0.5f,
+                            blur = GlassBlur
                         ) {
                             Text(
                                 text = msg.text,
-                                color = if (isUser) TauText1 else TauText2,
+                                color = TauText1,
                                 fontSize = 15.sp,
                                 lineHeight = 20.sp
                             )
@@ -91,38 +81,42 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             }
 
             // Input Area
-            GlassCard(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                opacity = GlassOpacity
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextField(
-                        value = input,
-                        onValueChange = { input = it },
-                        placeholder = { Text("Escribe algo...", color = TauText3) },
-                        modifier = Modifier.weight(1f),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            focusedTextColor = TauText1,
-                            unfocusedTextColor = TauText1
+            Box(Modifier.padding(16.dp)) {
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    opacity = GlassOpacity,
+                    blur = GlassBlur
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextField(
+                            value = input,
+                            onValueChange = { input = it },
+                            placeholder = { Text("Escribe algo...", color = TauText3) },
+                            modifier = Modifier.weight(1f),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                focusedTextColor = TauText1,
+                                unfocusedTextColor = TauText1
+                            )
                         )
-                    )
-                    IconButton(
-                        onClick = {
-                            if (input.isNotBlank()) {
-                                vm.sendMessage(input)
-                                input = ""
-                            }
-                        },
-                        modifier = Modifier.clip(CircleShape).background(TauAccent)
-                    ) {
-                        Icon(Icons.Default.Send, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        IconButton(
+                            onClick = {
+                                if (input.isNotBlank()) {
+                                    vm.sendMessage(input)
+                                    input = ""
+                                }
+                            },
+                            modifier = Modifier.clip(CircleShape).background(TauAccent)
+                        ) {
+                            Icon(Icons.Default.Send, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        }
                     }
                 }
             }
+            Spacer(Modifier.height(16.dp)) // Bottom navigation space
         }
     }
 }

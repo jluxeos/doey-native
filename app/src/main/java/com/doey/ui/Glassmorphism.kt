@@ -21,40 +21,41 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// ── PALETA DE COLORES "CHIDA" (Glass Themes) ──────────────────────────────────
+// ── PALETA DE COLORES "CHIDA" (Glass Themes - Base Blanca) ──────────────────────
 
 object GlassThemes {
-    val NebulaPurple = Color(0xFF8E24AA)
-    val AuroraGreen  = Color(0xFF00C853)
-    val SolarOrange  = Color(0xFFFF6D00)
-    val DeepSeaBlue  = Color(0xFF0091EA)
-    val CrimsonVoid  = Color(0xFFD50000)
-    val CyberWhite   = Color(0xFFF5F5F5)
-    
-    val AbyssBlack   = Color(0xFF050505)
+    val NebulaPurple = Color(0xFF9C27B0)
+    val AuroraGreen  = Color(0xFF4CAF50)
+    val SolarOrange  = Color(0xFFFF9800)
+    val DeepSeaBlue  = Color(0xFF2196F3)
+    val CrimsonVoid  = Color(0xFFF44336)
+    val CyberWhite   = Color(0xFFFFFFFF)
+    val SoftGray     = Color(0xFFF8F9FA)
 }
 
 // Variables globales que se actualizan según el tema seleccionado
-var TauBg       by mutableStateOf(GlassThemes.AbyssBlack)
+var TauBg       by mutableStateOf(GlassThemes.CyberWhite)
 var TauAccent   by mutableStateOf(GlassThemes.DeepSeaBlue)
-var TauAccentGlow by mutableStateOf(Color(0x4D0091EA))
-var TauAccentLight by mutableStateOf(Color(0xFF40C4FF))
+var TauAccentGlow by mutableStateOf(Color(0x332196F3))
+var TauAccentLight by mutableStateOf(Color(0xFFBBDEFB))
 
-// Colores estáticos de soporte
-val TauText1    = Color(0xFFFFFFFF)
-val TauText2    = Color(0xB3FFFFFF)
-val TauText3    = Color(0x80FFFFFF)
-val TauSurface1 = Color(0x0DFFFFFF)
-val TauSurface2 = Color(0x1AFFFFFF)
-val TauSurface3 = Color(0x26FFFFFF)
-val TauSeparator = Color(0x1AFFFFFF)
+// Colores estáticos de soporte (Base Blanca)
+var TauText1    by mutableStateOf(Color(0xFF1A1A1A))
+var TauText2    by mutableStateOf(Color(0xFF4A4A4A))
+var TauText3    by mutableStateOf(Color(0xFF7A7A7A))
+var TauSurface1 by mutableStateOf(Color(0x1A000000))
+var TauSurface2 by mutableStateOf(Color(0x33000000))
+var TauSurface3 by mutableStateOf(Color(0x4D000000))
+var TauSeparator by mutableStateOf(Color(0x1A000000))
+
 val TauGreen    = GlassThemes.AuroraGreen
 val TauRed      = GlassThemes.CrimsonVoid
 val TauBlue     = GlassThemes.DeepSeaBlue
 val TauOrange   = GlassThemes.SolarOrange
 
-// Estado global de opacidad del vidrio (0.0 a 1.0)
-var GlassOpacity by mutableStateOf(0.12f)
+// Estado global de opacidad y desenfoque
+var GlassOpacity by mutableStateOf(0.4f)
+var GlassBlur    by mutableStateOf(20f)
 
 // Función para actualizar el tema globalmente
 fun updateGlassTheme(themeName: String) {
@@ -66,8 +67,14 @@ fun updateGlassTheme(themeName: String) {
         else           -> GlassThemes.DeepSeaBlue
     }
     TauAccent = color
-    TauAccentGlow = color.copy(alpha = 0.3f)
-    TauAccentLight = color.copy(alpha = 0.7f)
+    TauAccentGlow = color.copy(alpha = 0.2f)
+    TauAccentLight = color.copy(alpha = 0.4f)
+    
+    // Asegurar que el fondo sea blanco
+    TauBg = GlassThemes.CyberWhite
+    TauText1 = Color(0xFF1A1A1A)
+    TauText2 = Color(0xFF4A4A4A)
+    TauText3 = Color(0xFF7A7A7A)
 }
 
 // ── COMPONENTES MAESTROS GLASSMORPHISM ────────────────────────────────────────
@@ -76,6 +83,7 @@ fun updateGlassTheme(themeName: String) {
 fun GlassCard(
     modifier: Modifier = Modifier,
     opacity: Float = GlassOpacity,
+    blur: Float = GlassBlur,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Box(
@@ -85,7 +93,7 @@ fun GlassCard(
                 Brush.verticalGradient(
                     colors = listOf(
                         Color.White.copy(alpha = opacity),
-                        Color.White.copy(alpha = opacity * 0.3f)
+                        Color.White.copy(alpha = opacity * 0.6f)
                     )
                 )
             )
@@ -93,13 +101,13 @@ fun GlassCard(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = opacity + 0.1f),
-                        Color.Transparent,
-                        Color.White.copy(alpha = 0.05f)
+                        Color.White.copy(alpha = 0.8f),
+                        Color.White.copy(alpha = 0.2f)
                     )
                 ),
                 shape = RoundedCornerShape(24.dp)
             )
+            .blur(if (blur > 0) blur.dp else 0.dp)
             .padding(16.dp)
     ) {
         Column { content() }
@@ -117,8 +125,8 @@ fun GlassButton(
         onClick = onClick,
         modifier = modifier.height(56.dp),
         shape = RoundedCornerShape(16.dp),
-        color = containerColor.copy(alpha = 0.2f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, containerColor.copy(alpha = 0.4f))
+        color = containerColor.copy(alpha = 0.15f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, containerColor.copy(alpha = 0.3f))
     ) {
         Row(
             Modifier.padding(horizontal = 24.dp),
@@ -149,8 +157,8 @@ fun DoeyTextField(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color.White.copy(alpha = 0.05f))
-                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp)),
+                .background(Color.Black.copy(alpha = 0.03f))
+                .border(1.dp, Color.Black.copy(alpha = 0.05f), RoundedCornerShape(16.dp)),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
@@ -203,7 +211,7 @@ fun TauSwitchRow(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.05f)),
+                .background(Color.Black.copy(alpha = 0.03f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, null, tint = if (checked) TauAccent else TauText3, modifier = Modifier.size(18.dp))
@@ -220,7 +228,7 @@ fun TauSwitchRow(
                 checkedThumbColor = Color.White,
                 checkedTrackColor = TauAccent,
                 uncheckedThumbColor = TauText3,
-                uncheckedTrackColor = Color.White.copy(alpha = 0.1f),
+                uncheckedTrackColor = Color.Black.copy(alpha = 0.05f),
                 uncheckedBorderColor = Color.Transparent
             )
         )
@@ -241,7 +249,7 @@ fun DrawerItem(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) TauAccent.copy(alpha = 0.15f) else Color.Transparent)
+            .background(if (isSelected) TauAccent.copy(alpha = 0.1f) else Color.Transparent)
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -278,14 +286,14 @@ fun DrawerSectionHeader(title: String) {
 
 @Composable
 fun GlassBackground(accentColor: Color = TauAccent) {
-    Box(modifier = Modifier.fillMaxSize().background(GlassThemes.AbyssBlack)) {
+    Box(modifier = Modifier.fillMaxSize().background(TauBg)) {
         // Orbe de luz traslúcido 1
         Box(
             modifier = Modifier
                 .size(400.dp)
                 .offset(x = (-100).dp, y = (-100).dp)
                 .blur(100.dp)
-                .background(accentColor.copy(alpha = 0.15f), CircleShape)
+                .background(accentColor.copy(alpha = 0.1f), CircleShape)
         )
         // Orbe de luz traslúcido 2
         Box(
@@ -294,7 +302,7 @@ fun GlassBackground(accentColor: Color = TauAccent) {
                 .align(Alignment.BottomEnd)
                 .offset(x = 50.dp, y = 50.dp)
                 .blur(80.dp)
-                .background(accentColor.copy(alpha = 0.1f), CircleShape)
+                .background(accentColor.copy(alpha = 0.08f), CircleShape)
         )
     }
 }
@@ -310,6 +318,6 @@ fun doeyFieldColors() = OutlinedTextFieldDefaults.colors(
     cursorColor               = TauAccent,
     focusedPlaceholderColor   = TauText3,
     unfocusedPlaceholderColor = TauText3,
-    focusedContainerColor     = TauSurface2,
-    unfocusedContainerColor   = TauSurface2
+    focusedContainerColor     = Color.Black.copy(alpha = 0.02f),
+    unfocusedContainerColor   = Color.Black.copy(alpha = 0.02f)
 )

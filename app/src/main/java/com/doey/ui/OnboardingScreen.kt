@@ -28,15 +28,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// ── Colores del Onboarding ────────────────────────────────────────────────────
-private val OBGradientStart = Color(0xFF0D0D1A)
-private val OBGradientEnd   = Color(0xFF1A0A2E)
-private val OBAccent        = Color(0xFF7C4DFF)
-private val OBAccentLight   = Color(0xFFBB86FC)
-private val OBText          = Color(0xFFFFFFFF)
-private val OBTextSub       = Color(0xFFB0B0C0)
-private val OBCard          = Color(0xFF1E1E2E)
-private val OBCardBorder    = Color(0xFF3A3A5C)
+// ── Colores del Onboarding (Base Blanca) ──────────────────────────────────────
+private val OBGradientStart = Color(0xFFFFFFFF)
+private val OBGradientEnd   = Color(0xFFF5F5F5)
+private val OBAccent        = Color(0xFF2196F3)
+private val OBAccentLight   = Color(0xFFBBDEFB)
+private val OBText          = Color(0xFF1A1A1A)
+private val OBTextSub       = Color(0xFF7A7A7A)
+private val OBCard          = Color(0x1A000000)
+private val OBCardBorder    = Color(0x1A000000)
 
 enum class OnboardingStep {
     WELCOME,
@@ -94,6 +94,9 @@ fun OnboardingFlow(
                 Brush.verticalGradient(listOf(OBGradientStart, OBGradientEnd))
             )
     ) {
+        // Fondo dinámico con orbes (estilo Glassmorphism)
+        GlassBackground(accentColor = OBAccent)
+
         AnimatedContent(
             targetState = currentStep,
             transitionSpec = {
@@ -114,7 +117,6 @@ fun OnboardingFlow(
                     onAgeChange = { userAge = it },
                     onUsageLevelChange = { usageLevel = it },
                     onNext = { 
-                        // Lógica de sugerencia de modo según nivel de uso
                         selectedProfile = if (usageLevel == "Alto") UserProfile.ADVANCED else UserProfile.BASIC
                         currentStep = OnboardingStep.USER_PROFILE 
                     },
@@ -162,7 +164,7 @@ fun OnboardingFlow(
                 currentStep = currentStep,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 16.dp)
+                    .padding(top = 48.dp) // Ajustado para edge-to-edge
             )
         }
     }
@@ -196,106 +198,12 @@ private fun OnboardingProgressIndicator(
                     .clip(RoundedCornerShape(2.dp))
                     .background(
                         when {
-                            isActive -> OBAccentLight
+                            isActive -> OBAccent
                             isPast -> OBAccent.copy(alpha = 0.6f)
                             else -> OBCardBorder
                         }
                     )
             )
-        }
-    }
-}
-
-@Composable
-private fun UserDataStep(
-    name: String,
-    age: String,
-    usageLevel: String,
-    onNameChange: (String) -> Unit,
-    onAgeChange: (String) -> Unit,
-    onUsageLevelChange: (String) -> Unit,
-    onNext: () -> Unit,
-    onBack: () -> Unit
-) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(Modifier.height(60.dp))
-
-        Text(
-            "Datos personales",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = OBText,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(Modifier.height(24.dp))
-
-        // Nombre
-        OutlinedTextField(
-            value = name,
-            onValueChange = onNameChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Nombre", color = OBTextSub) },
-            singleLine = true,
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = OBText, unfocusedTextColor = OBText,
-                focusedBorderColor = OBAccent, unfocusedBorderColor = OBCardBorder
-            )
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        // Edad
-        OutlinedTextField(
-            value = age,
-            onValueChange = onAgeChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Edad", color = OBTextSub) },
-            singleLine = true,
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = OBText, unfocusedTextColor = OBText,
-                focusedBorderColor = OBAccent, unfocusedBorderColor = OBCardBorder
-            )
-        )
-
-        Spacer(Modifier.height(24.dp))
-
-        // Nivel de uso
-        Text("Nivel de uso", color = OBText, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
-        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("Bajo", "Medio", "Alto").forEach { level ->
-                val sel = usageLevel == level
-                Surface(
-                    onClick = { onUsageLevelChange(level) },
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (sel) OBAccent else OBCard,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, if (sel) OBAccentLight else OBCardBorder),
-                    modifier = Modifier.weight(1f).height(48.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(level, color = if (sel) Color.White else OBTextSub, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(48.dp))
-
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f).height(56.dp), shape = RoundedCornerShape(16.dp)) {
-                Text("Atrás")
-            }
-            Button(onClick = onNext, enabled = name.isNotBlank() && age.isNotBlank(), modifier = Modifier.weight(2f).height(56.dp), shape = RoundedCornerShape(16.dp)) {
-                Text("Continuar")
-            }
         }
     }
 }
@@ -320,7 +228,7 @@ private fun WelcomeStep(onNext: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Logo animado
+        // Logo animado con Glassmorphism
         Box(
             Modifier
                 .size(120.dp)
@@ -328,15 +236,16 @@ private fun WelcomeStep(onNext: () -> Unit) {
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
-                        listOf(OBAccent, OBAccentLight.copy(alpha = 0.3f))
+                        listOf(OBAccent.copy(alpha = 0.2f), OBAccent.copy(alpha = 0.05f))
                     )
-                ),
+                )
+                .border(1.dp, OBAccent.copy(alpha = 0.3f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Default.SmartToy,
                 contentDescription = null,
-                tint = Color.White,
+                tint = OBAccent,
                 modifier = Modifier.size(64.dp)
             )
         }
@@ -361,18 +270,6 @@ private fun WelcomeStep(onNext: () -> Unit) {
             lineHeight = 24.sp
         )
 
-        Spacer(Modifier.height(16.dp))
-
-        // Chips de características
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(vertical = 8.dp)
-        ) {
-            FeatureChip("🗣️ Voz")
-            FeatureChip("🤖 IA")
-            FeatureChip("📱 Acciones")
-        }
-
         Spacer(Modifier.height(48.dp))
 
         Button(
@@ -392,30 +289,70 @@ private fun WelcomeStep(onNext: () -> Unit) {
             Spacer(Modifier.width(8.dp))
             Icon(Icons.Default.ArrowForward, null, tint = Color.White)
         }
-
-        Spacer(Modifier.height(16.dp))
-
-        Text(
-            "Solo tomará 2 minutos",
-            fontSize = 12.sp,
-            color = OBTextSub
-        )
     }
 }
 
 @Composable
-private fun FeatureChip(text: String) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = OBAccent.copy(alpha = 0.2f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, OBAccent.copy(alpha = 0.4f))
+private fun UserDataStep(
+    name: String,
+    age: String,
+    usageLevel: String,
+    onNameChange: (String) -> Unit,
+    onAgeChange: (String) -> Unit,
+    onUsageLevelChange: (String) -> Unit,
+    onNext: () -> Unit,
+    onBack: () -> Unit
+) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(Modifier.height(100.dp))
+
         Text(
-            text,
-            fontSize = 12.sp,
-            color = OBAccentLight,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+            "Datos personales",
+            fontSize = 32.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = OBText,
+            textAlign = TextAlign.Center
         )
+
+        Spacer(Modifier.height(32.dp))
+
+        GlassCard(modifier = Modifier.fillMaxWidth()) {
+            DoeyTextField(value = name, onValueChange = onNameChange, label = "Nombre", placeholder = "¿Cómo te llamas?")
+            Spacer(Modifier.height(16.dp))
+            DoeyTextField(value = age, onValueChange = onAgeChange, label = "Edad", placeholder = "¿Cuántos años tienes?")
+        }
+
+        Spacer(Modifier.height(32.dp))
+
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = onBack,
+                modifier = Modifier.weight(1f).height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = OBAccent),
+                border = androidx.compose.foundation.BorderStroke(1.dp, OBAccent)
+            ) {
+                Text("Atrás")
+            }
+
+            Button(
+                onClick = onNext,
+                modifier = Modifier.weight(2f).height(52.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = OBAccent),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Text("Continuar", fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        }
     }
 }
 
@@ -433,7 +370,7 @@ private fun UserProfileStep(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(80.dp))
+        Spacer(Modifier.height(100.dp))
 
         Text(
             "¿Cómo quieres usar Doey?",
@@ -443,52 +380,15 @@ private fun UserProfileStep(
             textAlign = TextAlign.Center
         )
 
-        Spacer(Modifier.height(8.dp))
-
-        Text(
-            "Elige el perfil que mejor te describe",
-            fontSize = 14.sp,
-            color = OBTextSub,
-            textAlign = TextAlign.Center
-        )
-
         Spacer(Modifier.height(32.dp))
 
         UserProfile.values().forEach { profile ->
-            Column {
-                ProfileCard(
-                    profile = profile,
-                    isSelected = selected == profile,
-                    onClick = { onSelect(profile) }
-                )
-                // Sugerencia de modo
-                if (selected == profile) {
-                    Text(
-                        text = "✨ Modo sugerido para ti",
-                        fontSize = 11.sp,
-                        color = OBAccentLight,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 20.dp, top = 4.dp)
-                    )
-                }
-                Spacer(Modifier.height(16.dp))
-            }
-        }
-
-        // Advertencia si cambia el modo sugerido (simplificado)
-        Surface(
-            color = Color(0x22FF9800),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-        ) {
-            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Warning, null, tint = Color(0xFFFF9800), modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    "Cambiar el modo puede afectar la experiencia. Continúas bajo tu propio riesgo.",
-                    fontSize = 11.sp, color = Color(0xFFFFB74D)
-                )
-            }
+            ProfileCard(
+                profile = profile,
+                isSelected = selected == profile,
+                onClick = { onSelect(profile) }
+            )
+            Spacer(Modifier.height(16.dp))
         }
 
         Spacer(Modifier.height(32.dp))
@@ -501,12 +401,10 @@ private fun UserProfileStep(
                 onClick = onBack,
                 modifier = Modifier.weight(1f).height(52.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = OBAccentLight),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = OBAccent),
                 border = androidx.compose.foundation.BorderStroke(1.dp, OBAccent)
             ) {
-                Icon(Icons.Default.ArrowBack, null, tint = OBAccentLight)
-                Spacer(Modifier.width(8.dp))
-                Text("Atrás", color = OBAccentLight)
+                Text("Atrás")
             }
 
             Button(
@@ -517,12 +415,8 @@ private fun UserProfileStep(
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Text("Continuar", fontWeight = FontWeight.Bold, color = Color.White)
-                Spacer(Modifier.width(8.dp))
-                Icon(Icons.Default.ArrowForward, null, tint = Color.White)
             }
         }
-
-        Spacer(Modifier.height(32.dp))
     }
 }
 
@@ -532,8 +426,8 @@ private fun ProfileCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) OBAccent else OBCardBorder
-    val bgColor = if (isSelected) OBAccent.copy(alpha = 0.15f) else OBCard
+    val borderColor = if (isSelected) OBAccent else Color.Black.copy(alpha = 0.05f)
+    val bgColor = if (isSelected) OBAccent.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.6f)
 
     Surface(
         modifier = Modifier
@@ -555,13 +449,13 @@ private fun ProfileCard(
                 Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(if (isSelected) OBAccent else OBCardBorder),
+                    .background(if (isSelected) OBAccent else Color.Black.copy(alpha = 0.05f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     profile.icon,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = if (isSelected) Color.White else OBTextSub,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -573,7 +467,7 @@ private fun ProfileCard(
                     profile.title,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isSelected) OBAccentLight else OBText
+                    color = OBText
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -581,16 +475,6 @@ private fun ProfileCard(
                     fontSize = 13.sp,
                     color = OBTextSub,
                     lineHeight = 18.sp
-                )
-            }
-
-            if (isSelected) {
-                Spacer(Modifier.width(12.dp))
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = OBAccent,
-                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -611,59 +495,25 @@ private fun PerformanceModeStep(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(80.dp))
+        Spacer(Modifier.height(100.dp))
 
         Text(
-            "¿Cómo es tu dispositivo?",
+            "Rendimiento",
             fontSize = 26.sp,
             fontWeight = FontWeight.ExtraBold,
             color = OBText,
             textAlign = TextAlign.Center
         )
 
-        Spacer(Modifier.height(8.dp))
-
-        Text(
-            "Esto optimizará Doey para tu teléfono",
-            fontSize = 14.sp,
-            color = OBTextSub,
-            textAlign = TextAlign.Center
-        )
-
         Spacer(Modifier.height(32.dp))
 
         PerformanceMode.values().forEach { mode ->
-            PerformanceModeCard(
+            PerformanceCard(
                 mode = mode,
                 isSelected = selected == mode,
                 onClick = { onSelect(mode) }
             )
             Spacer(Modifier.height(16.dp))
-        }
-
-        // Nota informativa
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = Color(0xFF1A2A1A)
-        ) {
-            Row(
-                Modifier.padding(16.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                Icon(
-                    Icons.Default.Info,
-                    contentDescription = null,
-                    tint = Color(0xFF66BB6A),
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    "Puedes cambiar esto en cualquier momento desde Ajustes → Rendimiento.",
-                    fontSize = 13.sp,
-                    color = Color(0xFF9E9E9E),
-                    lineHeight = 18.sp
-                )
-            }
         }
 
         Spacer(Modifier.height(32.dp))
@@ -676,12 +526,10 @@ private fun PerformanceModeStep(
                 onClick = onBack,
                 modifier = Modifier.weight(1f).height(52.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = OBAccentLight),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = OBAccent),
                 border = androidx.compose.foundation.BorderStroke(1.dp, OBAccent)
             ) {
-                Icon(Icons.Default.ArrowBack, null, tint = OBAccentLight)
-                Spacer(Modifier.width(8.dp))
-                Text("Atrás", color = OBAccentLight)
+                Text("Atrás")
             }
 
             Button(
@@ -692,23 +540,19 @@ private fun PerformanceModeStep(
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Text("Continuar", fontWeight = FontWeight.Bold, color = Color.White)
-                Spacer(Modifier.width(8.dp))
-                Icon(Icons.Default.ArrowForward, null, tint = Color.White)
             }
         }
-
-        Spacer(Modifier.height(32.dp))
     }
 }
 
 @Composable
-private fun PerformanceModeCard(
+private fun PerformanceCard(
     mode: PerformanceMode,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) OBAccent else OBCardBorder
-    val bgColor = if (isSelected) OBAccent.copy(alpha = 0.15f) else OBCard
+    val borderColor = if (isSelected) OBAccent else Color.Black.copy(alpha = 0.05f)
+    val bgColor = if (isSelected) OBAccent.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.6f)
 
     Surface(
         modifier = Modifier
@@ -730,21 +574,13 @@ private fun PerformanceModeCard(
                 Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(
-                        when (mode) {
-                            PerformanceMode.LOW_POWER -> Color(0xFF2A1A00)
-                            PerformanceMode.HIGH_PERFORMANCE -> Color(0xFF001A2A)
-                        }
-                    ),
+                    .background(if (isSelected) OBAccent else Color.Black.copy(alpha = 0.05f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     mode.icon,
                     contentDescription = null,
-                    tint = when (mode) {
-                        PerformanceMode.LOW_POWER -> Color(0xFFFFB300)
-                        PerformanceMode.HIGH_PERFORMANCE -> Color(0xFF00B0FF)
-                    },
+                    tint = if (isSelected) Color.White else OBTextSub,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -756,7 +592,7 @@ private fun PerformanceModeCard(
                     mode.title,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isSelected) OBAccentLight else OBText
+                    color = OBText
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -766,99 +602,12 @@ private fun PerformanceModeCard(
                     lineHeight = 18.sp
                 )
             }
-
-            if (isSelected) {
-                Spacer(Modifier.width(12.dp))
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = OBAccent,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun PermissionsOnboardingStep(
-    onNext: () -> Unit,
-    onBack: () -> Unit
-) {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
-
-    val permissionItems = listOf(
-        PermissionOnboardingItem(
-            icon = Icons.Default.Accessibility,
-            title = "Accesibilidad",
-            description = "Permite a Doey tocar la pantalla y controlar apps por ti",
-            isSpecial = true,
-            action = {
-                try {
-                    ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    })
-                } catch (_: Exception) {}
-            }
-        ),
-        PermissionOnboardingItem(
-            icon = Icons.Default.Notifications,
-            title = "Notificaciones",
-            description = "Para leer y gestionar tus notificaciones",
-            isSpecial = true,
-            action = {
-                try {
-                    ctx.startActivity(android.content.Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS").apply {
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    })
-                } catch (_: Exception) {}
-            }
-        ),
-        PermissionOnboardingItem(
-            icon = Icons.Default.Mic,
-            title = "Micrófono",
-            description = "Para escucharte y entender tus comandos de voz",
-            isSpecial = false,
-            action = null
-        ),
-        PermissionOnboardingItem(
-            icon = Icons.Default.Contacts,
-            title = "Contactos",
-            description = "Para llamar y enviar mensajes a tus contactos",
-            isSpecial = false,
-            action = null
-        ),
-        PermissionOnboardingItem(
-            icon = Icons.Default.Sms,
-            title = "Mensajes",
-            description = "Para leer y enviar SMS por ti",
-            isSpecial = false,
-            action = null
-        ),
-        PermissionOnboardingItem(
-            icon = Icons.Default.LocationOn,
-            title = "Ubicación",
-            description = "Para darte información basada en tu ubicación",
-            isSpecial = false,
-            action = null
-        ),
-        PermissionOnboardingItem(
-            icon = Icons.Default.Layers,
-            title = "Superposición de pantalla",
-            description = "Para mostrar la burbuja flotante de Doey sobre otras apps",
-            isSpecial = true,
-            action = {
-                try {
-                    val intent = android.content.Intent(
-                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        android.net.Uri.parse("package:${ctx.packageName}")
-                    ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
-                    ctx.startActivity(intent)
-                } catch (_: Exception) {}
-            }
-        )
-    )
-
+private fun PermissionsOnboardingStep(onNext: () -> Unit, onBack: () -> Unit) {
     Column(
         Modifier
             .fillMaxSize()
@@ -866,59 +615,32 @@ private fun PermissionsOnboardingStep(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(80.dp))
+        Spacer(Modifier.height(100.dp))
 
         Text(
-            "Permisos necesarios",
+            "Permisos",
             fontSize = 26.sp,
             fontWeight = FontWeight.ExtraBold,
             color = OBText,
             textAlign = TextAlign.Center
         )
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(16.dp))
 
         Text(
-            "Doey necesita estos permisos para funcionar correctamente",
+            "Doey necesita algunos permisos para funcionar correctamente.",
             fontSize = 14.sp,
             color = OBTextSub,
             textAlign = TextAlign.Center
         )
 
-        Spacer(Modifier.height(24.dp))
-
-        permissionItems.forEach { item ->
-            PermissionOnboardingCard(item = item)
-            Spacer(Modifier.height(10.dp))
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = Color(0xFF1A1A2A)
-        ) {
-            Row(
-                Modifier.padding(16.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                Icon(
-                    Icons.Default.Security,
-                    contentDescription = null,
-                    tint = OBAccentLight,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    "Todos los permisos son usados únicamente para ejecutar tus comandos. Doey nunca envía tus datos a terceros sin tu autorización.",
-                    fontSize = 12.sp,
-                    color = OBTextSub,
-                    lineHeight = 18.sp
-                )
-            }
-        }
-
         Spacer(Modifier.height(32.dp))
+
+        GlassCard(modifier = Modifier.fillMaxWidth()) {
+            Text("Puedes configurar los permisos ahora o más tarde desde los ajustes del sistema.", color = OBText, fontSize = 14.sp)
+        }
+
+        Spacer(Modifier.height(48.dp))
 
         Row(
             Modifier.fillMaxWidth(),
@@ -928,12 +650,10 @@ private fun PermissionsOnboardingStep(
                 onClick = onBack,
                 modifier = Modifier.weight(1f).height(52.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = OBAccentLight),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = OBAccent),
                 border = androidx.compose.foundation.BorderStroke(1.dp, OBAccent)
             ) {
-                Icon(Icons.Default.ArrowBack, null, tint = OBAccentLight)
-                Spacer(Modifier.width(8.dp))
-                Text("Atrás", color = OBAccentLight)
+                Text("Atrás")
             }
 
             Button(
@@ -943,97 +663,6 @@ private fun PermissionsOnboardingStep(
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Text("Continuar", fontWeight = FontWeight.Bold, color = Color.White)
-                Spacer(Modifier.width(8.dp))
-                Icon(Icons.Default.ArrowForward, null, tint = Color.White)
-            }
-        }
-
-        Spacer(Modifier.height(32.dp))
-    }
-}
-
-private data class PermissionOnboardingItem(
-    val icon: ImageVector,
-    val title: String,
-    val description: String,
-    val isSpecial: Boolean,
-    val action: (() -> Unit)?
-)
-
-@Composable
-private fun PermissionOnboardingCard(item: PermissionOnboardingItem) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = OBCard,
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, OBCardBorder, RoundedCornerShape(16.dp))
-    ) {
-        Row(
-            Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(OBAccent.copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    item.icon,
-                    contentDescription = null,
-                    tint = OBAccentLight,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            Spacer(Modifier.width(14.dp))
-
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        item.title,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = OBText
-                    )
-                    if (item.isSpecial) {
-                        Spacer(Modifier.width(6.dp))
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = Color(0xFF3A1A00)
-                        ) {
-                            Text(
-                                "Manual",
-                                fontSize = 9.sp,
-                                color = Color(0xFFFFB300),
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-                Text(
-                    item.description,
-                    fontSize = 12.sp,
-                    color = OBTextSub,
-                    lineHeight = 16.sp
-                )
-            }
-
-            if (item.action != null) {
-                Spacer(Modifier.width(8.dp))
-                TextButton(
-                    onClick = item.action,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        "Activar",
-                        fontSize = 12.sp,
-                        color = OBAccentLight,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
             }
         }
     }
@@ -1048,23 +677,6 @@ private fun ApiKeyStep(
     onNext: () -> Unit,
     onBack: () -> Unit
 ) {
-    var showKey by remember { mutableStateOf(false) }
-    val ctx = androidx.compose.ui.platform.LocalContext.current
-
-    val providers = listOf(
-        "openrouter" to "OpenRouter (Recomendado)",
-        "gemini" to "Google Gemini",
-        "groq" to "Groq (Rápido y gratuito)",
-        "openai" to "OpenAI (GPT-4)"
-    )
-
-    val providerLinks = mapOf(
-        "openrouter" to "https://openrouter.ai/keys",
-        "gemini" to "https://aistudio.google.com/apikey",
-        "groq" to "https://console.groq.com/keys",
-        "openai" to "https://platform.openai.com/api-keys"
-    )
-
     Column(
         Modifier
             .fillMaxSize()
@@ -1072,171 +684,25 @@ private fun ApiKeyStep(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(80.dp))
-
-        Icon(
-            Icons.Default.Key,
-            contentDescription = null,
-            tint = OBAccentLight,
-            modifier = Modifier.size(56.dp)
-        )
-
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(100.dp))
 
         Text(
-            "Configura tu IA",
+            "Configuración de IA",
             fontSize = 26.sp,
             fontWeight = FontWeight.ExtraBold,
             color = OBText,
             textAlign = TextAlign.Center
         )
 
-        Spacer(Modifier.height(8.dp))
-
-        Text(
-            "Doey necesita una clave API para conectarse a la inteligencia artificial",
-            fontSize = 14.sp,
-            color = OBTextSub,
-            textAlign = TextAlign.Center
-        )
-
         Spacer(Modifier.height(32.dp))
 
-        // Selector de proveedor
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = OBCard,
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, OBCardBorder, RoundedCornerShape(16.dp))
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Text(
-                    "Proveedor de IA",
-                    fontSize = 13.sp,
-                    color = OBTextSub,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(Modifier.height(12.dp))
-                providers.forEach { (id, name) ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable { onProviderChange(id) }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = provider == id,
-                            onClick = { onProviderChange(id) },
-                            colors = RadioButtonDefaults.colors(selectedColor = OBAccent)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(name, fontSize = 15.sp, color = OBText)
-                    }
-                }
-            }
+        GlassCard(modifier = Modifier.fillMaxWidth()) {
+            DoeyTextField(value = apiKey, onValueChange = onApiKeyChange, label = "API Key", placeholder = "Pega tu clave aquí", visualTransformation = PasswordVisualTransformation())
+            Spacer(Modifier.height(16.dp))
+            Text("Proveedor: $provider", color = OBTextSub, fontSize = 12.sp)
         }
 
-        Spacer(Modifier.height(16.dp))
-
-        // Campo de API key
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = OBCard,
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, OBCardBorder, RoundedCornerShape(16.dp))
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Text(
-                    "Clave API",
-                    fontSize = 13.sp,
-                    color = OBTextSub,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = apiKey,
-                    onValueChange = onApiKeyChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("sk-...", color = OBTextSub) },
-                    visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { showKey = !showKey }) {
-                            Icon(
-                                if (showKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                null,
-                                tint = OBTextSub
-                            )
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OBAccent,
-                        unfocusedBorderColor = OBCardBorder,
-                        focusedTextColor = OBText,
-                        unfocusedTextColor = OBText,
-                        cursorColor = OBAccent
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Spacer(Modifier.height(12.dp))
-
-                // Botón para obtener clave
-                val link = providerLinks[provider] ?: ""
-                TextButton(
-                    onClick = {
-                        try {
-                            ctx.startActivity(
-                                android.content.Intent(
-                                    android.content.Intent.ACTION_VIEW,
-                                    android.net.Uri.parse(link)
-                                ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
-                            )
-                        } catch (_: Exception) {}
-                    },
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Icon(Icons.Default.OpenInNew, null, tint = OBAccentLight, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        "Obtener clave gratis en ${providers.find { it.first == provider }?.second ?: provider}",
-                        fontSize = 13.sp,
-                        color = OBAccentLight
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Nota de seguridad
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = Color(0xFF1A1A2A)
-        ) {
-            Row(
-                Modifier.padding(14.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                Icon(
-                    Icons.Default.Lock,
-                    contentDescription = null,
-                    tint = Color(0xFF66BB6A),
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    "Tu clave se almacena de forma cifrada en tu dispositivo y nunca se comparte.",
-                    fontSize = 12.sp,
-                    color = OBTextSub,
-                    lineHeight = 17.sp
-                )
-            }
-        }
-
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(48.dp))
 
         Row(
             Modifier.fillMaxWidth(),
@@ -1246,36 +712,20 @@ private fun ApiKeyStep(
                 onClick = onBack,
                 modifier = Modifier.weight(1f).height(52.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = OBAccentLight),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = OBAccent),
                 border = androidx.compose.foundation.BorderStroke(1.dp, OBAccent)
             ) {
-                Icon(Icons.Default.ArrowBack, null, tint = OBAccentLight)
-                Spacer(Modifier.width(8.dp))
-                Text("Atrás", color = OBAccentLight)
+                Text("Atrás")
             }
 
             Button(
                 onClick = onNext,
                 modifier = Modifier.weight(2f).height(52.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (apiKey.isNotBlank()) OBAccent else OBAccent.copy(alpha = 0.5f)
-                ),
+                colors = ButtonDefaults.buttonColors(containerColor = OBAccent),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                Text(
-                    if (apiKey.isBlank()) "Omitir por ahora" else "¡Listo!",
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(Modifier.width(8.dp))
-                Icon(
-                    if (apiKey.isBlank()) Icons.Default.SkipNext else Icons.Default.Check,
-                    null,
-                    tint = Color.White
-                )
+                Text("Finalizar", fontWeight = FontWeight.Bold, color = Color.White)
             }
         }
-
-        Spacer(Modifier.height(32.dp))
     }
 }

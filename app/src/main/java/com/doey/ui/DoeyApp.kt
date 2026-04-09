@@ -48,15 +48,15 @@ val Label2Light    = TauText2
 val Label3Light    = TauText3
 val ErrorRed       = TauRed
 
-val DoeyColorsTau = darkColorScheme(
+val DoeyColorsTau = lightColorScheme(
     primary            = TauAccent,
     onPrimary          = Color.White,
     primaryContainer   = TauAccentGlow.copy(alpha = 0.2f),
     secondary          = TauBlue,
     onSecondary        = Color.White,
     background         = TauBg,
-    surface            = TauSurface1,
-    surfaceVariant     = TauSurface2,
+    surface            = Color.White,
+    surfaceVariant     = Color(0xFFF5F5F5),
     onBackground       = TauText1,
     onSurface          = TauText1,
     onSurfaceVariant   = TauText2,
@@ -68,17 +68,11 @@ val DoeyColorsTau = darkColorScheme(
 val DoeyColorsLight = DoeyColorsTau
 val DoeyColorsDark  = DoeyColorsTau
 
-fun buildColorScheme(theme: String) = when (theme) {
-    "blue"   -> DoeyColorsTau.copy(primary = TauBlue,   primaryContainer = TauBlue.copy(alpha = 0.2f),
-                    secondary = TauBlue, onPrimary = Color.White)
-    "green"  -> DoeyColorsTau.copy(primary = TauGreen,  primaryContainer = TauGreen.copy(alpha = 0.2f),
-                    secondary = TauGreen, onPrimary = Color.Black)
-    "orange" -> DoeyColorsTau.copy(primary = TauOrange, primaryContainer = TauOrange.copy(alpha = 0.2f),
-                    secondary = TauOrange, onPrimary = Color.White)
-    "red"    -> DoeyColorsTau.copy(primary = TauRed,    primaryContainer = TauRed.copy(alpha = 0.2f),
-                    secondary = TauRed, onPrimary = Color.White)
-    else     -> DoeyColorsTau
-}
+fun buildColorScheme(theme: String) = DoeyColorsTau.copy(
+    primary = TauAccent,
+    primaryContainer = TauAccentGlow,
+    secondary = TauBlue
+)
 
 // ── Navegación ────────────────────────────────────────────────────────────────
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
@@ -101,7 +95,6 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Reminders        : Screen("reminders",        "Recordatorios",  Icons.Default.NotificationsActive)
     object Timers           : Screen("timers",           "Temporizadores", Icons.Default.HourglassEmpty)
     object Stopwatch        : Screen("stopwatch",        "Cronómetro",     Icons.Default.Timer)
-    object HowToUse         : Screen("how_to_use",       "¿Cómo usar?",    Icons.Default.HelpOutline)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -210,14 +203,11 @@ fun DoeyApp() {
                         composable(Screen.AutoMode.route) { AutoModeScreen(vm) }
                         composable(Screen.Macros.route) { MacrosScreen(vm) }
                         
-                        // Redirecciones a SchedulesScreen (que contiene estas funcionalidades)
                         composable(Screen.Clock.route) { SchedulesScreen(vm) }
                         composable(Screen.Alarms.route) { SchedulesScreen(vm) }
                         composable(Screen.Reminders.route) { SchedulesScreen(vm) }
                         composable(Screen.Timers.route) { SchedulesScreen(vm) }
                         composable(Screen.Stopwatch.route) { SchedulesScreen(vm) }
-                        // HowToUseScreen no está definido, se puede añadir en el futuro
-                        // composable(Screen.HowToUse.route) { HowToUseScreen(vm) }
                     }
                 }
             }
@@ -244,7 +234,6 @@ private fun DoeyTopBar(vm: MainViewModel, nav: NavController, onMenuClick: () ->
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DoeyDrawerContent(
     nav: NavController,
@@ -253,84 +242,84 @@ private fun DoeyDrawerContent(
     isLowPower: Boolean,
     scope: kotlinx.coroutines.CoroutineScope
 ) {
-    val backEntry by nav.currentBackStackEntryAsState()
-    val currentRoute = backEntry?.destination?.route
+    val navBackStackEntry by nav.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
     ModalDrawerSheet(
-        drawerContainerColor = TauBg, 
+        drawerContainerColor = TauBg,
+        drawerContentColor = TauText1,
         modifier = Modifier.width(300.dp)
     ) {
-        Box(
-            Modifier.fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(TauAccent.copy(0.2f), Color.Transparent)))
-                .padding(24.dp)
-        ) {
-            Column {
+        Box(Modifier.fillMaxSize()) {
+            GlassBackground(accentColor = TauAccent)
+            
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                // Header del Drawer
                 Box(
-                    Modifier.size(64.dp).clip(CircleShape)
-                        .background(TauAccent.copy(0.15f))
-                        .border(1.dp, TauAccent.copy(0.3f), CircleShape),
-                    contentAlignment = Alignment.Center
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(TauAccent.copy(alpha = 0.05f))
+                        .border(1.dp, TauAccent.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
+                        .padding(20.dp)
                 ) {
-                    Icon(Icons.Default.SmartToy, null, tint = TauAccent, modifier = Modifier.size(32.dp))
+                    Column {
+                        Icon(Icons.Default.SmartToy, null, tint = TauAccent, modifier = Modifier.size(40.dp))
+                        Spacer(Modifier.height(12.dp))
+                        Text("Doey Assistant", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = TauText1)
+                        Text(if (isAdvanced) "Modo Experto" else "Modo Básico", fontSize = 12.sp, color = TauText3)
+                    }
                 }
-                Spacer(Modifier.height(16.dp))
-                Text("Doey AI", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = TauText1)
-                Text("Tau Version · Glass UI", fontSize = 12.sp, color = TauAccentLight)
-            }
-        }
 
-        Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)
-        ) {
-            DrawerSectionHeader("Principal")
-            DrawerItem(Icons.Default.Home, "Inicio", currentRoute == Screen.Home.route) {
-                scope.launch { drawerState.close() }
-                nav.navigate(Screen.Home.route)
-            }
-            DrawerItem(Icons.Default.Psychology, "Memorias", currentRoute == Screen.Memories.route) {
-                scope.launch { drawerState.close() }
-                nav.navigate(Screen.Memories.route)
-            }
-            
-            DrawerSectionHeader("Herramientas")
-            DrawerItem(Icons.Default.Alarm, "Agendas y Alarmas", currentRoute == Screen.Schedules.route) {
-                scope.launch { drawerState.close() }
-                nav.navigate(Screen.Schedules.route)
-            }
-            DrawerItem(Icons.Default.LibraryBooks, "Diario", currentRoute == Screen.Journal.route) {
-                scope.launch { drawerState.close() }
-                nav.navigate(Screen.Journal.route)
-            }
+                DrawerSectionHeader("Principal")
+                DrawerItem(Icons.Default.Home, "Inicio", currentRoute == Screen.Home.route) {
+                    scope.launch { drawerState.close() }
+                    nav.navigate(Screen.Home.route)
+                }
+                DrawerItem(Icons.Default.Person, "Mi Perfil", currentRoute == Screen.Profile.route) {
+                    scope.launch { drawerState.close() }
+                    nav.navigate(Screen.Profile.route)
+                }
 
-            DrawerSectionHeader("Configuración")
-            DrawerItem(Icons.Default.Person, "Mi Perfil", currentRoute == Screen.Profile.route) {
-                scope.launch { drawerState.close() }
-                nav.navigate(Screen.Profile.route)
-            }
-            DrawerItem(Icons.Default.Settings, "Ajustes de IA", currentRoute == Screen.Settings.route) {
-                scope.launch { drawerState.close() }
-                nav.navigate(Screen.Settings.route)
-            }
-            
-            if (isAdvanced) {
-                DrawerSectionHeader("Avanzado")
+                DrawerSectionHeader("Herramientas")
                 DrawerItem(Icons.Default.Extension, "Skills", currentRoute == Screen.Skills.route) {
                     scope.launch { drawerState.close() }
                     nav.navigate(Screen.Skills.route)
                 }
-                DrawerItem(Icons.Default.BugReport, "Logs del Sistema", currentRoute == Screen.Logs.route) {
+                DrawerItem(Icons.Default.Alarm, "Agendas", currentRoute == Screen.Schedules.route) {
                     scope.launch { drawerState.close() }
-                    nav.navigate(Screen.Logs.route)
+                    nav.navigate(Screen.Schedules.route)
                 }
-            }
-        }
+                DrawerItem(Icons.Default.Psychology, "Memorias", currentRoute == Screen.Memories.route) {
+                    scope.launch { drawerState.close() }
+                    nav.navigate(Screen.Memories.route)
+                }
 
-        Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth().padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(TauGreen))
-            Spacer(Modifier.width(12.dp))
-            Text("Sistema Activo", fontSize = 12.sp, color = TauText3)
+                if (isAdvanced) {
+                    DrawerSectionHeader("Avanzado")
+                    DrawerItem(Icons.Default.AccountTree, "Modo Flujo", currentRoute == Screen.FlowMode.route) {
+                        scope.launch { drawerState.close() }
+                        nav.navigate(Screen.FlowMode.route)
+                    }
+                    DrawerItem(Icons.Default.Star, "Macros", currentRoute == Screen.Macros.route) {
+                        scope.launch { drawerState.close() }
+                        nav.navigate(Screen.Macros.route)
+                    }
+                    DrawerItem(Icons.Default.BugReport, "Logs", currentRoute == Screen.Logs.route) {
+                        scope.launch { drawerState.close() }
+                        nav.navigate(Screen.Logs.route)
+                    }
+                }
+
+                DrawerSectionHeader("Sistema")
+                DrawerItem(Icons.Default.Settings, "Ajustes", currentRoute == Screen.Settings.route) {
+                    scope.launch { drawerState.close() }
+                    nav.navigate(Screen.Settings.route)
+                }
+                
+                Spacer(Modifier.height(40.dp))
+            }
         }
     }
 }
