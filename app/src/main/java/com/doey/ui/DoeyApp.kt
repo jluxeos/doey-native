@@ -35,24 +35,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import kotlinx.coroutines.launch
 
-// ── Paleta Tau (tema oscuro premium) ─────────────────────────────────────────
-val TauBg          = Color(0xFF0A0A0F)
-val TauSurface1    = Color(0xFF13131A)
-val TauSurface2    = Color(0xFF1C1C28)
-val TauSurface3    = Color(0xFF252535)
-val TauAccent      = Color(0xFF7C4DFF)
-val TauAccentLight = Color(0xFFB39DDB)
-val TauAccentGlow  = Color(0xFF651FFF)
-val TauGreen       = Color(0xFF00E676)
-val TauBlue        = Color(0xFF40C4FF)
-val TauOrange      = Color(0xFFFF6D00)
-val TauRed         = Color(0xFFFF1744)
-val TauText1       = Color(0xFFFFFFFF)
-val TauText2       = Color(0xFFB0BEC5)
-val TauText3       = Color(0xFF546E7A)
-val TauSeparator   = Color(0xFF1E1E2E)
+// Colores movidos a Glassmorphism.kt para evitar duplicados
 
-// Alias de compatibilidad
+// Alias de compatibilidad (usando los de Glassmorphism.kt)
 val Purple         = TauAccent
 val PurpleDark     = TauAccentGlow
 val OnPurple       = Color.White
