@@ -18,14 +18,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.doey.DoeyApplication
+import com.doey.agent.SkillInfo
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SkillsScreen(vm: MainViewModel) {
+    val state by vm.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     var showAddSkillDialog by remember { mutableStateOf(false) }
 
+    // Habilidades que ya vienen integradas y no dependen de APIs externas
     val defaultSkills = remember {
         listOf(
             DefaultSkill("Control de Medios", "Controla la música, pausa, siguiente y anterior en cualquier app.", Icons.Default.MusicNote),
@@ -40,27 +44,28 @@ fun SkillsScreen(vm: MainViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Habilidades de Doey", color = TauText1, fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = TauSurface1)
+                title = { Text("Habilidades de Doey", color = Label1Light, fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light)
             )
         },
-        containerColor = TauBg
+        containerColor = Surface0Light
     ) { pad ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(pad).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // ── Sección: Habilidades Predeterminadas ──
             item {
                 Text(
                     "Habilidades Integradas",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = TauAccent,
+                    color = Purple,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
                 Text(
                     "Estas funciones están siempre activas y no requieren configuración adicional.",
-                    color = TauText2,
+                    color = Label2Light,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
@@ -70,13 +75,14 @@ fun SkillsScreen(vm: MainViewModel) {
                 DefaultSkillCard(skill)
             }
 
+            // ── Sección: Crear Skills ──
             item {
                 Spacer(Modifier.height(16.dp))
                 Text(
                     "Personalización",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = TauAccent,
+                    color = Purple,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
@@ -90,7 +96,7 @@ fun SkillsScreen(vm: MainViewModel) {
                 Button(
                     onClick = { showAddSkillDialog = true },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = TauAccent)
+                    colors = ButtonDefaults.buttonColors(containerColor = Purple)
                 ) {
                     Text("Añadir Skill Avanzada", color = Color.White)
                 }
@@ -106,7 +112,7 @@ fun SkillsScreen(vm: MainViewModel) {
                 onDismiss = { showAddSkillDialog = false },
                 onSave = { name, content ->
                     scope.launch {
-                        // Simulación de guardado
+                        vm.getSettings().saveCustomSkill(name, content)
                         showAddSkillDialog = false
                     }
                 }
@@ -123,18 +129,17 @@ fun AddSkillDialog(onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = TauSurface1,
+            color = Surface1Light,
             modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Añadir Skill Avanzada", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TauText1)
+                Text("Añadir Skill Avanzada", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Label1Light)
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Nombre de la Skill") },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = doeyFieldColors()
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
@@ -142,16 +147,15 @@ fun AddSkillDialog(onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
                     onValueChange = { content = it },
                     label = { Text("Código Markdown") },
                     modifier = Modifier.fillMaxWidth().height(200.dp),
-                    maxLines = 10,
-                    colors = doeyFieldColors()
+                    maxLines = 10
                 )
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                    TextButton(onClick = onDismiss) { Text("Cancelar", color = TauAccent) }
+                    TextButton(onClick = onDismiss) { Text("Cancelar", color = Purple) }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = { onSave(name, content) },
-                        colors = ButtonDefaults.buttonColors(containerColor = TauAccent)
+                        colors = ButtonDefaults.buttonColors(containerColor = Purple)
                     ) { Text("Guardar", color = Color.White) }
                 }
             }
@@ -165,7 +169,7 @@ data class DefaultSkill(val name: String, val description: String, val icon: Ima
 fun DefaultSkillCard(skill: DefaultSkill) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = TauSurface1,
+        color = Surface1Light,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -175,13 +179,13 @@ fun DefaultSkillCard(skill: DefaultSkill) {
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(TauAccent.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
+                    .background(Purple.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = skill.icon,
                     contentDescription = null,
-                    tint = TauAccent,
+                    tint = Purple,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -190,12 +194,12 @@ fun DefaultSkillCard(skill: DefaultSkill) {
                 Text(
                     text = skill.name,
                     fontWeight = FontWeight.Bold,
-                    color = TauText1,
+                    color = Label1Light,
                     fontSize = 16.sp
                 )
                 Text(
                     text = skill.description,
-                    color = TauText3,
+                    color = Label3Light,
                     fontSize = 12.sp,
                     lineHeight = 16.sp
                 )
@@ -203,7 +207,7 @@ fun DefaultSkillCard(skill: DefaultSkill) {
             Icon(
                 imageVector = Icons.Default.CheckCircle,
                 contentDescription = "Activo",
-                tint = TauGreen,
+                tint = Color(0xFF34C759),
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -214,8 +218,8 @@ fun DefaultSkillCard(skill: DefaultSkill) {
 fun CreateSkillInfoCard() {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = TauAccent.copy(alpha = 0.05f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, TauAccent.copy(alpha = 0.2f)),
+        color = Purple.copy(alpha = 0.05f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Purple.copy(alpha = 0.2f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -225,7 +229,7 @@ fun CreateSkillInfoCard() {
             Icon(
                 imageVector = Icons.Default.Code,
                 contentDescription = null,
-                tint = TauAccent,
+                tint = Purple,
                 modifier = Modifier.size(40.dp)
             )
             Spacer(Modifier.height(12.dp))
@@ -233,13 +237,13 @@ fun CreateSkillInfoCard() {
                 "¿Quieres añadir más?",
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
-                color = TauText1,
+                color = Label1Light,
                 textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(8.dp))
             Text(
                 "Doey es capaz de aprender nuevas habilidades simplemente describiéndolas. No necesitas programar APIs complejas; gracias a su control de accesibilidad y razonamiento, puedes pedirle que aprenda a usar cualquier aplicación instalada.",
-                color = TauText2,
+                color = Label2Light,
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
                 lineHeight = 20.sp
@@ -248,11 +252,11 @@ fun CreateSkillInfoCard() {
             Text(
                 "Para crear una skill, solo dile al asistente:\n\"Aprende a usar [Nombre de App] para [Acción]\"",
                 fontWeight = FontWeight.Medium,
-                color = TauAccent,
+                color = Purple,
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .background(TauAccent.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                    .background(Purple.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
                     .padding(12.dp)
             )
         }

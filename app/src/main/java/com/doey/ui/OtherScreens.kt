@@ -28,10 +28,13 @@ import com.doey.services.NotificationAccessManager
 import com.doey.services.SchedulerEngine
 import com.doey.services.TimerEngine
 import com.doey.services.AlarmScheduler
+import com.doey.services.ScheduledAlarm
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.*
+
+// ── ClockScreen (Punto 10: Integración de Reloj, Alarmas, Timers y Agenda) ──────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +43,9 @@ fun SchedulesScreen(vm: MainViewModel) {
     var schedules by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var timers    by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var selectedTab by remember { mutableStateOf(0) }
+    
+    // Simulación de alarmas editables (ya que AlarmScheduler no tiene persistencia visible)
+    // En una app real usaríamos una DB o SharedPreferences dedicada
     val alarmPrefs = ctx.getSharedPreferences("doey_alarms_store", 0)
     var alarms by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
 
@@ -48,6 +54,7 @@ fun SchedulesScreen(vm: MainViewModel) {
         schedules = (0 until sa.length()).map { sa.getJSONObject(it) }
         val ta = TimerEngine.getAllTimers(ctx)
         timers = (0 until ta.length()).map { ta.getJSONObject(it) }
+        
         val alStr = alarmPrefs.getString("alarms", "[]")
         val alArr = try { JSONArray(alStr) } catch(_: Exception) { JSONArray() }
         alarms = (0 until alArr.length()).map { alArr.getJSONObject(it) }
@@ -97,8 +104,10 @@ private fun AlarmList(alarms: List<JSONObject>, onRefresh: () -> Unit) {
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(alarms) { alarm ->
                 AlarmRow(alarm) {
+                    // Lógica para borrar/editar
                     val id = alarm.getInt("id")
                     AlarmScheduler.cancelAlarm(id)
+                    
                     val prefs = ctx.getSharedPreferences("doey_alarms_store", 0)
                     val current = JSONArray(prefs.getString("alarms", "[]"))
                     val next = JSONArray()
@@ -163,6 +172,7 @@ private fun AlarmRow(a: JSONObject, onDelete: () -> Unit) {
     val title = a.optString("title", "Alarma")
     val time = a.optString("time", "--:--")
     val enabled = a.optBoolean("enabled", true)
+    
     ItemCard {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -185,6 +195,7 @@ private fun TimerRow(t: JSONObject, onCancel: () -> Unit) {
         val rem = (start + t.optLong("durationMs")) - now
         "Restante: ${fmtDur(rem.coerceAtLeast(0))}"
     } else "Transcurrido: ${fmtDur(now - start)}"
+
     ItemCard {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp).clip(CircleShape).background(TauAccent.copy(0.1f)), contentAlignment = Alignment.Center) {
@@ -211,6 +222,7 @@ private fun ScheduleRow(s: JSONObject, onToggle: () -> Unit, onDelete: () -> Uni
         "weekly"   -> "Semanal ${rec.optString("time")}"
         else       -> "Una vez"
     }
+
     ItemCard {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp).clip(CircleShape).background(TauBlue.copy(0.1f)), contentAlignment = Alignment.Center) {
@@ -231,10 +243,17 @@ private fun ScheduleRow(s: JSONObject, onToggle: () -> Unit, onDelete: () -> Uni
 
 @Composable
 fun ItemCard(content: @Composable () -> Unit) {
-    Surface(shape = RoundedCornerShape(16.dp), color = TauSurface1, modifier = Modifier.fillMaxWidth(), border = BorderStroke(1.dp, TauSeparator)) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = TauSurface1,
+        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, TauSeparator)
+    ) {
         content()
     }
 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 private fun fmtDur(ms: Long): String {
     val s = ms / 1000
@@ -248,7 +267,11 @@ private fun fmtDur(ms: Long): String {
     }
 }
 
-private fun fmtMs(ms: Long) = if (ms == 0L) "?" else SimpleDateFormat("EEE d MMM HH:mm", Locale.getDefault()).format(Date(ms))
+private fun fmtMs(ms: Long) =
+    if (ms == 0L) "?"
+    else SimpleDateFormat("EEE d MMM HH:mm", Locale.getDefault()).format(Date(ms))
+
+// ── JournalScreen (Diario) ────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -257,29 +280,46 @@ fun JournalScreen(vm: MainViewModel) {
     val prefs = ctx.getSharedPreferences("doey_journal", 0)
     var entries   by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var filterCat by remember { mutableStateOf("") }
+
     fun refresh() {
         val arr = try { JSONArray(prefs.getString("entries", "[]")) } catch (_: Exception) { JSONArray() }
         entries = (0 until arr.length()).map { arr.getJSONObject(it) }.reversed()
     }
     LaunchedEffect(Unit) { refresh() }
-    val filtered = if (filterCat.isBlank()) entries else entries.filter { it.optString("category").equals(filterCat, ignoreCase = true) }
+
+    val filtered = if (filterCat.isBlank()) entries
+    else entries.filter { it.optString("category").equals(filterCat, ignoreCase = true) }
+
     Column(Modifier.fillMaxSize().background(TauBg)) {
         TopAppBar(
             title   = { Text("Diario", color = TauText1, fontWeight = FontWeight.Bold) },
             actions = { IconButton(onClick = { refresh() }) { Icon(Icons.Default.Refresh, "Actualizar", tint = TauText3) } },
             colors  = TopAppBarDefaults.topAppBarColors(containerColor = TauSurface1)
         )
+
         if (entries.isEmpty()) {
             EmptyState("Tu diario está vacío", Icons.Default.Book)
         } else {
             val cats = entries.map { it.optString("category") }.distinct().filter { it.isNotBlank() }
             if (cats.isNotEmpty()) {
-                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    item { FilterChip(selected = filterCat.isBlank(), onClick = { filterCat = "" }, label = { Text("Todas") }) }
-                    items(cats) { cat -> FilterChip(selected = filterCat == cat, onClick = { filterCat = if (filterCat == cat) "" else cat }, label = { Text(cat) }) }
+                LazyRow(
+                    contentPadding      = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        FilterChip(selected = filterCat.isBlank(), onClick = { filterCat = "" }, label = { Text("Todas") })
+                    }
+                    items(cats) { cat ->
+                        FilterChip(selected = filterCat == cat, onClick = { filterCat = if (filterCat == cat) "" else cat },
+                            label = { Text(cat) })
+                    }
                 }
             }
-            LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+            LazyColumn(
+                contentPadding      = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 items(filtered) { entry ->
                     JournalCard(entry) {
                         val id  = entry.getString("id")
@@ -320,19 +360,31 @@ private fun JournalCard(e: JSONObject, onDelete: () -> Unit) {
     }
 }
 
+// ── PermissionsScreen ─────────────────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PermissionsScreen() {
     val ctx = LocalContext.current
+
     data class PermItem(val title: String, val desc: String, val granted: Boolean, val onGrant: () -> Unit)
+
     val items = listOf(
-        PermItem("Servicio de Accesibilidad", "Necesario para la automatización de la interfaz.", DoeyAccessibilityService.isRunning()) {
-            ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        PermItem("Servicio de Accesibilidad",
+            "Necesario para la automatización de la interfaz (controlar otras apps).",
+            DoeyAccessibilityService.isRunning()) {
+            ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         },
-        PermItem("Lector de Notificaciones", "Necesario para monitorear notificaciones.", NotificationAccessManager.isAccessGranted(ctx)) {
-            ctx.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        PermItem("Lector de Notificaciones",
+            "Necesario para monitorear notificaciones entrantes y reaccionar automáticamente.",
+            NotificationAccessManager.isAccessGranted(ctx)) {
+            ctx.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         },
-        PermItem("Micrófono", "Necesario para comandos de voz.", ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+        PermItem("Micrófono",
+            "Necesario para comandos de voz y detección de palabra de activación.",
+            ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                 data = Uri.fromParts("package", ctx.packageName, null)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -340,11 +392,13 @@ fun PermissionsScreen() {
             ctx.startActivity(intent)
         }
     )
+
     Column(Modifier.fillMaxSize().background(TauBg)) {
         TopAppBar(
             title = { Text("Permisos", color = TauText1, fontWeight = FontWeight.Bold) },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = TauSurface1)
         )
+
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(items) { item ->
                 ItemCard {
@@ -356,9 +410,14 @@ fun PermissionsScreen() {
                         Button(
                             onClick = item.onGrant,
                             enabled = !item.granted,
-                            colors = ButtonDefaults.buttonColors(containerColor = if (item.granted) TauGreen.copy(0.2f) else TauAccent, contentColor = if (item.granted) TauGreen else Color.White),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (item.granted) TauGreen.copy(0.2f) else TauAccent,
+                                contentColor = if (item.granted) TauGreen else Color.White
+                            ),
                             shape = RoundedCornerShape(8.dp)
-                        ) { Text(if (item.granted) "OK" else "Activar", fontSize = 12.sp) }
+                        ) {
+                            Text(if (item.granted) "OK" else "Activar", fontSize = 12.sp)
+                        }
                     }
                 }
             }

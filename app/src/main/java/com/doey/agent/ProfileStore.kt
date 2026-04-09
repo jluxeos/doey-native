@@ -16,8 +16,6 @@ class ProfileStore(private val context: Context) {
     companion object {
         const val KEY_ONBOARDING_DONE = "onboarding_done"
         const val KEY_USER_NAME = "user_name"
-        const val KEY_USER_AGE = "user_age"
-        const val KEY_USAGE_LEVEL = "usage_level"
         const val KEY_USER_PROFILE = "user_profile"
         const val KEY_PERFORMANCE_MODE = "performance_mode"
         const val KEY_OVERLAY_ENABLED = "overlay_enabled"
@@ -41,18 +39,6 @@ class ProfileStore(private val context: Context) {
 
     fun setUserName(name: String) {
         prefs.edit().putString(KEY_USER_NAME, name).apply()
-    }
-
-    fun getUserAge(): String = prefs.getString(KEY_USER_AGE, "") ?: ""
-
-    fun setUserAge(age: String) {
-        prefs.edit().putString(KEY_USER_AGE, age).apply()
-    }
-
-    fun getUsageLevel(): String = prefs.getString(KEY_USAGE_LEVEL, "medium") ?: "medium"
-
-    fun setUsageLevel(level: String) {
-        prefs.edit().putString(KEY_USAGE_LEVEL, level).apply()
     }
 
     fun getUserProfile(): String = prefs.getString(KEY_USER_PROFILE, PROFILE_BASIC) ?: PROFILE_BASIC
