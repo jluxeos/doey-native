@@ -197,8 +197,8 @@ fun ProfileScreen(vm: MainViewModel) {
                                 language      = settings.getLanguage(),
                                 wakePhrase    = settings.getWakePhrase(),
                                 enabledSkills = settings.getEnabledSkillsList(),
-                                soul          = settings.getSoul().first(),
-                                personalMemory = settings.getPersonalMemory().first(),
+                                soul          = settings.getSoul(),
+                                personalMemory = settings.getPersonalMemory(),
                                 maxIterations = 6,
                                 sttMode       = settings.getSttMode(),
                                 expertMode    = settings.getExpertMode()
@@ -230,8 +230,8 @@ fun ProfileScreen(vm: MainViewModel) {
                                 language      = settings.getLanguage(),
                                 wakePhrase    = settings.getWakePhrase(),
                                 enabledSkills = settings.getEnabledSkillsList(),
-                                soul          = settings.getSoul().first(),
-                                personalMemory = settings.getPersonalMemory().first(),
+                                soul          = settings.getSoul(),
+                                personalMemory = settings.getPersonalMemory(),
                                 maxIterations = 10,
                                 sttMode       = settings.getSttMode(),
                                 expertMode    = settings.getExpertMode()

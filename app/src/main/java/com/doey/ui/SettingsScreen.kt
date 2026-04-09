@@ -323,8 +323,8 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                     scope.launch {
                         vm.saveSettings(
                             provider, apiKey, model, customUrl, language, wakePhrase,
-                            settings.getEnabledSkillsList(), settings.getSoul().first(),
-                            settings.getPersonalMemory().first(), maxIterations, sttMode, expertMode
+                            settings.getEnabledSkillsList(), settings.getSoul(),
+                            settings.getPersonalMemory(), maxIterations, sttMode, expertMode
                         )
                         settings.setTheme(theme)
                         settings.setTokenOptimizerEnabled(tokenOptimizer)
