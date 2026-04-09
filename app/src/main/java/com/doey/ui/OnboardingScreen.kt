@@ -119,12 +119,12 @@ fun OnboardingFlow(
                         currentStep = OnboardingStep.USER_PROFILE 
                     },
                     onBack = { currentStep = OnboardingStep.WELCOME }
-                ))
+                )
                 OnboardingStep.USER_PROFILE -> UserProfileStep(
                     selected = selectedProfile,
                     onSelect = { selectedProfile = it },
                     onNext = { currentStep = OnboardingStep.PERFORMANCE_MODE },
-                    onBack = { currentStep = OnboardingStep.USER_NAME }
+                    onBack = { currentStep = OnboardingStep.USER_DATA }
                 )
                 OnboardingStep.PERFORMANCE_MODE -> PerformanceModeStep(
                     selected = selectedPerformance,
