@@ -87,9 +87,9 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     val themes    = listOf(
         "DeepSeaBlue"  to GlassThemes.DeepSeaBlue,
         "NebulaPurple" to GlassThemes.NebulaPurple,
-        "AuroraGreen"  -> GlassThemes.AuroraGreen,
-        "SolarOrange"  -> GlassThemes.SolarOrange,
-        "CrimsonVoid"  -> GlassThemes.CrimsonVoid
+        "AuroraGreen"  to GlassThemes.AuroraGreen,
+        "SolarOrange"  to GlassThemes.SolarOrange,
+        "CrimsonVoid"  to GlassThemes.CrimsonVoid
     )
 
     Box(Modifier.fillMaxSize()) {

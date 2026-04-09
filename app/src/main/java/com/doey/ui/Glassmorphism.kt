@@ -298,3 +298,18 @@ fun GlassBackground(accentColor: Color = TauAccent) {
         )
     }
 }
+
+@Composable
+fun doeyFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor        = TauAccent,
+    unfocusedBorderColor      = TauText3,
+    focusedTextColor          = TauText1,
+    unfocusedTextColor        = TauText1,
+    focusedLabelColor         = TauAccent,
+    unfocusedLabelColor       = TauText3,
+    cursorColor               = TauAccent,
+    focusedPlaceholderColor   = TauText3,
+    unfocusedPlaceholderColor = TauText3,
+    focusedContainerColor     = TauSurface2,
+    unfocusedContainerColor   = TauSurface2
+)

@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -202,17 +203,19 @@ fun DoeyApp() {
                         composable(Screen.Journal.route) { JournalScreen(vm) }
                         composable(Screen.Schedules.route) { SchedulesScreen(vm) }
                         composable(Screen.Skills.route) { SkillsScreen(vm) }
-                        composable(Screen.Logs.route) { LogScreen(vm) }
-                        composable(Screen.Permissions.route) { PermissionsScreen(vm) }
+                        composable(Screen.Logs.route) { LogScreen() }
+                        composable(Screen.Permissions.route) { PermissionsScreen() }
                         composable(Screen.FriendlySettings.route) { FriendlySettingsScreen(vm) }
                         composable(Screen.FlowMode.route) { FlowModeScreen(vm) }
                         composable(Screen.AutoMode.route) { AutoModeScreen(vm) }
                         composable(Screen.Macros.route) { MacrosScreen(vm) }
-                        composable(Screen.Clock.route) { ClockScreen(vm) }
-                        composable(Screen.Alarms.route) { AlarmsScreen(vm) }
-                        composable(Screen.Reminders.route) { RemindersScreen(vm) }
-                        composable(Screen.Timers.route) { TimersScreen(vm) }
-                        composable(Screen.Stopwatch.route) { StopwatchScreen(vm) }
+                        
+                        // Redirecciones a SchedulesScreen (que contiene estas funcionalidades)
+                        composable(Screen.Clock.route) { SchedulesScreen(vm) }
+                        composable(Screen.Alarms.route) { SchedulesScreen(vm) }
+                        composable(Screen.Reminders.route) { SchedulesScreen(vm) }
+                        composable(Screen.Timers.route) { SchedulesScreen(vm) }
+                        composable(Screen.Stopwatch.route) { SchedulesScreen(vm) }
                         composable(Screen.HowToUse.route) { HowToUseScreen(vm) }
                     }
                 }
