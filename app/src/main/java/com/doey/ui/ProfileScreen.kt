@@ -36,7 +36,7 @@ import kotlinx.coroutines.launch
 fun ProfileScreen(vm: MainViewModel) {
     val ctx          = LocalContext.current
     val profileStore = remember { ProfileStore(ctx) }
-    val settings     = remember { SettingsStore(ctx) }
+    val settings     = remember { vm.getSettings() }
     val scope        = rememberCoroutineScope()
 
     var userProfile     by remember { mutableStateOf(profileStore.getUserProfile()) }
@@ -72,7 +72,7 @@ fun ProfileScreen(vm: MainViewModel) {
 
         Column(
             Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
 
             // ── Asistente del Sistema ──────────────────────────────────────────
@@ -104,14 +104,12 @@ fun ProfileScreen(vm: MainViewModel) {
                     color = TauText3, fontSize = 12.sp
                 )
 
-                Button(
+                GlassButton(
                     onClick = {
                         val intent = Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)
                             .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
                         ctx.startActivity(intent)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors   = ButtonDefaults.buttonColors(containerColor = TauAccent)
+                    }
                 ) {
                     Icon(Icons.Default.Assistant, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
@@ -169,7 +167,7 @@ fun ProfileScreen(vm: MainViewModel) {
                 )
             }
 
-            // ── Modo de rendimiento (ahora funcional) ─────────────────────────
+            // ── Modo de rendimiento ───────────────────────────────────────────
             TauSettingsSection(title = "Rendimiento", icon = Icons.Default.Speed) {
                 Text(
                     "Optimiza Doey según las capacidades de tu teléfono. Los cambios se aplican al reiniciar la IA.",
@@ -186,7 +184,6 @@ fun ProfileScreen(vm: MainViewModel) {
                     onClick    = {
                         performanceMode = ProfileStore.PERF_LOW_POWER
                         profileStore.setPerformanceMode(ProfileStore.PERF_LOW_POWER)
-                        // Aplicar al pipeline inmediatamente
                         scope.launch {
                             settings.setMaxIterations(6)
                             settings.setMaxHistoryMessages(12)
@@ -200,8 +197,8 @@ fun ProfileScreen(vm: MainViewModel) {
                                 language      = settings.getLanguage(),
                                 wakePhrase    = settings.getWakePhrase(),
                                 enabledSkills = settings.getEnabledSkillsList(),
-                                soul          = settings.getSoul(),
-                                personalMemory = settings.getPersonalMemory(),
+                                soul          = settings.getSoul().first(),
+                                personalMemory = settings.getPersonalMemory().first(),
                                 maxIterations = 6,
                                 sttMode       = settings.getSttMode(),
                                 expertMode    = settings.getExpertMode()
@@ -222,7 +219,6 @@ fun ProfileScreen(vm: MainViewModel) {
                     onClick    = {
                         performanceMode = ProfileStore.PERF_HIGH
                         profileStore.setPerformanceMode(ProfileStore.PERF_HIGH)
-                        // Aplicar al pipeline inmediatamente
                         scope.launch {
                             settings.setMaxIterations(10)
                             settings.setMaxHistoryMessages(20)
@@ -234,8 +230,8 @@ fun ProfileScreen(vm: MainViewModel) {
                                 language      = settings.getLanguage(),
                                 wakePhrase    = settings.getWakePhrase(),
                                 enabledSkills = settings.getEnabledSkillsList(),
-                                soul          = settings.getSoul(),
-                                personalMemory = settings.getPersonalMemory(),
+                                soul          = settings.getSoul().first(),
+                                personalMemory = settings.getPersonalMemory().first(),
                                 maxIterations = 10,
                                 sttMode       = settings.getSttMode(),
                                 expertMode    = settings.getExpertMode()
@@ -253,49 +249,21 @@ fun ProfileScreen(vm: MainViewModel) {
                         color    = TauGreen.copy(alpha = 0.15f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, null, tint = TauGreen, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("¡Modo de rendimiento aplicado!", color = TauGreen, fontSize = 13.sp)
-                        }
-                    }
-                }
-
-                // Tabla comparativa de modos
-                Spacer(Modifier.height(8.dp))
-                Surface(
-                    shape    = RoundedCornerShape(10.dp),
-                    color    = TauSurface2,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Comparativa de modos", color = TauText2, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        HorizontalDivider(color = TauSurface3)
-                        Row(Modifier.fillMaxWidth()) {
-                            Text("", modifier = Modifier.weight(1.5f), fontSize = 11.sp, color = TauText3)
-                            Text("Bajo Consumo", modifier = Modifier.weight(1f), fontSize = 11.sp, color = TauOrange, textAlign = TextAlign.Center)
-                            Text("Alto Rend.", modifier = Modifier.weight(1f), fontSize = 11.sp, color = TauBlue, textAlign = TextAlign.Center)
-                        }
-                        listOf(
-                            Triple("Iteraciones máx.", "6", "10"),
-                            Triple("Historial", "12 msgs", "20 msgs"),
-                            Triple("Optimiz. tokens", "✓ Activo", "Opcional"),
-                            Triple("Animaciones", "Reducidas", "Completas")
-                        ).forEach { (label, low, high) ->
-                            Row(Modifier.fillMaxWidth()) {
-                                Text(label, modifier = Modifier.weight(1.5f), fontSize = 11.sp, color = TauText3)
-                                Text(low,   modifier = Modifier.weight(1f),   fontSize = 11.sp, color = TauOrange, textAlign = TextAlign.Center)
-                                Text(high,  modifier = Modifier.weight(1f),   fontSize = 11.sp, color = TauBlue,   textAlign = TextAlign.Center)
-                            }
-                        }
+                        Text(
+                            "Ajustes de rendimiento aplicados",
+                            color = TauGreen,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(8.dp)
+                        )
                     }
                 }
             }
 
-            // ── Permisos del sistema ───────────────────────────────────────────
-            TauSettingsSection(title = "Permisos del Sistema", icon = Icons.Default.Security) {
+            // ── Permisos del Sistema ──────────────────────────────────────────
+            TauSettingsSection(title = "Permisos del Sistema", icon = Icons.Default.Lock) {
                 Text(
-                    "Estos permisos son necesarios para que Doey funcione correctamente.",
+                    "Doey necesita estos permisos para funcionar correctamente.",
                     fontSize = 12.sp, color = TauText3
                 )
                 Spacer(Modifier.height(8.dp))
@@ -357,8 +325,8 @@ private fun PermissionRow(
 ) {
     Surface(
         onClick  = onGrant,
-        shape    = RoundedCornerShape(10.dp),
-        color    = TauSurface2,
+        shape    = RoundedCornerShape(12.dp),
+        color    = Color.White.copy(alpha = 0.05f),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -384,8 +352,8 @@ fun ProfileOptionRow(
 ) {
     Surface(
         onClick  = onClick,
-        shape    = RoundedCornerShape(12.dp),
-        color    = if (isSelected) accentColor.copy(alpha = 0.15f) else TauSurface2,
+        shape    = RoundedCornerShape(16.dp),
+        color    = if (isSelected) accentColor.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f),
         border   = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, accentColor) else null,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -408,9 +376,4 @@ fun ProfileOptionRow(
             if (isSelected) Icon(Icons.Default.CheckCircle, null, tint = accentColor, modifier = Modifier.size(24.dp))
         }
     }
-}
-
-@Composable
-fun SettingsCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    TauSettingsSection(title = title, icon = Icons.Default.Settings, content = content)
 }

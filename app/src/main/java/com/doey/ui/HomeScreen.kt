@@ -55,19 +55,19 @@ import java.time.format.DateTimeFormatter
 private val CarPlayFont = FontFamily.Default
 
 // ── Paleta de colores CarPlay / iOS ───────────────────────────────────────────
-private val CPBackground    = TauBg
-private val CPSurface       = TauSurface1
-private val CPSurface2      = TauSurface2
-private val CPSurface3      = TauSurface3
-private val CPAccent        = TauBlue
-private val CPAccentGreen   = TauGreen
-private val CPAccentRed     = TauRed
-private val CPAccentOrange  = TauOrange
-private val CPAccentPurple  = TauAccent
-private val CPText          = TauText1
-private val CPTextSecondary = TauText2
-private val CPTextTertiary  = TauText3
-private val CPSeparator     = TauSeparator
+private val CPBackground    = Color(0xFF000000)
+private val CPSurface       = Color(0xFF1C1C1E)
+private val CPSurface2      = Color(0xFF2C2C2E)
+private val CPSurface3      = Color(0xFF3A3A3C)
+private val CPAccent        = Color(0xFF007AFF)   // Azul iOS
+private val CPAccentGreen   = Color(0xFF34C759)   // Verde iOS
+private val CPAccentRed     = Color(0xFFFF3B30)   // Rojo iOS
+private val CPAccentOrange  = Color(0xFFFF9500)   // Naranja iOS
+private val CPAccentPurple  = Color(0xFFAF52DE)   // Púrpura iOS
+private val CPText          = Color(0xFFFFFFFF)
+private val CPTextSecondary = Color(0xFF8E8E93)
+private val CPTextTertiary  = Color(0xFF48484A)
+private val CPSeparator     = Color(0xFF38383A)
 
 enum class HomeMode { STANDARD, FLOW, DRIVE }
 
@@ -156,35 +156,35 @@ private fun StandardFlowContent(
     scope: kotlinx.coroutines.CoroutineScope
 ) {
     val isFlow = currentMode == HomeMode.FLOW
-    val bgColor    = if (isFlow) TauBg else Surface0Light
-    val surfaceBar = if (isFlow) TauSurface2 else Surface1Light
-    val titleColor = if (isFlow) TauAccentLight else Label1Light
+    val bgColor    = if (isFlow) Color(0xFF0D0717) else Surface0Light
+    val surfaceBar = if (isFlow) Color(0xFF12082A) else Surface1Light
+    val titleColor = if (isFlow) Color(0xFFD0BCFF) else Label1Light
 
     Column(Modifier.fillMaxSize().background(bgColor)) {
         // TopAppBar eliminada de aquí para centralizarla en DoeyApp (Barra Superior Limpia)
 
         AnimatedVisibility(isFlow, enter = expandVertically(), exit = shrinkVertically()) {
             Box(
-                Modifier.fillMaxWidth().background(TauSurface1)
+                Modifier.fillMaxWidth().background(Color(0xFF1A0A2E))
                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(shape = RoundedCornerShape(8.dp), color = TauAccent) {
+                    Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFF6200EE)) {
                         Text("⚡", fontSize = 16.sp,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text("MODO FLUJO", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
-                            color = TauAccentLight, letterSpacing = 2.sp)
+                            color = Color(0xFFBB86FC), letterSpacing = 2.sp)
                         Text("Sin internet · Acciones instantáneas", fontSize = 11.sp,
-                            color = TauText2, lineHeight = 14.sp)
+                            color = Color(0xFF9E9E9E), lineHeight = 14.sp)
                     }
                     TextButton(
                         onClick = { onModeChange(HomeMode.STANDARD) },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                     ) {
-                        Text("SALIR", color = TauAccentLight,
+                        Text("SALIR", color = Color(0xFFBB86FC),
                             fontWeight = FontWeight.Bold, fontSize = 11.sp)
                     }
                 }
@@ -193,11 +193,11 @@ private fun StandardFlowContent(
 
         if (state.errorMessage != null) {
             LaunchedEffect(state.errorMessage) { delay(3000L); vm.clearError() }
-            Surface(Modifier.fillMaxWidth(), color = TauRed.copy(alpha = 0.18f)) {
+            Surface(Modifier.fillMaxWidth(), color = Color(0xFFF9DEDC)) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Error, null, tint = ErrorRed)
                     Spacer(Modifier.width(12.dp))
-                    Text(state.errorMessage ?: "", color = TauText1, modifier = Modifier.weight(1f), fontSize = 13.sp)
+                    Text(state.errorMessage ?: "", color = Color(0xFF410002), modifier = Modifier.weight(1f), fontSize = 13.sp)
                     IconButton(onClick = { vm.clearError() }, modifier = Modifier.size(24.dp)) {
                         Icon(Icons.Default.Close, null, tint = ErrorRed)
                     }
@@ -232,7 +232,7 @@ private fun StandardFlowContent(
         }
 
         AnimatedVisibility(isFlow, enter = expandVertically(), exit = shrinkVertically()) {
-            Surface(color = TauSurface2) {
+            Surface(color = Color(0xFF12082A)) {
                 Column(Modifier.fillMaxWidth()) {
                     Row(
                         Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
@@ -248,7 +248,7 @@ private fun StandardFlowContent(
                                 modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(Icons.Default.ArrowBack, null,
-                                    tint = TauAccentLight, modifier = Modifier.size(18.dp))
+                                    tint = Color(0xFFBB86FC), modifier = Modifier.size(18.dp))
                             }
                         } else {
                             Spacer(Modifier.width(32.dp))
@@ -256,13 +256,13 @@ private fun StandardFlowContent(
                         Text(
                             if (flowLabel.isBlank()) "¿Qué hacemos?" else flowLabel,
                             fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                            color = TauAccentLight,
+                            color = Color(0xFFD0BCFF),
                             modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
                         )
                         if (flowLoading) {
                             CircularProgressIndicator(
                                 Modifier.size(16.dp), strokeWidth = 2.dp,
-                                color = TauAccentLight)
+                                color = Color(0xFFBB86FC))
                         }
                         if (flowHistory.isNotEmpty()) {
                             TextButton(
@@ -273,7 +273,7 @@ private fun StandardFlowContent(
                                 },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                             ) {
-                                Text("Inicio", color = TauAccentLight, fontSize = 11.sp)
+                                Text("Inicio", color = Color(0xFFBB86FC), fontSize = 11.sp)
                             }
                         }
                     }
@@ -323,9 +323,9 @@ private fun StandardFlowContent(
                                     }
                                 },
                                 shape  = RoundedCornerShape(20.dp),
-                                border = BorderStroke(1.dp, TauAccent),
+                                border = BorderStroke(1.dp, Color(0xFF6200EE)),
                                 color  = if (option.nextNodeId != null && option.command == null)
-                                    TauSurface2 else TauSurface1
+                                    Color(0xFF2A0A4A) else Color(0xFF1A0A2E)
                             ) {
                                 Row(
                                     Modifier.padding(horizontal = 14.dp),
@@ -336,11 +336,11 @@ private fun StandardFlowContent(
                                         Text(option.icon, fontSize = 14.sp)
                                         Spacer(Modifier.width(4.dp))
                                     }
-                                    Text(option.label, color = TauAccentLight,
+                                    Text(option.label, color = Color(0xFFD0BCFF),
                                         fontSize = 12.sp, fontWeight = FontWeight.Medium)
                                     if (option.nextNodeId != null && option.command == null) {
                                         Spacer(Modifier.width(2.dp))
-                                        Text("›", color = TauAccentLight,
+                                        Text("›", color = Color(0xFFBB86FC),
                                             fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
@@ -362,15 +362,15 @@ private fun StandardFlowContent(
                     modifier      = Modifier.weight(1f),
                     placeholder   = {
                         Text("Escribe un mensaje…",
-                            color = if (isFlow) TauText3 else Label3Light,
+                            color = if (isFlow) Color(0xFF6B5E7E) else Label3Light,
                             fontSize = 14.sp)
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor   = if (isFlow) TauAccentLight else Purple,
-                        unfocusedBorderColor = if (isFlow) TauSeparator else Label3Light,
-                        focusedTextColor     = if (isFlow) TauText1 else Label1Light,
-                        unfocusedTextColor   = if (isFlow) TauText1 else Label1Light,
-                        cursorColor          = if (isFlow) TauAccentLight else Purple
+                        focusedBorderColor   = if (isFlow) Color(0xFFBB86FC) else Purple,
+                        unfocusedBorderColor = if (isFlow) Color(0xFF4A3A5E) else Label3Light,
+                        focusedTextColor     = if (isFlow) Color(0xFFEAE0F8) else Label1Light,
+                        unfocusedTextColor   = if (isFlow) Color(0xFFEAE0F8) else Label1Light,
+                        cursorColor          = if (isFlow) Color(0xFFBB86FC) else Purple
                     ),
                     singleLine = true,
                     shape      = RoundedCornerShape(24.dp),
@@ -393,10 +393,10 @@ private fun StandardFlowContent(
                     enabled = state.pipelineState != PipelineState.PROCESSING,
                     colors  = IconButtonDefaults.filledIconButtonColors(
                         containerColor = when {
-                            input.isNotBlank() -> (if (isFlow) TauAccent else Purple)
-                            state.isListening -> TauGreen.copy(alpha = 0.22f)
-                            state.pipelineState == PipelineState.SPEAKING -> TauRed.copy(alpha = 0.22f)
-                            isFlow -> TauAccent.copy(alpha = 0.42f)
+                            input.isNotBlank() -> (if (isFlow) Color(0xFF6200EE) else Purple)
+                            state.isListening -> Color(0xFF1F3A1F)
+                            state.pipelineState == PipelineState.SPEAKING -> Color(0xFF3A1A1A)
+                            isFlow -> Color(0xFF4A2A7A)
                             else -> PurpleDark
                         }
                     )
@@ -417,8 +417,8 @@ private fun StandardFlowContent(
                     enabled  = state.pipelineState != PipelineState.PROCESSING,
                     colors   = IconButtonDefaults.filledIconButtonColors(
                         containerColor = if (voiceEnabled)
-                            (if (isFlow) TauAccent else Purple)
-                        else TauAccentGlow
+                            (if (isFlow) Color(0xFF6200EE) else Purple)
+                        else Color(0xFF9C27B0)
                     )
                 ) {
                     Icon(
@@ -436,22 +436,22 @@ private fun EmptyState(isFlow: Boolean) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier.size(80.dp).clip(CircleShape)
-                .background(if (isFlow) TauSurface2 else Surface1Light),
+                .background(if (isFlow) Color(0xFF2A1A4A) else Surface1Light),
             contentAlignment = Alignment.Center
         ) {
             DoeyIcon(modifier = Modifier, size = 40.dp,
-                tint = if (isFlow) TauAccentLight else Purple)
+                tint = if (isFlow) Color(0xFFBB86FC) else Purple)
         }
         Spacer(Modifier.height(24.dp))
         Text(
             "Hola, soy Doey",
             fontSize = 24.sp, fontWeight = FontWeight.Bold,
-            color = if (isFlow) TauAccentLight else Label1Light
+            color = if (isFlow) Color(0xFFBB86FC) else Label1Light
         )
         Spacer(Modifier.height(8.dp))
         Text(
             "¿En qué puedo ayudarte hoy?",
-            fontSize = 15.sp, color = if (isFlow) TauText2 else Label2Light,
+            fontSize = 15.sp, color = if (isFlow) Color(0xFF9E9E9E) else Label2Light,
             textAlign = TextAlign.Center
         )
     }
@@ -467,17 +467,17 @@ private fun ChatBubble(msg: ChatMessage, isFlow: Boolean) {
     val bgColor = if (isUser) {
         if (isFlow) Color(0xFF4A2A7A) else Purple
     } else {
-        if (isFlow) TauSurface1 else Surface1Light
+        if (isFlow) Color(0xFF1A0A2E) else Surface1Light
     }
     
-    val textColor = if (isUser) OnPurple else (if (isFlow) TauText1 else Label1Light)
+    val textColor = if (isUser) OnPurple else (if (isFlow) Color(0xFFEAE0F8) else Label1Light)
 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = align) {
-        Surface(shape = shape, color = bgColor, border = if (!isUser && isFlow) BorderStroke(1.dp, TauSeparator) else null) {
+        Surface(shape = shape, color = bgColor, border = if (!isUser && isFlow) BorderStroke(1.dp, Color(0xFF4A3A5E)) else null) {
             Column(Modifier.padding(12.dp)) {
                 if (!isUser) {
                     Text("Doey", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, 
-                         color = if (isFlow) TauAccentLight else Purple, modifier = Modifier.padding(bottom = 4.dp))
+                         color = if (isFlow) Color(0xFFBB86FC) else Purple, modifier = Modifier.padding(bottom = 4.dp))
                 }
                 MarkdownText(
                     text      = msg.text,

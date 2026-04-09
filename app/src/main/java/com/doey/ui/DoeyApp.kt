@@ -35,22 +35,22 @@ import androidx.navigation.compose.composable
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import kotlinx.coroutines.launch
 
-// ── Paleta Glass (base neutra + acento variable) ────────────────────────────
-val TauBg          = Color(0xFF070A13)
-val TauSurface1    = Color(0x141FFFFFF)
-val TauSurface2    = Color(0x1FECF3FF)
-val TauSurface3    = Color(0x26FFFFFF)
-val TauAccent      = Color(0xFF8B7BFF)
-val TauAccentLight = Color(0xFFD8D3FF)
-val TauAccentGlow  = Color(0xFF5AC8FA)
-val TauGreen       = Color(0xFF32D74B)
-val TauBlue        = Color(0xFF5AC8FA)
-val TauOrange      = Color(0xFFFF9F0A)
-val TauRed         = Color(0xFFFF453A)
-val TauText1       = Color(0xFFF6F8FF)
-val TauText2       = Color(0xFFCCD3E2)
-val TauText3       = Color(0xFF8D98AE)
-val TauSeparator   = Color(0x26FFFFFF)
+// ── Paleta Tau (tema oscuro premium) ─────────────────────────────────────────
+val TauBg          = Color(0xFF0A0A0F)
+val TauSurface1    = Color(0xFF13131A)
+val TauSurface2    = Color(0xFF1C1C28)
+val TauSurface3    = Color(0xFF252535)
+val TauAccent      = Color(0xFF7C4DFF)
+val TauAccentLight = Color(0xFFB39DDB)
+val TauAccentGlow  = Color(0xFF651FFF)
+val TauGreen       = Color(0xFF00E676)
+val TauBlue        = Color(0xFF40C4FF)
+val TauOrange      = Color(0xFFFF6D00)
+val TauRed         = Color(0xFFFF1744)
+val TauText1       = Color(0xFFFFFFFF)
+val TauText2       = Color(0xFFB0BEC5)
+val TauText3       = Color(0xFF546E7A)
+val TauSeparator   = Color(0xFF1E1E2E)
 
 // Alias de compatibilidad
 val Purple         = TauAccent
@@ -64,58 +64,53 @@ val Label2Light    = TauText2
 val Label3Light    = TauText3
 val ErrorRed       = TauRed
 
-private fun glassColorScheme(primary: Color, secondary: Color = primary, onPrimary: Color = Color.White) = darkColorScheme(
-    primary            = primary,
-    onPrimary          = onPrimary,
-    primaryContainer   = primary.copy(alpha = 0.24f),
-    secondary          = secondary,
+val DoeyColorsTau = darkColorScheme(
+    primary            = TauAccent,
+    onPrimary          = Color.White,
+    primaryContainer   = TauAccentGlow.copy(alpha = 0.2f),
+    secondary          = TauBlue,
     onSecondary        = Color.White,
-    secondaryContainer = secondary.copy(alpha = 0.18f),
-    tertiary           = TauAccentGlow,
     background         = TauBg,
     surface            = TauSurface1,
     surfaceVariant     = TauSurface2,
-    surfaceTint        = primary,
     onBackground       = TauText1,
     onSurface          = TauText1,
     onSurfaceVariant   = TauText2,
-    outline            = Color.White.copy(alpha = 0.22f),
-    outlineVariant     = TauSeparator,
+    outline            = TauText3,
     error              = TauRed,
-    errorContainer     = TauRed.copy(alpha = 0.18f)
+    errorContainer     = TauRed.copy(alpha = 0.15f)
 )
-
-val DoeyColorsTau = glassColorScheme(primary = TauAccent, secondary = TauAccentGlow)
 
 // Alias para compatibilidad con pantallas que usan DoeyColorsLight/Dark
 val DoeyColorsLight = DoeyColorsTau
 val DoeyColorsDark  = DoeyColorsTau
 
 fun buildColorScheme(theme: String) = when (theme) {
-    "blue"   -> glassColorScheme(primary = TauBlue)
-    "green"  -> glassColorScheme(primary = TauGreen, onPrimary = Color.Black)
-    "orange" -> glassColorScheme(primary = TauOrange)
-    "red"    -> glassColorScheme(primary = TauRed)
-    else      -> DoeyColorsTau
+    "blue"   -> DoeyColorsTau.copy(primary = TauBlue,   primaryContainer = TauBlue.copy(alpha = 0.2f),
+                    secondary = TauBlue, onPrimary = Color.White)
+    "green"  -> DoeyColorsTau.copy(primary = TauGreen,  primaryContainer = TauGreen.copy(alpha = 0.2f),
+                    secondary = TauGreen, onPrimary = Color.Black)
+    "orange" -> DoeyColorsTau.copy(primary = TauOrange, primaryContainer = TauOrange.copy(alpha = 0.2f),
+                    secondary = TauOrange, onPrimary = Color.White)
+    "red"    -> DoeyColorsTau.copy(primary = TauRed,    primaryContainer = TauRed.copy(alpha = 0.2f),
+                    secondary = TauRed, onPrimary = Color.White)
+    else     -> DoeyColorsTau // "tau" por defecto
 }
 
 @Composable
-fun doeyFieldColors(): TextFieldColors {
-    val scheme = MaterialTheme.colorScheme
-    return OutlinedTextFieldDefaults.colors(
-        focusedBorderColor        = scheme.primary,
-        unfocusedBorderColor      = Color.White.copy(alpha = 0.14f),
-        focusedTextColor          = TauText1,
-        unfocusedTextColor        = TauText1,
-        focusedLabelColor         = scheme.primary,
-        unfocusedLabelColor       = TauText3,
-        cursorColor               = scheme.primary,
-        focusedPlaceholderColor   = TauText3,
-        unfocusedPlaceholderColor = TauText3,
-        focusedContainerColor     = TauSurface2,
-        unfocusedContainerColor   = TauSurface1
-    )
-}
+fun doeyFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor        = TauAccent,
+    unfocusedBorderColor      = TauText3,
+    focusedTextColor          = TauText1,
+    unfocusedTextColor        = TauText1,
+    focusedLabelColor         = TauAccent,
+    unfocusedLabelColor       = TauText3,
+    cursorColor               = TauAccent,
+    focusedPlaceholderColor   = TauText3,
+    unfocusedPlaceholderColor = TauText3,
+    focusedContainerColor     = TauSurface2,
+    unfocusedContainerColor   = TauSurface2
+)
 
 // ── Navegación ────────────────────────────────────────────────────────────────
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
@@ -521,19 +516,7 @@ private fun DoeyDrawerContent(
     }
 }
 
-@Composable
-private fun DrawerSectionHeader(title: String) {
-    Text(title.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold,
-        color = TauText3, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-        letterSpacing = 1.5.sp)
-}
-
-@Composable
-private fun DrawerSubHeader(title: String) {
-    Text(title, fontSize = 11.sp, fontWeight = FontWeight.Bold,
-        color = TauAccentLight.copy(alpha = 0.6f), 
-        modifier = Modifier.padding(horizontal = 30.dp, vertical = 4.dp))
-}
+// Drawer components moved to Glassmorphism.kt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
