@@ -42,7 +42,6 @@ fun LogScreen() {
         if (filterType == null) entries else entries.filter { it.type == filterType }
     }
 
-    // Auto-scroll al último entry
     LaunchedEffect(filtered.size) {
         if (autoScroll && filtered.isNotEmpty()) {
             listState.animateScrollToItem(filtered.size - 1)
@@ -54,21 +53,19 @@ fun LogScreen() {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Registro de Actividad", color = Label1Light, fontWeight = FontWeight.Bold)
-                        Text("${filtered.size} entradas", color = Label3Light, fontSize = 11.sp)
+                        Text("Registro de Actividad", color = TauText1, fontWeight = FontWeight.Bold)
+                        Text("${filtered.size} entradas", color = TauText3, fontSize = 11.sp)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = TauSurface1),
                 actions = {
-                    // Toggle auto-scroll
                     IconButton(onClick = { autoScroll = !autoScroll }) {
                         Icon(
                             if (autoScroll) Icons.Default.VerticalAlignBottom else Icons.Default.VerticalAlignCenter,
                             contentDescription = "Auto-scroll",
-                            tint = if (autoScroll) Purple else Label3Light
+                            tint = if (autoScroll) TauAccent else TauText3
                         )
                     }
-                    // Exportar logs
                     val context = LocalContext.current
                     IconButton(onClick = { 
                         val logText = entries.joinToString("\n") { 
@@ -80,35 +77,33 @@ fun LogScreen() {
                         }
                         context.startActivity(Intent.createChooser(intent, "Exportar Logs"))
                     }) {
-                        Icon(Icons.Default.FileDownload, contentDescription = "Exportar", tint = Label3Light)
+                        Icon(Icons.Default.FileDownload, contentDescription = "Exportar", tint = TauText3)
                     }
-                    // Limpiar logs
                     IconButton(onClick = { DoeyLogger.clear() }) {
-                        Icon(Icons.Default.DeleteSweep, contentDescription = "Limpiar", tint = Label3Light)
+                        Icon(Icons.Default.DeleteSweep, contentDescription = "Limpiar", tint = TauText3)
                     }
                 }
             )
         },
-        containerColor = Surface0Light
+        containerColor = TauBg
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
-            // ── Filtros de tipo ───────────────────────────────────────────────
             FilterChipsRow(
                 selected = filterType,
                 onSelect = { filterType = if (filterType == it) null else it }
             )
 
-            HorizontalDivider(color = Surface2Light)
+            HorizontalDivider(color = TauSurface2)
 
             if (filtered.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Terminal, null, tint = Label3Light,
+                        Icon(Icons.Default.Terminal, null, tint = TauText3,
                             modifier = Modifier.size(48.dp))
                         Spacer(Modifier.height(8.dp))
-                        Text("Sin registros aún", color = Label3Light, fontSize = 14.sp)
+                        Text("Sin registros aún", color = TauText3, fontSize = 14.sp)
                         Text("Los eventos aparecerán aquí cuando uses Doey",
-                            color = Label3Light, fontSize = 12.sp)
+                            color = TauText3, fontSize = 12.sp)
                     }
                 }
             } else {
@@ -176,7 +171,7 @@ private fun FilterChipsRow(
                     enabled = true,
                     selected = isSelected,
                     selectedBorderColor = chipColor,
-                    borderColor = Label3Light.copy(alpha = 0.3f)
+                    borderColor = TauText3.copy(alpha = 0.3f)
                 )
             )
         }
@@ -194,7 +189,7 @@ private fun LogEntryCard(
 
     Surface(
         shape    = RoundedCornerShape(8.dp),
-        color    = Surface1Light,
+        color    = TauSurface1,
         modifier = Modifier
             .fillMaxWidth()
             .then(if (hasDetail) Modifier.clickable { onToggle() } else Modifier)
@@ -204,7 +199,6 @@ private fun LogEntryCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Badge de tipo
                 Surface(
                     shape = RoundedCornerShape(4.dp),
                     color = typeColor.copy(alpha = 0.15f),
@@ -219,10 +213,9 @@ private fun LogEntryCard(
                     )
                 }
                 Spacer(Modifier.width(8.dp))
-                // Título
                 Text(
                     entry.title,
-                    color    = Label1Light,
+                    color    = TauText1,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
@@ -230,10 +223,9 @@ private fun LogEntryCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.width(6.dp))
-                // Timestamp
                 Text(
                     entry.formattedTime,
-                    color    = Label3Light,
+                    color    = TauText3,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
@@ -241,12 +233,11 @@ private fun LogEntryCard(
                     Icon(
                         if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         contentDescription = null,
-                        tint = Label3Light,
+                        tint = TauText3,
                         modifier = Modifier.size(16.dp).padding(start = 2.dp)
                     )
                 }
             }
-            // Detalle expandible
             AnimatedVisibility(
                 visible = isExpanded && hasDetail,
                 enter   = expandVertically(),
@@ -254,7 +245,7 @@ private fun LogEntryCard(
             ) {
                 Column {
                     Spacer(Modifier.height(6.dp))
-                    HorizontalDivider(color = Surface2Light, thickness = 0.5.dp)
+                    HorizontalDivider(color = TauSurface2, thickness = 0.5.dp)
                     Spacer(Modifier.height(6.dp))
                     Surface(
                         shape = RoundedCornerShape(4.dp),
@@ -262,7 +253,7 @@ private fun LogEntryCard(
                     ) {
                         Text(
                             entry.detail,
-                            color      = Label2Light,
+                            color      = TauText2,
                             fontSize   = 11.sp,
                             fontFamily = FontFamily.Monospace,
                             lineHeight = 16.sp,
@@ -271,11 +262,10 @@ private fun LogEntryCard(
                     }
                 }
             }
-            // Preview del detalle (cuando no está expandido)
             if (!isExpanded && hasDetail) {
                 Text(
                     entry.detail,
-                    color    = Label3Light,
+                    color    = TauText3,
                     fontSize = 10.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -286,7 +276,6 @@ private fun LogEntryCard(
     }
 }
 
-// Extensión para convertir LogType a color
 private fun LogType.toColor(): Long = when (this) {
     LogType.USER_INPUT          -> 0xFF1565C0L
     LogType.AI_REQUEST          -> 0xFF6A1B9AL

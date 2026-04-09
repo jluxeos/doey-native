@@ -52,6 +52,16 @@ val TauText2       = Color(0xFFB0BEC5)
 val TauText3       = Color(0xFF546E7A)
 val TauSeparator   = Color(0xFF1E1E2E)
 
+// Alias de compatibilidad para pantallas antiguas
+val Purple          = TauAccent
+val PurpleDark      = TauAccentGlow
+val Surface0Light   = TauSurface1
+val Surface1Light   = TauSurface1
+val Surface2Light   = TauSurface2
+val Label1Light     = TauText1
+val Label2Light     = TauText2
+val Label3Light     = TauText3
+
 val DoeyColorsTau = darkColorScheme(
     primary            = TauAccent,
     onPrimary          = Color.White,
@@ -70,6 +80,17 @@ val DoeyColorsTau = darkColorScheme(
 )
 
 fun buildColorScheme(theme: String) = DoeyColorsTau
+
+@Composable
+fun doeyFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = TauAccent,
+    unfocusedBorderColor = TauSurface3,
+    focusedLabelColor = TauAccent,
+    unfocusedLabelColor = TauText3,
+    cursorColor = TauAccent,
+    focusedContainerColor = TauSurface2,
+    unfocusedContainerColor = TauSurface2
+)
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Home             : Screen("home",             "Inicio",         Icons.Default.Home)
@@ -136,7 +157,13 @@ fun DoeyApp() {
                     composable(Screen.Settings.route) { SettingsScreen(vm) }
                     composable(Screen.Profile.route) { ProfileScreen(vm) }
                     composable(Screen.Permissions.route) { PermissionsScreen() }
-                    // Otras rutas se omiten por brevedad pero se mantienen en el código real
+                    composable(Screen.Skills.route) { SkillsScreen() }
+                    composable(Screen.Memories.route) { MemoriesScreen() }
+                    composable(Screen.Schedules.route) { SchedulesScreen() }
+                    composable(Screen.Journal.route) { JournalScreen() }
+                    composable(Screen.Logs.route) { LogScreen() }
+                    composable(Screen.FlowMode.route) { FlowModeScreen() }
+                    composable(Screen.FriendlySettings.route) { FriendlySettingsScreen() }
                 }
             }
         }
@@ -151,7 +178,6 @@ fun DoeyDrawerContent(
     vm: MainViewModel,
     scope: kotlinx.coroutines.CoroutineScope
 ) {
-    val ctx = LocalContext.current
     val settings = remember { vm.getSettings() }
     
     ModalDrawerSheet(
@@ -160,7 +186,6 @@ fun DoeyDrawerContent(
         modifier = Modifier.width(300.dp)
     ) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            // Header
             Box(Modifier.fillMaxWidth().background(TauAccent).padding(24.dp)) {
                 Column {
                     Icon(Icons.Default.SmartToy, null, tint = Color.White, modifier = Modifier.size(40.dp))
@@ -173,51 +198,36 @@ fun DoeyDrawerContent(
             Spacer(Modifier.height(12.dp))
 
             if (!isAdvanced) {
-                // MENU BÁSICO
                 DrawerItem(Screen.Home, nav, drawerState, scope)
-                
                 DrawerSectionHeader("Ajustes (Básico)")
-                // Voz alta ON/OFF (Simplificado)
-                DrawerToggleItem(Icons.Default.VolumeUp, "Leer respuestas", true) { /* toggle */ }
                 DrawerItem(Screen.Profile, nav, drawerState, scope, "Datos personales")
-                
                 DrawerSectionHeader("Ajustes a fondo")
-                Text("⚠️ Necesitarás ayuda", color = TauRed, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 24.dp))
                 DrawerItem(Screen.Settings, nav, drawerState, scope, "Cambiar IA / API")
                 DrawerItem(Screen.Permissions, nav, drawerState, scope)
-                
                 DrawerSectionHeader("Reloj y avisos")
                 DrawerItem(Screen.Schedules, nav, drawerState, scope, "Alarmas")
                 DrawerItem(Screen.Journal, nav, drawerState, scope)
-                
-                DrawerItem(Screen.FriendlySettings, nav, drawerState, scope, "Modo compacto")
-                DrawerItem(Screen.Memories, nav, drawerState, scope, "Memorias (Ayuda)")
             } else {
-                // MENU AVANZADO (Organizado y Colapsable)
                 DrawerSectionHeader("🧠 Uso principal")
+                DrawerItem(Screen.Home, nav, drawerState, scope)
                 DrawerItem(Screen.Memories, nav, drawerState, scope)
-                DrawerItem(Screen.FriendlySettings, nav, drawerState, scope, "Modo compacto (Friendly)")
-                
+                DrawerItem(Screen.Skills, nav, drawerState, scope)
                 DrawerSectionHeader("⏱️ Reloj y avisos")
                 DrawerItem(Screen.Schedules, nav, drawerState, scope, "Alarmas / Recordatorios")
                 DrawerItem(Screen.Journal, nav, drawerState, scope)
-                
-                // SECCIÓN CONFIGURACIÓN (COLAPSABLE)
                 var configExpanded by remember { mutableStateOf(false) }
                 DrawerCollapsibleSection("⚙️ Configuración", configExpanded, { configExpanded = !configExpanded }) {
                     DrawerItem(Screen.Settings, nav, drawerState, scope, "IA (Proveedor/API)")
                     DrawerItem(Screen.Profile, nav, drawerState, scope, "Perfil e Interfaz")
                     DrawerItem(Screen.Permissions, nav, drawerState, scope)
+                    DrawerItem(Screen.FriendlySettings, nav, drawerState, scope)
                 }
-                
-                // Logs (Solo si debug está ON)
                 val isDebug by settings.debugMode.collectAsState(initial = false)
                 if (isDebug) {
                     DrawerSectionHeader("🧪 Logs")
                     DrawerItem(Screen.Logs, nav, drawerState, scope)
                 }
             }
-            
             Spacer(Modifier.weight(1f))
             Text("v2.5 Tau Edition", color = TauText3, fontSize = 10.sp, modifier = Modifier.padding(16.dp))
         }
@@ -253,19 +263,6 @@ fun DrawerItem(screen: Screen, nav: NavController, drawerState: DrawerState, sco
             unselectedIconColor = TauAccentLight
         )
     )
-}
-
-@Composable
-fun DrawerToggleItem(icon: ImageVector, label: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, null, tint = TauAccentLight, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.width(12.dp))
-        Text(label, color = TauText2, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onToggle)
-    }
 }
 
 @Composable

@@ -1,9 +1,7 @@
 package com.doey.ui
 
-import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -28,14 +26,12 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.doey.agent.PipelineState
 import com.doey.agent.ProfileStore
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(vm: MainViewModel, nav: NavController) {
     val state by vm.uiState.collectAsState()
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
     val profileStore = remember { ProfileStore(ctx) }
     val isAdvanced = remember { profileStore.getUserProfile() == ProfileStore.PROFILE_ADVANCED }
     
@@ -62,7 +58,6 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Historial de Chat (Centro de pantalla)
             Box(Modifier.weight(1f)) {
                 if (state.messages.isEmpty()) {
                     EmptyChatPlaceholder(isAdvanced)
@@ -79,13 +74,11 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                     }
                 }
                 
-                // Indicador de procesamiento
                 if (state.pipelineState != PipelineState.IDLE) {
                     ProcessingIndicator(state.pipelineState, Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp))
                 }
             }
 
-            // Input y Micrófono (Parte inferior)
             ChatInputSection(
                 input = input,
                 onInputChange = { input = it },
@@ -95,8 +88,8 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                         input = ""
                     }
                 },
-                onMicClick = { vm.startListening() },
-                isListening = state.pipelineState == PipelineState.LISTENING
+                onMicClick = { if (state.isListening) vm.stopListening() else vm.startListening() },
+                isListening = state.isListening
             )
         }
     }
@@ -115,7 +108,6 @@ fun HomeTopBar(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Doey", fontWeight = FontWeight.ExtraBold, color = TauText1, fontSize = 22.sp)
                 Spacer(Modifier.width(8.dp))
-                // Indicador de Activo/Inactivo
                 Surface(
                     shape = CircleShape,
                     color = if (isWakeWordActive) TauGreen else TauText3.copy(alpha = 0.3f),
@@ -198,7 +190,6 @@ fun ChatInputSection(
                 .imePadding(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Campo de texto
             OutlinedTextField(
                 value = input,
                 onValueChange = onInputChange,
@@ -218,7 +209,6 @@ fun ChatInputSection(
             
             Spacer(Modifier.width(12.dp))
             
-            // Botón Enviar o Micrófono
             val showSend = input.isNotBlank()
             
             Box(
@@ -240,7 +230,7 @@ fun ChatInputSection(
 }
 
 @Composable
-fun ChatBubble(msg: com.doey.agent.ChatMessage) {
+fun ChatBubble(msg: ChatMessage) {
     val isUser = msg.role == "user"
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -256,7 +246,7 @@ fun ChatBubble(msg: com.doey.agent.ChatMessage) {
             modifier = Modifier.widthIn(max = 300.dp)
         ) {
             Text(
-                text = msg.content,
+                text = msg.text,
                 modifier = Modifier.padding(12.dp),
                 color = if (isUser) Color.White else TauText1,
                 fontSize = 15.sp

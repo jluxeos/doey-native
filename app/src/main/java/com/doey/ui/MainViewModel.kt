@@ -2,8 +2,6 @@ package com.doey.ui
 
 import android.app.Application
 import android.content.Intent
-import android.speech.SpeechRecognizer
-import android.view.KeyEvent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.doey.agent.ConversationPipeline
@@ -12,7 +10,6 @@ import com.doey.agent.PipelineState
 import com.doey.agent.SettingsStore
 import com.doey.agent.SkillLoader
 import com.doey.agent.ProfileStore
-import com.doey.services.DoeyNotificationListenerService
 import com.doey.services.DoeySpeechEvents
 import com.doey.services.DoeySpeechRecognizer
 import com.doey.services.DoeyTTSEngine
@@ -75,11 +72,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         val expertMode          = settings.getExpertMode()
         val enabledSkills       = settings.getEnabledSkillsList()
         val maxHistory          = settings.getMaxHistoryMessages()
-        // ── Ajustes de optimización de tokens ─────────────────────────────────
         val tokenOptimizer      = settings.getTokenOptimizerEnabled()
         val promptCache         = settings.getSystemPromptCacheEnabled()
         val historyCompression  = settings.getHistoryCompressionEnabled()
-        // ── Modo de rendimiento afecta iteraciones y historial ─────────────────
         val isLowPower          = profileStore.isLowPowerMode()
         val effectiveMaxIter    = if (isLowPower) minOf(settings.getMaxIterations(), 6) else settings.getMaxIterations()
         val effectiveMaxHistory = if (isLowPower) minOf(maxHistory, 12) else maxHistory
@@ -105,7 +100,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             maxIterations            = effectiveMaxIter,
             maxHistoryMessages       = effectiveMaxHistory,
             expertMode               = expertMode,
-            // Pasar ajustes de optimización al pipeline
             tokenOptimizerEnabled    = tokenOptimizer,
             promptCacheEnabled       = promptCache,
             historyCompressionEnabled = historyCompression
@@ -131,11 +125,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         pipeline = p
         _uiState.update { it.copy(isDrivingMode = drivingMode, isExpertMode = expertMode) }
 
-        // Iniciar WakeWord si está habilitado en settings
-        viewModelScope.launch {
-            if (settings.getWakeWordEnabled()) {
-                startWakeWord()
-            }
+        if (settings.getWakeWordEnabled()) {
+            startWakeWord()
         }
     }
 
@@ -161,11 +152,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         register(NotificationListenerTool())
         register(AlarmTool())
         register(AppSearchAndLaunchTool())
-
         removeDisabledSkillTools(skillLoader.getDisabledExclusiveTools(enabledSkills))
     }
-
-    // ── Observadores ─────────────────────────────────────────────────────────
 
     private fun observeNowPlaying() {
         viewModelScope.launch {
@@ -175,17 +163,13 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // ── User actions ──────────────────────────────────────────────────────────
-
     fun sendMessage(text: String, voiceEnabled: Boolean = true) {
         if (text.isBlank()) return
         val p = pipeline ?: return
         viewModelScope.launch {
-            // ── Procesador local de intenciones (ahorra tokens de IA) ─────────────
             val intent = LocalIntentProcessor.classify(text)
             when (intent) {
                 is LocalIntentProcessor.IntentClass.Local -> {
-                    // Ejecutar localmente sin gastar tokens
                     val result = executeLocalAction(intent.action)
                     if (result.isNotBlank()) {
                         _uiState.update { s ->
@@ -197,10 +181,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         if (voiceEnabled) DoeyTTSEngine.speakAndWait(result, resolveLanguage(settings.getLanguage()))
                         return@launch
                     }
-                    // Si falla la ejecución local, delegar a IA
                 }
                 is LocalIntentProcessor.IntentClass.Complex -> {
-                    // Comando complejo: optimizar el prompt antes de enviar a IA
                     val optimizedText = LocalIntentProcessor.buildOptimizedPrompt(intent.subtasks, text)
                     p.processUtterance(
                         userText = optimizedText,
@@ -209,16 +191,14 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     if (_uiState.value.isDrivingMode && voiceEnabled) { delay(500); startDrivingListen() }
                     return@launch
                 }
-                is LocalIntentProcessor.IntentClass.Delegate -> { /* Delegar a IA normalmente */ }
+                is LocalIntentProcessor.IntentClass.Delegate -> {}
             }
-            // ── Delegar a IA ─────────────────────────────────────────────────────
             p.processUtterance(
                 userText = text,
                 onSpeak  = if (voiceEnabled) { t, lang ->
                     DoeyTTSEngine.speakAndWait(t, lang)
                 } else null
             )
-            // En modo conducción con voz, reanudar escucha automáticamente
             if (_uiState.value.isDrivingMode && voiceEnabled) {
                 delay(500)
                 startDrivingListen()
@@ -226,10 +206,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /**
-     * Ejecuta una acción local sin consumir tokens de IA.
-     * Retorna un texto de respuesta o blank si no se pudo ejecutar.
-     */
     private suspend fun executeLocalAction(action: LocalIntentProcessor.LocalAction): String {
         return try {
             when (action) {
@@ -241,162 +217,53 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         }
                         LocalIntentProcessor.InfoType.DATE -> {
                             val now = java.util.Calendar.getInstance()
-                            val months = listOf("enero","febrero","marzo","abril","mayo","junio",
-                                "julio","agosto","septiembre","octubre","noviembre","diciembre")
+                            val months = listOf("enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre")
                             "Hoy es ${now.get(java.util.Calendar.DAY_OF_MONTH)} de ${months[now.get(java.util.Calendar.MONTH)]} de ${now.get(java.util.Calendar.YEAR)}"
                         }
                         LocalIntentProcessor.InfoType.BATTERY -> {
                             val bm = app.getSystemService(android.content.Context.BATTERY_SERVICE) as android.os.BatteryManager
-                            val level = bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
-                            "La batería está al $level%"
+                            "Tienes un ${bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)}% de batería"
                         }
-                        LocalIntentProcessor.InfoType.WEATHER -> "" // Delegar a IA para clima
                     }
                 }
-                is LocalIntentProcessor.LocalAction.SetVolume -> {
-                    val am = app.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
-                    val maxVol = am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
-                    val newVol = (maxVol * action.level / 100.0).toInt().coerceIn(0, maxVol)
-                    am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, newVol, 0)
-                    "Volumen ajustado al ${action.level}%"
-                }
-                is LocalIntentProcessor.LocalAction.ToggleFlashlight -> {
-                    // Usar CameraManager para la linterna
-                    try {
-                        val cm = app.getSystemService(android.content.Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
-                        val cameraId = cm.cameraIdList.firstOrNull() ?: return ""
-                        cm.setTorchMode(cameraId, action.enable)
-                        if (action.enable) "Linterna encendida" else "Linterna apagada"
-                    } catch (e: Exception) {
-                        "" // Delegar a IA si falla
+                is LocalIntentProcessor.LocalAction.DeviceControl -> {
+                    when (action.type) {
+                        LocalIntentProcessor.DeviceAction.FLASHLIGHT_ON -> { DeviceTool().toggleFlashlight(app, true); "Linterna encendida" }
+                        LocalIntentProcessor.DeviceAction.FLASHLIGHT_OFF -> { DeviceTool().toggleFlashlight(app, false); "Linterna apagada" }
+                        LocalIntentProcessor.DeviceAction.VOLUME_UP -> { DeviceTool().adjustVolume(app, true); "Volumen subido" }
+                        LocalIntentProcessor.DeviceAction.VOLUME_DOWN -> { DeviceTool().adjustVolume(app, false); "Volumen bajado" }
                     }
                 }
-                is LocalIntentProcessor.LocalAction.Navigate -> {
-                    val uri = android.net.Uri.parse("google.navigation:q=${android.net.Uri.encode(action.destination)}")
-                    val navIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri).apply {
-                        setPackage("com.google.android.apps.maps")
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    try {
-                        app.startActivity(navIntent)
-                        "Abriendo navegación a ${action.destination}"
-                    } catch (e: Exception) {
-                        // Intentar con cualquier app de mapas
-                        val fallbackUri = android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(action.destination)}")
-                        val fallbackIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, fallbackUri).apply {
-                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        app.startActivity(fallbackIntent)
-                        "Abriendo navegación a ${action.destination}"
-                    }
-                }
-                is LocalIntentProcessor.LocalAction.OpenApp -> {
-                    // Buscar la app por nombre y abrirla
-                    val pm = app.packageManager
-                    val apps = pm.getInstalledApplications(android.content.pm.PackageManager.GET_META_DATA)
-                    val target = apps.firstOrNull { appInfo ->
-                        val label = pm.getApplicationLabel(appInfo).toString().lowercase()
-                        label.contains(action.query.lowercase())
-                    }
-                    if (target != null) {
-                        val launchIntent = pm.getLaunchIntentForPackage(target.packageName)
-                        if (launchIntent != null) {
-                            launchIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                            app.startActivity(launchIntent)
-                            "Abriendo ${pm.getApplicationLabel(target)}"
-                        } else ""
-                    } else ""
-                }
-                else -> "" // Para otras acciones, delegar a IA
+                is LocalIntentProcessor.LocalAction.Navigation -> "Abriendo navegación a ${action.destination}"
+                is LocalIntentProcessor.LocalAction.OpenApp -> "Abriendo ${action.appName}"
             }
-        } catch (e: Exception) {
-            "" // Si falla cualquier acción local, delegar a IA
-        }
+        } catch (e: Exception) { "" }
     }
 
     fun startListening() {
-        val p = pipeline ?: return
-        if (_uiState.value.isListening) return
-        
-        // Si la wake word está activa, detenerla temporalmente para no interferir
-        val wasWakeWordActive = _uiState.value.isWakeWordActive
-        if (wasWakeWordActive) {
-            app.stopService(Intent(app, WakeWordService::class.java))
-        }
-
-        p.startListening()
-        _uiState.update { it.copy(partialSpeech = "") }
-
-        viewModelScope.launch(Dispatchers.Main) {
-            try {
-                if (speechRecognizer == null) speechRecognizer = DoeySpeechRecognizer(app)
-                val lang = resolveLanguage(settings.getLanguage())
-                val mode = settings.getSttMode()
-                val text = speechRecognizer!!.listen(lang, mode)
-                _uiState.update { it.copy(partialSpeech = "") }
-                
-                if (text.isNotBlank()) {
-                    sendMessage(text)
-                } else {
-                    p.stopListening()
-                }
-            } catch (e: Exception) {
-                p.stopListening()
-                _uiState.update { it.copy(errorMessage = "Speech error: ${e.message}") }
-            } finally {
-                // Reanudar WakeWord si estaba activa
-                if (wasWakeWordActive && !_uiState.value.isDrivingMode) {
-                    startWakeWord()
-                }
-            }
-        }
+        pipeline?.startListening()
     }
 
-    /**
-     * Inicia una sesión de escucha única para el modo conducción.
-     */
-    fun startDrivingListen() {
-        val p = pipeline ?: return
-        if (_uiState.value.isListening || _uiState.value.pipelineState == PipelineState.PROCESSING) return
+    fun stopListening() {
+        pipeline?.stopListening()
+    }
 
+    fun stopSpeaking() {
+        DoeyTTSEngine.stop()
+    }
+
+    fun startDrivingListen() {
         driveListenJob?.cancel()
-        driveListenJob = viewModelScope.launch(Dispatchers.Main) {
-            p.startListening()
-            _uiState.update { it.copy(partialSpeech = "") }
-            try {
-                if (speechRecognizer == null) speechRecognizer = DoeySpeechRecognizer(app)
-                val lang = resolveLanguage(settings.getLanguage())
-                val text = speechRecognizer!!.listen(lang, "auto")
-                _uiState.update { it.copy(partialSpeech = "") }
-                if (text.isNotBlank()) {
-                    sendMessage(text, voiceEnabled = true)
-                } else {
-                    p.stopListening()
-                }
-            } catch (e: Exception) {
-                p.stopListening()
-            }
+        driveListenJob = viewModelScope.launch {
+            delay(500)
+            pipeline?.startListening()
         }
     }
 
     fun stopDrivingListen() {
         driveListenJob?.cancel()
-        speechRecognizer?.stop()
         pipeline?.stopListening()
     }
-
-    fun dispatchMediaKey(keyCode: Int) {
-        NowPlayingRepository.dispatchMediaKey(app, keyCode)
-    }
-
-    fun togglePlayback() = dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
-    fun skipToNext() = dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_NEXT)
-    fun skipToPrevious() = dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_PREVIOUS)
-
-    fun stopListening()  { speechRecognizer?.stop(); pipeline?.stopListening() }
-    fun stopSpeaking()   { DoeyTTSEngine.stop(); pipeline?.setIdle() }
-    fun clearHistory()   { pipeline?.clearHistory(); _uiState.update { it.copy(messages = emptyList()) } }
-    fun clearError()     { _uiState.update { it.copy(errorMessage = null) } }
 
     fun toggleDrivingMode() {
         val next = !_uiState.value.isDrivingMode
@@ -404,7 +271,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         _uiState.update { it.copy(isDrivingMode = next) }
         viewModelScope.launch { 
             settings.setDrivingMode(next)
-            // En modo conducción, si la wake word está activa, reiniciarla
             if (_uiState.value.isWakeWordActive) {
                 startWakeWord()
             }
@@ -412,22 +278,14 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         if (!next) stopDrivingListen()
     }
 
-    // ── Wake word ─────────────────────────────────────────────────────────────
-
-    private suspend fun startWakeWord() {
+    private fun startWakeWord() {
         val phrase   = settings.getWakePhrase()
         val language = resolveLanguage(settings.getLanguage())
-
         WakeWordService.onWakeWord = { _ ->
             viewModelScope.launch(Dispatchers.Main) { 
-                if (_uiState.value.isDrivingMode) {
-                    startDrivingListen()
-                } else {
-                    startListening()
-                }
+                if (_uiState.value.isDrivingMode) startDrivingListen() else startListening()
             }
         }
-
         val intent = Intent(app, WakeWordService::class.java).apply {
             putExtra(WakeWordService.EXTRA_WAKE_PHRASE, phrase)
             putExtra(WakeWordService.EXTRA_LANGUAGE,    language)
@@ -436,19 +294,21 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         _uiState.update { it.copy(isWakeWordActive = true) }
     }
 
+    private fun stopWakeWord() {
+        app.stopService(Intent(app, WakeWordService::class.java))
+        WakeWordService.onWakeWord = null
+        _uiState.update { it.copy(isWakeWordActive = false) }
+    }
+
     fun toggleWakeWord() = viewModelScope.launch {
         if (_uiState.value.isWakeWordActive) {
-            app.stopService(Intent(app, WakeWordService::class.java))
-            WakeWordService.onWakeWord = null
             settings.setWakeWordEnabled(false)
-            _uiState.update { it.copy(isWakeWordActive = false) }
+            stopWakeWord()
         } else {
             settings.setWakeWordEnabled(true)
             startWakeWord()
         }
     }
-
-    // ── Settings save ─────────────────────────────────────────────────────────
 
     fun saveSettings(
         provider: String, apiKey: String, model: String, customUrl: String,
@@ -469,49 +329,17 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         settings.setSttMode(sttMode)
         settings.setExpertMode(expertMode)
         _uiState.update { it.copy(settingsSaved = true) }
-        
-        // Reiniciar pipeline con nuevos ajustes
         pipeline = null
         initPipeline()
     }
 
     fun getSettings() = settings
 
-    fun toggleWakeWord() = viewModelScope.launch {
-        val current = settings.getWakeWordEnabled()
-        settings.setWakeWordEnabled(!current)
-        if (!current) startWakeWord() else stopWakeWord()
-        _uiState.update { it.copy(isWakeWordActive = !current) }
-    }
-
-    private fun startWakeWord() {
-        val intent = Intent(app, WakeWordService::class.java)
-        app.startForegroundService(intent)
-    }
-
-    private fun stopWakeWord() {
-        val intent = Intent(app, WakeWordService::class.java)
-        app.stopService(intent)
-    }
-
     fun clearHistory() = viewModelScope.launch {
         pipeline?.clearHistory()
         _uiState.update { it.copy(messages = emptyList()) }
     }
 
-    fun startListening() {
-        pipeline?.startListening()
-    }
-
-    fun stopSpeaking() {
-        DoeyTTSEngine.stop()
-    }
-
-    fun stopListening() {
-        pipeline?.stopListening()
-    }
-
-    // ── FIX: toggleOverlay mejorado ───────────────────────────────────────────
     fun toggleOverlay(enabled: Boolean) = viewModelScope.launch {
         settings.setOverlayEnabled(enabled)
         val ctx = app.applicationContext
@@ -531,7 +359,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // ── Speech events ─────────────────────────────────────────────────────────
     private fun observeSpeechEvents() {
         DoeySpeechEvents.onPartialResult = { partial -> _uiState.update { it.copy(partialSpeech = partial) } }
     }
