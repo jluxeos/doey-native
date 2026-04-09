@@ -216,7 +216,8 @@ fun DoeyApp() {
                         composable(Screen.Reminders.route) { SchedulesScreen(vm) }
                         composable(Screen.Timers.route) { SchedulesScreen(vm) }
                         composable(Screen.Stopwatch.route) { SchedulesScreen(vm) }
-                        composable(Screen.HowToUse.route) { HowToUseScreen(vm) }
+                        // HowToUseScreen no está definido, se puede añadir en el futuro
+                        // composable(Screen.HowToUse.route) { HowToUseScreen(vm) }
                     }
                 }
             }
