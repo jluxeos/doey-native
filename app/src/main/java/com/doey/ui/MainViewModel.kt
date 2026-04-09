@@ -477,6 +477,40 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun getSettings() = settings
 
+    fun toggleWakeWord() = viewModelScope.launch {
+        val current = settings.getWakeWordEnabled()
+        settings.setWakeWordEnabled(!current)
+        if (!current) startWakeWord() else stopWakeWord()
+        _uiState.update { it.copy(isWakeWordActive = !current) }
+    }
+
+    private fun startWakeWord() {
+        val intent = Intent(app, WakeWordService::class.java)
+        app.startForegroundService(intent)
+    }
+
+    private fun stopWakeWord() {
+        val intent = Intent(app, WakeWordService::class.java)
+        app.stopService(intent)
+    }
+
+    fun clearHistory() = viewModelScope.launch {
+        pipeline?.clearHistory()
+        _uiState.update { it.copy(messages = emptyList()) }
+    }
+
+    fun startListening() {
+        pipeline?.startListening()
+    }
+
+    fun stopSpeaking() {
+        DoeyTTSEngine.stop()
+    }
+
+    fun stopListening() {
+        pipeline?.stopListening()
+    }
+
     // ── FIX: toggleOverlay mejorado ───────────────────────────────────────────
     fun toggleOverlay(enabled: Boolean) = viewModelScope.launch {
         settings.setOverlayEnabled(enabled)

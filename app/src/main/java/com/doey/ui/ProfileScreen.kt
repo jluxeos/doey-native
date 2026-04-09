@@ -1,15 +1,11 @@
 package com.doey.ui
 
 import android.content.Intent
-import android.os.Build
 import android.provider.Settings
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -18,399 +14,119 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.doey.agent.ProfileStore
-import com.doey.agent.SettingsStore
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(vm: MainViewModel) {
-    val ctx          = LocalContext.current
+    val ctx = LocalContext.current
     val profileStore = remember { ProfileStore(ctx) }
-    val settings     = remember { SettingsStore(ctx) }
-    val scope        = rememberCoroutineScope()
-
-    var userProfile     by remember { mutableStateOf(profileStore.getUserProfile()) }
-    var performanceMode by remember { mutableStateOf(profileStore.getPerformanceMode()) }
-    var userName        by remember { mutableStateOf(profileStore.getUserName()) }
-    var showPerfSaved   by remember { mutableStateOf(false) }
-
-    // Estado real del asistente predeterminado
-    var isDefaultAssistant by remember { mutableStateOf(false) }
-
-    fun checkAssistantStatus() {
-        val assistant = Settings.Secure.getString(ctx.contentResolver, "assistant")
-        isDefaultAssistant = assistant?.contains(ctx.packageName) == true
-    }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            checkAssistantStatus()
-            delay(2000)
-        }
-    }
+    
+    var userName by remember { mutableStateOf(profileStore.getUserName()) }
+    var userAge by remember { mutableStateOf(profileStore.getUserAge()) }
+    var usageLevel by remember { mutableStateOf(profileStore.getUsageLevel()) }
+    var userProfile by remember { mutableStateOf(profileStore.getUserProfile()) }
 
     Column(
-        Modifier
-            .fillMaxSize()
-            .background(TauBg)
-            .verticalScroll(rememberScrollState())
+        Modifier.fillMaxSize().background(TauBg).verticalScroll(rememberScrollState())
     ) {
         TopAppBar(
-            title  = { Text("Mi Perfil", color = TauText1, fontWeight = FontWeight.Bold) },
+            title = { Text("Mi Perfil", color = TauText1, fontWeight = FontWeight.Bold) },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = TauSurface1)
         )
 
-        Column(
-            Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-
-            // ── Asistente del Sistema ──────────────────────────────────────────
-            TauSettingsSection(title = "Asistente del Sistema", icon = Icons.Default.Assistant) {
-                val statusColor = if (isDefaultAssistant) TauGreen else TauRed
-                val statusText  = if (isDefaultAssistant)
-                    "Doey es tu asistente principal"
-                else
-                    "Doey NO es el asistente principal"
-
-                Surface(
-                    shape    = RoundedCornerShape(12.dp),
-                    color    = statusColor.copy(alpha = 0.1f),
-                    border   = androidx.compose.foundation.BorderStroke(1.dp, statusColor.copy(alpha = 0.5f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            if (isDefaultAssistant) Icons.Default.CheckCircle else Icons.Default.Error,
-                            null, tint = statusColor, modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(statusText, color = statusColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
-
-                Text(
-                    "Para que Doey funcione al mantener presionado el botón de inicio o mediante voz, debe estar configurado como la aplicación de asistencia predeterminada.",
-                    color = TauText3, fontSize = 12.sp
-                )
-
-                Button(
-                    onClick = {
-                        val intent = Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)
-                            .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-                        ctx.startActivity(intent)
-                    },
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            
+            // DATOS PERSONALES
+            TauSettingsSection(title = "Datos Personales", icon = Icons.Default.Badge) {
+                OutlinedTextField(
+                    value = userName,
+                    onValueChange = { userName = it; profileStore.setUserName(it) },
+                    label = { Text("Nombre") },
                     modifier = Modifier.fillMaxWidth(),
-                    colors   = ButtonDefaults.buttonColors(containerColor = TauAccent)
-                ) {
-                    Icon(Icons.Default.Assistant, null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Configurar como Asistente")
+                    colors = doeyFieldColors()
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = userAge,
+                    onValueChange = { userAge = it; profileStore.setUserAge(it) },
+                    label = { Text("Edad") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = doeyFieldColors()
+                )
+                Spacer(Modifier.height(16.dp))
+                Text("Nivel de uso tecnológico", fontSize = 12.sp, color = TauText3)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("low" to "Bajo", "medium" to "Medio", "high" to "Alto").forEach { (id, label) ->
+                        val sel = usageLevel == id
+                        Surface(
+                            onClick = { usageLevel = id; profileStore.setUsageLevel(id) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (sel) TauAccent else TauSurface2
+                        ) {
+                            Text(label, color = if (sel) Color.White else TauText2, modifier = Modifier.padding(12.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        }
+                    }
                 }
             }
 
-            // ── Mis Datos ──────────────────────────────────────────────────────
-            TauSettingsSection(title = "Mis Datos", icon = Icons.Default.Badge) {
-                DoeyTextField(
-                    value         = userName,
-                    onValueChange = {
-                        userName = it
-                        profileStore.setUserName(it)
-                    },
-                    label       = "Tu Nombre",
-                    placeholder = "¿Cómo quieres que te llame Doey?"
-                )
-                Text(
-                    "Doey usará este nombre para personalizar sus respuestas.",
-                    color = TauText3, fontSize = 11.sp
-                )
-            }
-
-            // ── Tipo de usuario ────────────────────────────────────────────────
-            TauSettingsSection(title = "¿Cómo usas Doey?", icon = Icons.Default.Person) {
-                Text(
-                    "Selecciona el perfil que mejor te describe. Esto personaliza la interfaz y las funciones disponibles.",
-                    fontSize = 12.sp, color = TauText3
-                )
-                Spacer(Modifier.height(8.dp))
-
+            // MODO DE USO
+            TauSettingsSection(title = "Modo de Uso", icon = Icons.Default.SettingsSuggest) {
                 ProfileOptionRow(
-                    icon       = Icons.Default.Elderly,
-                    title      = "Modo Básico",
-                    subtitle   = "Interfaz simple, comandos de voz, sin configuraciones complejas",
+                    icon = Icons.Default.Elderly,
+                    title = "Modo Básico",
+                    subtitle = "Interfaz simplificada y guiada",
                     isSelected = userProfile == ProfileStore.PROFILE_BASIC,
-                    accentColor = TauBlue,
-                    onClick    = {
-                        userProfile = ProfileStore.PROFILE_BASIC
-                        profileStore.setUserProfile(ProfileStore.PROFILE_BASIC)
-                    }
+                    onClick = { userProfile = ProfileStore.PROFILE_BASIC; profileStore.setUserProfile(ProfileStore.PROFILE_BASIC) }
                 )
                 Spacer(Modifier.height(8.dp))
                 ProfileOptionRow(
-                    icon       = Icons.Default.Code,
-                    title      = "Modo Avanzado",
-                    subtitle   = "Skills, logs, automatizaciones, configuración completa",
+                    icon = Icons.Default.Code,
+                    title = "Modo Experto",
+                    subtitle = "Control total y herramientas avanzadas",
                     isSelected = userProfile == ProfileStore.PROFILE_ADVANCED,
-                    accentColor = TauAccent,
-                    onClick    = {
-                        userProfile = ProfileStore.PROFILE_ADVANCED
-                        profileStore.setUserProfile(ProfileStore.PROFILE_ADVANCED)
-                    }
+                    onClick = { userProfile = ProfileStore.PROFILE_ADVANCED; profileStore.setUserProfile(ProfileStore.PROFILE_ADVANCED) }
                 )
             }
-
-            // ── Modo de rendimiento (ahora funcional) ─────────────────────────
-            TauSettingsSection(title = "Rendimiento", icon = Icons.Default.Speed) {
-                Text(
-                    "Optimiza Doey según las capacidades de tu teléfono. Los cambios se aplican al reiniciar la IA.",
-                    fontSize = 12.sp, color = TauText3
-                )
-                Spacer(Modifier.height(8.dp))
-
-                ProfileOptionRow(
-                    icon       = Icons.Default.BatteryAlert,
-                    title      = "Bajo Consumo",
-                    subtitle   = "Máx. 6 iteraciones · Historial reducido (12 msgs) · Menos tokens",
-                    isSelected = performanceMode == ProfileStore.PERF_LOW_POWER,
-                    accentColor = TauOrange,
-                    onClick    = {
-                        performanceMode = ProfileStore.PERF_LOW_POWER
-                        profileStore.setPerformanceMode(ProfileStore.PERF_LOW_POWER)
-                        // Aplicar al pipeline inmediatamente
-                        scope.launch {
-                            settings.setMaxIterations(6)
-                            settings.setMaxHistoryMessages(12)
-                            settings.setTokenOptimizerEnabled(true)
-                            settings.setHistoryCompressionEnabled(true)
-                            vm.saveSettings(
-                                provider      = settings.getProvider(),
-                                apiKey        = settings.getApiKey(settings.getProvider()),
-                                model         = settings.getModel(),
-                                customUrl     = settings.getCustomModelUrl(),
-                                language      = settings.getLanguage(),
-                                wakePhrase    = settings.getWakePhrase(),
-                                enabledSkills = settings.getEnabledSkillsList(),
-                                soul          = settings.getSoul(),
-                                personalMemory = settings.getPersonalMemory(),
-                                maxIterations = 6,
-                                sttMode       = settings.getSttMode(),
-                                expertMode    = settings.getExpertMode()
-                            )
-                            showPerfSaved = true
-                            delay(2500)
-                            showPerfSaved = false
-                        }
-                    }
-                )
-                Spacer(Modifier.height(8.dp))
-                ProfileOptionRow(
-                    icon       = Icons.Default.Speed,
-                    title      = "Alto Rendimiento",
-                    subtitle   = "Máx. 10 iteraciones · Historial completo (20 msgs) · Experiencia completa",
-                    isSelected = performanceMode == ProfileStore.PERF_HIGH,
-                    accentColor = TauBlue,
-                    onClick    = {
-                        performanceMode = ProfileStore.PERF_HIGH
-                        profileStore.setPerformanceMode(ProfileStore.PERF_HIGH)
-                        // Aplicar al pipeline inmediatamente
-                        scope.launch {
-                            settings.setMaxIterations(10)
-                            settings.setMaxHistoryMessages(20)
-                            vm.saveSettings(
-                                provider      = settings.getProvider(),
-                                apiKey        = settings.getApiKey(settings.getProvider()),
-                                model         = settings.getModel(),
-                                customUrl     = settings.getCustomModelUrl(),
-                                language      = settings.getLanguage(),
-                                wakePhrase    = settings.getWakePhrase(),
-                                enabledSkills = settings.getEnabledSkillsList(),
-                                soul          = settings.getSoul(),
-                                personalMemory = settings.getPersonalMemory(),
-                                maxIterations = 10,
-                                sttMode       = settings.getSttMode(),
-                                expertMode    = settings.getExpertMode()
-                            )
-                            showPerfSaved = true
-                            delay(2500)
-                            showPerfSaved = false
-                        }
-                    }
-                )
-
-                AnimatedVisibility(visible = showPerfSaved) {
-                    Surface(
-                        shape    = RoundedCornerShape(8.dp),
-                        color    = TauGreen.copy(alpha = 0.15f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, null, tint = TauGreen, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("¡Modo de rendimiento aplicado!", color = TauGreen, fontSize = 13.sp)
-                        }
-                    }
-                }
-
-                // Tabla comparativa de modos
-                Spacer(Modifier.height(8.dp))
-                Surface(
-                    shape    = RoundedCornerShape(10.dp),
-                    color    = TauSurface2,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Comparativa de modos", color = TauText2, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        HorizontalDivider(color = TauSurface3)
-                        Row(Modifier.fillMaxWidth()) {
-                            Text("", modifier = Modifier.weight(1.5f), fontSize = 11.sp, color = TauText3)
-                            Text("Bajo Consumo", modifier = Modifier.weight(1f), fontSize = 11.sp, color = TauOrange, textAlign = TextAlign.Center)
-                            Text("Alto Rend.", modifier = Modifier.weight(1f), fontSize = 11.sp, color = TauBlue, textAlign = TextAlign.Center)
-                        }
-                        listOf(
-                            Triple("Iteraciones máx.", "6", "10"),
-                            Triple("Historial", "12 msgs", "20 msgs"),
-                            Triple("Optimiz. tokens", "✓ Activo", "Opcional"),
-                            Triple("Animaciones", "Reducidas", "Completas")
-                        ).forEach { (label, low, high) ->
-                            Row(Modifier.fillMaxWidth()) {
-                                Text(label, modifier = Modifier.weight(1.5f), fontSize = 11.sp, color = TauText3)
-                                Text(low,   modifier = Modifier.weight(1f),   fontSize = 11.sp, color = TauOrange, textAlign = TextAlign.Center)
-                                Text(high,  modifier = Modifier.weight(1f),   fontSize = 11.sp, color = TauBlue,   textAlign = TextAlign.Center)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── Permisos del sistema ───────────────────────────────────────────
-            TauSettingsSection(title = "Permisos del Sistema", icon = Icons.Default.Security) {
-                Text(
-                    "Estos permisos son necesarios para que Doey funcione correctamente.",
-                    fontSize = 12.sp, color = TauText3
-                )
-                Spacer(Modifier.height(8.dp))
-
-                PermissionRow(
-                    title    = "Accesibilidad",
-                    subtitle = "Para leer y controlar otras apps",
-                    icon     = Icons.Default.Accessibility,
-                    onGrant  = {
-                        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                            .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-                        ctx.startActivity(intent)
-                    }
-                )
-                PermissionRow(
-                    title    = "Notificaciones",
-                    subtitle = "Para leer y responder notificaciones",
-                    icon     = Icons.Default.Notifications,
-                    onGrant  = {
-                        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                            .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-                        ctx.startActivity(intent)
-                    }
-                )
-                PermissionRow(
-                    title    = "Superposición",
-                    subtitle = "Para la burbuja flotante",
-                    icon     = Icons.Default.BubbleChart,
-                    onGrant  = {
-                        val intent = Intent(
-                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            android.net.Uri.parse("package:${ctx.packageName}")
-                        ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-                        ctx.startActivity(intent)
-                    }
-                )
-                PermissionRow(
-                    title    = "Batería sin restricciones",
-                    subtitle = "Para que Doey no sea cerrado en segundo plano",
-                    icon     = Icons.Default.BatteryFull,
-                    onGrant  = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                                .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-                            ctx.startActivity(intent)
-                        }
-                    }
-                )
-            }
-
-            Spacer(Modifier.height(40.dp))
         }
     }
 }
 
 @Composable
-private fun PermissionRow(
-    title: String, subtitle: String, icon: ImageVector, onGrant: () -> Unit
-) {
+fun ProfileOptionRow(icon: ImageVector, title: String, subtitle: String, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
-        onClick  = onGrant,
-        shape    = RoundedCornerShape(10.dp),
-        color    = TauSurface2,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = TauAccentLight, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title,    color = TauText1, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                Text(subtitle, color = TauText3, fontSize = 11.sp)
-            }
-            Icon(Icons.Default.OpenInNew, null, tint = TauText3, modifier = Modifier.size(16.dp))
-        }
-    }
-}
-
-@Composable
-fun ProfileOptionRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    isSelected: Boolean,
-    accentColor: Color,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick  = onClick,
-        shape    = RoundedCornerShape(12.dp),
-        color    = if (isSelected) accentColor.copy(alpha = 0.15f) else TauSurface2,
-        border   = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, accentColor) else null,
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) TauAccent.copy(alpha = 0.1f) else TauSurface2,
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, TauAccent) else null,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(40.dp).clip(CircleShape).background(if (isSelected) accentColor else TauSurface3),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    icon, null,
-                    tint     = if (isSelected) Color.White else TauText3,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            Icon(icon, null, tint = if (isSelected) TauAccent else TauText3)
             Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title,    fontWeight = FontWeight.Bold, color = if (isSelected) accentColor else TauText1, fontSize = 15.sp)
-                Text(subtitle, fontSize = 12.sp, color = TauText3, lineHeight = 16.sp)
+            Column {
+                Text(title, fontWeight = FontWeight.Bold, color = if (isSelected) TauAccent else TauText1)
+                Text(subtitle, fontSize = 11.sp, color = TauText3)
             }
-            if (isSelected) Icon(Icons.Default.CheckCircle, null, tint = accentColor, modifier = Modifier.size(24.dp))
         }
     }
 }
 
 @Composable
-fun SettingsCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    TauSettingsSection(title = title, icon = Icons.Default.Settings, content = content)
+fun DoeyTextField(value: String, onValueChange: (String) -> Unit, label: String, placeholder: String) {
+    OutlinedTextField(
+        value = value, onValueChange = onValueChange,
+        label = { Text(label) }, placeholder = { Text(placeholder) },
+        modifier = Modifier.fillMaxWidth(),
+        colors = doeyFieldColors(),
+        shape = RoundedCornerShape(12.dp)
+    )
 }
