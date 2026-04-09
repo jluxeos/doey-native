@@ -89,28 +89,41 @@ fun GlassCard(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(24.dp))
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = opacity),
-                        Color.White.copy(alpha = opacity * 0.6f)
+    ) {
+        // Capa de fondo con desenfoque (Solo esta capa se difumina)
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .blur(if (blur > 0) blur.dp else 0.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = opacity),
+                            Color.White.copy(alpha = opacity * 0.6f)
+                        )
                     )
                 )
-            )
-            .border(
-                width = 1.dp,
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.8f),
-                        Color.White.copy(alpha = 0.2f)
-                    )
-                ),
-                shape = RoundedCornerShape(24.dp)
-            )
-            .blur(if (blur > 0) blur.dp else 0.dp)
-            .padding(16.dp)
-    ) {
-        Column { content() }
+        )
+        
+        // Capa de borde y contenido (Esta capa NO se difumina, manteniendo el texto nítido)
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.8f),
+                            Color.White.copy(alpha = 0.2f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(24.dp)
+                )
+        )
+        
+        Column(modifier = Modifier.padding(16.dp)) {
+            content()
+        }
     }
 }
 
