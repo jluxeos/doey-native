@@ -257,6 +257,10 @@ object LocalIntentProcessor {
 
     // ── Separador de sub-tareas para comandos complejos ────────────────────────
 
+    fun buildOptimizedPrompt(subtasks: List<String>, original: String): String {
+        return "El usuario tiene varias peticiones: ${subtasks.joinToString(". ")}. Petición original: $original"
+    }
+
     private fun splitIntoSubtasks(text: String): List<String> {
         // Separar por conectores temporales/aditivos manteniendo el contexto
         val connectors = listOf(

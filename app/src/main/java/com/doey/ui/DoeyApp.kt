@@ -165,7 +165,7 @@ fun DoeyApp() {
                     composable(Screen.Journal.route) { JournalScreen(vm) }
                     composable(Screen.Logs.route) { LogScreen() }
                     composable(Screen.FlowMode.route) { FlowModeScreen() }
-                    composable(Screen.FriendlySettings.route) { FriendlySettingsScreen(vm) }
+                     composable(Screen.FriendlySettings.route) { FriendlySettingsScreen(vm) }}
                 }
             }
         }

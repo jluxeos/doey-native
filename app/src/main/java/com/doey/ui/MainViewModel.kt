@@ -26,26 +26,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class ChatMessage(
-    val id: String = java.util.UUID.randomUUID().toString(),
-    val role: String,
-    val text: String,
-    val timestamp: Long = System.currentTimeMillis()
-)
-
-data class MainUiState(
-    val messages: List<ChatMessage> = emptyList(),
-    val pipelineState: PipelineState = PipelineState.IDLE,
-    val partialSpeech: String = "",
-    val errorMessage: String? = null,
-    val isDrivingMode: Boolean = false,
-    val isWakeWordActive: Boolean = false,
-    val isListening: Boolean = false,
-    val settingsSaved: Boolean = false,
-    val isExpertMode: Boolean = false,
-    val nowPlaying: NowPlayingInfo = NowPlayingInfo()
-)
-
 class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -185,7 +165,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     }
                 }
                 is LocalIntentProcessor.IntentClass.Complex -> {
-                    // Optimized prompt building
                     val optimizedText = "El usuario tiene varias peticiones: ${intent.subtasks.joinToString(". ")}. Petición original: $text"
                     p.processUtterance(
                         userText = optimizedText,
@@ -231,8 +210,10 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     }
                 }
                 is LocalIntentProcessor.LocalAction.ToggleFlashlight -> {
+                    // Correcting flashlight toggle call
+                    val result = if (action.enable) "Linterna encendida" else "Linterna apagada"
                     DeviceTool().toggleFlashlight(app, action.enable)
-                    if (action.enable) "Linterna encendida" else "Linterna apagada"
+                    result
                 }
                 is LocalIntentProcessor.LocalAction.SetVolume -> "Volumen ajustado al ${action.level}%"
                 is LocalIntentProcessor.LocalAction.Navigate -> "Abriendo navegación a ${action.destination}"
