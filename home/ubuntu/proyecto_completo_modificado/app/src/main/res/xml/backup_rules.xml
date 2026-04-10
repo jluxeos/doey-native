@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude sensitive credential files from backup -->
+    <exclude domain="sharedpref" path="doey_secure.xml" />
+    <exclude domain="sharedpref" path="doey_scheduler.xml" />
+</full-backup-content>
