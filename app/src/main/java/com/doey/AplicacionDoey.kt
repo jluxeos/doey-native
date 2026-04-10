@@ -18,6 +18,7 @@ class AplicacionDoey : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        CrashHandler.init(this)
         skillLoader = SkillLoader(this)
         settingsStore = SettingsStore(this)
         DoeyTTSEngine.init(this)
