@@ -24,6 +24,7 @@ import com.doey.ui.comun.ItemCard
 import com.doey.servicios.basico.DoeyAccessibilityService
 import com.doey.servicios.basico.NotificationAccessManager
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PermissionsScreen() {
     val ctx = LocalContext.current
