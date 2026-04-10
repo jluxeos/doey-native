@@ -172,6 +172,8 @@ fun GlassBackground(accentColor: Color = TauAccent) {
 fun GlassCard(
     modifier: Modifier = Modifier,
     radius: Int = 24,
+    opacity: Float = GlassOpacity,
+    blur: Float = GlassBlur,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(radius.dp)
@@ -190,8 +192,8 @@ fun GlassCard(
         Box(
             Modifier
                 .matchParentSize()
-                .blur(20.dp)
-                .background(Color(0x8CFFFFFF))       // blanco 55%
+                .blur(blur.dp)
+                .background(Color.White.copy(alpha = opacity))
         )
 
         // Borde de luz: rgba(255,255,255,0.85) 1.5dp
