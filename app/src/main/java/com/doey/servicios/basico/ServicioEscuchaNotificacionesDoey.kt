@@ -17,7 +17,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import android.view.KeyEvent
-import com.doey.AplicacionDoey
+import com.doey.DoeyApplication
 import com.doey.agente.ConversationPipeline
 import com.doey.llm.LLMProviderFactory
 import com.doey.herramientas.comun.*
@@ -316,7 +316,7 @@ class DoeyNotificationListenerService : NotificationListenerService() {
         val rules = NotificationRulesStore.getRulesForApp(this, pkg)
         if (rules.isEmpty()) return
 
-        val app      = AplicacionDoey.instance
+        val app      = DoeyApplication.instance
         val settings = app.settingsStore
         val apiKey   = settings.getApiKey(settings.getProvider())
         if (apiKey.isBlank()) return

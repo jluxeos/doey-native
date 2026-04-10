@@ -1,7 +1,7 @@
 package com.doey.herramientas.comun
 
 import android.content.Context
-import com.doey.AplicacionDoey
+import com.doey.DoeyApplication
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -23,7 +23,7 @@ class JournalTool : Tool {
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
         val action = args["action"] as? String ?: return errorResult("action required")
-        val ctx = AplicacionDoey.instance
+        val ctx = DoeyApplication.instance
         val prefs = ctx.getSharedPreferences("doey_journal", Context.MODE_PRIVATE)
 
         return when (action) {

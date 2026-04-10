@@ -1,6 +1,7 @@
 package com.doey.agente
 
 import android.content.Context
+import com.doey.ui.comun.parseMemoryEntries
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.media.AudioManager
@@ -265,11 +266,11 @@ object FlowModeEngine {
 
     private suspend fun resolveVariables(args: Map<String, Any?>, context: Context): Map<String, Any?> {
         val settings = (context.applicationContext as AplicacionDoey).settingsStore
-        val memories = parseMemoryEntries(settings.getPersonalMemory())
+        val memories = com.doey.ui.comun.parseMemoryEntries(settings.getPersonalMemory())
 
         fun resolveString(s: String): String {
             var r = s
-            memories.forEach { entry -> r = r.replace("{{${entry.variable}}}", entry.definition) }
+            memories.forEach { entry: com.doey.ui.comun.MemoryEntry -> r = r.replace("{{${entry.variable}}}", entry.definition) }
             return r
         }
 

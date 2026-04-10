@@ -2,7 +2,7 @@ package com.doey.ui.comun
 
 import android.content.Context
 import android.provider.ContactsContract
-import com.doey.AplicacionDoey
+import com.doey.DoeyApplication
 
 // ── Datos de contacto ─────────────────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ object ContactsSuggestionsHelper {
      * Requiere permiso READ_CONTACTS.
      */
     fun getContactsSuggestions(): List<ContactSuggestion> {
-        val ctx = AplicacionDoey.instance
+        val ctx = DoeyApplication.instance
         val contacts = mutableListOf<ContactSuggestion>()
         
         try {
@@ -117,7 +117,7 @@ object ContactsSuggestionsHelper {
      * Obtiene sugerencias de apps instaladas.
      */
     fun getAppsSuggestions(): List<String> {
-        val ctx = AplicacionDoey.instance
+        val ctx = DoeyApplication.instance
         val apps = mutableListOf<String>()
         
         try {

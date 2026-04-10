@@ -46,7 +46,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.doey.AplicacionDoey
+import com.doey.DoeyApplication
 import com.doey.agente.ConversationPipeline
 import com.doey.agente.LocalIntentProcessor
 import com.doey.agente.ProfileStore
@@ -173,7 +173,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
     private fun initPipeline() {
         serviceScope.launch(Dispatchers.IO) {
             try {
-                val app = AplicacionDoey.instance
+                val app = DoeyApplication.instance
                 val settings = SettingsStore(app)
                 
                 val provider = com.doey.llm.LLMProviderFactory.create(
@@ -385,7 +385,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
             try {
                 statusState.value = FriendlyStatus.LISTENING
                 if (speechRecognizer == null) speechRecognizer = DoeySpeechRecognizer(this@FriendlyModeService)
-                val settings = SettingsStore(AplicacionDoey.instance)
+                val settings = SettingsStore(DoeyApplication.instance)
                 val lang     = settings.getLanguage().let { l ->
                     if (l == "system") java.util.Locale.getDefault().toLanguageTag() else l
                 }

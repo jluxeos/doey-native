@@ -1,7 +1,4 @@
 package com.doey.ui.basico
-
-import com.doey.ui.core.*
-import com.doey.MainViewModel
 fun JournalScreen(vm: MainViewModel) {
     val ctx   = LocalContext.current
     val prefs = ctx.getSharedPreferences("doey_journal", 0)

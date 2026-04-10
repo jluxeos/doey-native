@@ -6,7 +6,7 @@ import android.media.ToneGenerator
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
-import com.doey.AplicacionDoey
+import com.doey.DoeyApplication
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap

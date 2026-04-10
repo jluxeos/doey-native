@@ -27,7 +27,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.doey.ui.core.*
 
 // ── Colores del Onboarding (Base Blanca) ──────────────────────────────────────
 private val OBGradientStart = Color(0xFFFFFFFF)

@@ -50,10 +50,6 @@ val Poppins = FontFamily(
     Font(R.font.poppins_bold, FontWeight.Bold)
 )
 
-var TauText1 by mutableStateOf(Color(0xFF1A1A1A))
-var TauText2 by mutableStateOf(Color(0xFF4A4A4A))
-var TauText3 by mutableStateOf(Color(0xFF7A7A7A))
-
 val DoeyTypography = Typography(
     displayLarge = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 57.sp, color = TauText1),
     displayMedium = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 45.sp, color = TauText1),

@@ -5,7 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import com.doey.AplicacionDoey
+import com.doey.DoeyApplication
 import java.util.Calendar
 
 // ── Datos de alarma ──────────────────────────────────────────────────────────
@@ -28,14 +28,14 @@ object AlarmScheduler {
     private const val ALARM_DESC_EXTRA = "alarm_desc"
     
     private val alarmManager: AlarmManager?
-        get() = AplicacionDoey.instance.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+        get() = DoeyApplication.instance.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
     
     /**
      * Programa una alarma para sonar a una hora específica.
      * Funciona incluso con la app cerrada.
      */
     fun scheduleAlarm(alarm: ScheduledAlarm) {
-        val ctx = AplicacionDoey.instance
+        val ctx = DoeyApplication.instance
         val alarmMgr = alarmManager ?: return
         
         val intent = Intent(ctx, AlarmReceiver::class.java).apply {
@@ -82,7 +82,7 @@ object AlarmScheduler {
      * Programa una alarma recurrente (diaria, semanal, etc.).
      */
     fun scheduleRecurringAlarm(alarm: ScheduledAlarm) {
-        val ctx = AplicacionDoey.instance
+        val ctx = DoeyApplication.instance
         val alarmMgr = alarmManager ?: return
         
         val intent = Intent(ctx, AlarmReceiver::class.java).apply {
@@ -131,7 +131,7 @@ object AlarmScheduler {
      * Cancela una alarma programada.
      */
     fun cancelAlarm(alarmId: Int) {
-        val ctx = AplicacionDoey.instance
+        val ctx = DoeyApplication.instance
         val alarmMgr = alarmManager ?: return
         
         val intent = Intent(ctx, AlarmReceiver::class.java)

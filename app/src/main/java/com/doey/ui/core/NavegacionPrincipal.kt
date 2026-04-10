@@ -58,21 +58,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import kotlinx.coroutines.launch
-import com.doey.ui.comun.HomeScreen
-import com.doey.ui.comun.SettingsScreen
-import com.doey.ui.comun.ProfileScreen
-import com.doey.ui.comun.MemoriesScreen
-import com.doey.ui.comun.SchedulesScreen
-import com.doey.ui.comun.OnboardingFlow
-import com.doey.ui.comun.UserProfile
-import com.doey.ui.comun.PerformanceMode
-import com.doey.ui.basico.JournalScreen
-import com.doey.ui.basico.FriendlySettingsScreen
-import com.doey.ui.avanzado.SkillsScreen
-import com.doey.ui.avanzado.LogScreen
-import com.doey.ui.avanzado.PermissionsScreen
-import com.doey.ui.avanzado.FlowModeScreen
-import com.doey.ui.avanzado.MacrosScreen
 
 // Alias de compatibilidad (usando los de Glassmorphism.kt)
 val Purple         = TauAccent
@@ -138,7 +123,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DoeyApp() {
-    val vm  = viewModel<MainViewModel>()
+    val vm  = viewModel<ViewModelPrincipal>()
 
     val ctx = LocalContext.current
     val profileStore = remember { ProfileStore(ctx) }
@@ -192,18 +177,18 @@ fun DoeyApp() {
             OnboardingFlow { name, profile, performance, provider, apiKey ->
                 profileStore.setUserName(name)
                 profileStore.setUserProfile(
-                    if (profile == UserProfile.BASIC) ProfileStore.PROFILE_BASIC else ProfileStore.PROFILE_ADVANCED
+                    if (profile == UserProfile.BASIC) AlmacenPerfiles.PERFIL_BASICO else AlmacenPerfiles.PERFIL_AVANZADO
                 )
                 profileStore.setPerformanceMode(
-                    if (performance == PerformanceMode.LOW_POWER) ProfileStore.PERF_LOW_POWER else ProfileStore.PERF_HIGH
+                    if (performance == PerformanceMode.LOW_POWER) AlmacenPerfiles.RENDIMIENTO_BAJO else AlmacenPerfiles.RENDIMIENTO_ALTO
                 )
                 profileStore.setOnboardingDone(true)
                 if (apiKey.isNotBlank()) {
-                    val settings = vm.getSettings()
+                    val settings = vm.obtenerAjustes()
                     settings.setApiKey(provider, apiKey)
-                    kotlinx.coroutines.MainScope().launch { settings.setProvider(provider) }
+                    kotlinx.coroutines.MainScope().launch { settings.establecerProveedor(provider) }
                 }
-                userProfile = if (profile == UserProfile.BASIC) ProfileStore.PROFILE_BASIC else ProfileStore.PROFILE_ADVANCED
+                userProfile = if (profile == UserProfile.BASIC) AlmacenPerfiles.PERFIL_BASICO else AlmacenPerfiles.PERFIL_AVANZADO
                 isLowPower  = performance == PerformanceMode.LOW_POWER
                 onboardingDone = true
             }
@@ -214,7 +199,7 @@ fun DoeyApp() {
     val nav         = rememberNavController()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope       = rememberCoroutineScope()
-    val isAdvanced  = userProfile == ProfileStore.PROFILE_ADVANCED
+    val isAdvanced  = userProfile == AlmacenPerfiles.PERFIL_AVANZADO
 
     MaterialTheme(
         colorScheme = buildColorScheme(activeTheme),
@@ -245,7 +230,7 @@ fun DoeyApp() {
                         composable(Screen.Permisos.route) { PermissionsScreen() }
                         composable(Screen.AjustesBasicos.route) { FriendlySettingsScreen(vm) }
                         composable(Screen.ModoFlujo.route) { FlowModeScreen(vm) }
-                        composable(Screen.ModoAuto.route) { SchedulesScreen(vm) }
+                        composable(Screen.ModoAuto.route) { PantallaModoAuto(vm) }
                         composable(Screen.Macros.route) { MacrosScreen(vm) }
                         
                         composable(Screen.Reloj.route) { SchedulesScreen(vm) }
@@ -262,7 +247,7 @@ fun DoeyApp() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DoeyTopBar(vm: MainViewModel, nav: NavController, onMenuClick: () -> Unit) {
+private fun DoeyTopBar(vm: ViewModelPrincipal, nav: NavController, onMenuClick: () -> Unit) {
     TopAppBar(
         title = { Text("Doey AI", style = MaterialTheme.typography.titleLarge, color = TauText1) },
         navigationIcon = {
