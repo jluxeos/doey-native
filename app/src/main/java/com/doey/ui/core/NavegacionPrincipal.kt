@@ -116,25 +116,25 @@ fun buildColorScheme(theme: String) = DoeyColorsTau.copy(
 
 // ── Navegación ────────────────────────────────────────────────────────────────
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object Inicio             : Screen("inicio",             "Inicio",         Icons.Default.Home)
-    object Habilidades        : Screen("habilidades",        "Habilidades",    Icons.Default.Extension)
-    object Memorias         : Screen("memorias",         "Memorias",       Icons.Default.Psychology)
-    object Agendas          : Screen("agendas",          "Agendas",        Icons.Default.Alarm)
+    object Inicio             : Screen("inicio",             "Inicio",         CustomIcons.Home)
+    object Habilidades        : Screen("habilidades",        "Habilidades",    CustomIcons.Star)
+    object Memorias         : Screen("memorias",         "Memorias",       CustomIcons.Message)
+    object Agendas          : Screen("agendas",          "Agendas",        CustomIcons.Clock)
     object Diario           : Screen("diario",           "Diario",         Icons.Default.LibraryBooks)
     object Permisos           : Screen("permisos",           "Permisos",       Icons.Default.Lock)
-    object Configuracion      : Screen("configuracion",      "Ajustes",        Icons.Default.Settings)
+    object Configuracion      : Screen("configuracion",      "Ajustes",        CustomIcons.Settings)
     object Registros          : Screen("registros",          "Registros",      Icons.Default.BugReport)
     object ModoFlujo          : Screen("modo_flujo",         "Modo Flujo",     Icons.Default.AccountTree)
     object ModoAuto           : Screen("modo_auto",          "Modo Auto",      Icons.Default.DirectionsCar)
-    object Macros           : Screen("macros",           "Macros",         Icons.Default.Star)
-    object Perfil           : Screen("perfil",           "Mi Perfil",      Icons.Default.Person)
+    object Macros           : Screen("macros",           "Macros",         CustomIcons.Star)
+    object Perfil           : Screen("perfil",           "Mi Perfil",      CustomIcons.Person)
     object AjustesBasicos     : Screen("ajustes_basicos",    "Modo Básico",    Icons.Default.Spa)
     
-    object Reloj            : Screen("reloj",            "Reloj",          Icons.Default.Schedule)
-    object Alarmas          : Screen("alarmas",          "Alarmas",        Icons.Default.Alarm)
+    object Reloj            : Screen("reloj",            "Reloj",          CustomIcons.Clock)
+    object Alarmas          : Screen("alarmas",          "Alarmas",        CustomIcons.Clock)
     object Recordatorios    : Screen("recordatorios",    "Recordatorios",  Icons.Default.NotificationsActive)
-    object Temporizadores   : Screen("temporizadores",   "Temporizadores", Icons.Default.HourglassEmpty)
-    object Cronometro       : Screen("cronometro",       "Cronómetro",     Icons.Default.Timer)
+    object Temporizadores   : Screen("temporizadores",   "Temporizadores", CustomIcons.Clock)
+    object Cronometro       : Screen("cronometro",       "Cronómetro",     CustomIcons.Clock)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -269,12 +269,12 @@ private fun DoeyTopBar(vm: MainViewModel, nav: NavController, onMenuClick: () ->
         title = { Text("Doey AI", style = MaterialTheme.typography.titleLarge, color = TauText1) },
         navigationIcon = {
             IconButton(onClick = onMenuClick) {
-                Icon(Icons.Default.Menu, "Menú", tint = TauText1)
+                                Icon(CustomIcons.Menu, "Menú", tint = TauText1)
             }
         },
         actions = {
             IconButton(onClick = { nav.navigate(Screen.Perfil.route) }) {
-                Icon(Icons.Default.AccountCircle, "Perfil", tint = TauText1)
+                                Icon(CustomIcons.Person, "Perfil", tint = TauText1)
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)

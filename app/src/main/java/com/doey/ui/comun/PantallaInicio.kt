@@ -113,7 +113,7 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                             },
                             modifier = Modifier.clip(CircleShape).background(TauAccent)
                         ) {
-                            Icon(Icons.Default.Send, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(CustomIcons.Send, null, tint = Color.White, modifier = Modifier.size(20.dp))
                         }
                     }
                 }
