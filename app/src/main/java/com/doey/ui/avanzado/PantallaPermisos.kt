@@ -18,6 +18,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.doey.ui.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.doey.ui.comun.ItemCard
 import com.doey.servicios.basico.DoeyAccessibilityService
 import com.doey.servicios.basico.NotificationAccessManager
 

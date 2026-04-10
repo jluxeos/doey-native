@@ -56,6 +56,7 @@ import com.doey.agente.SystemPromptBuilder
 import com.doey.agente.SkillLoader
 import com.doey.herramientas.comun.*
 import com.doey.ui.MainActivity
+import com.doey.servicios.comun.DoeySpeechRecognizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
