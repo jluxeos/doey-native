@@ -17,9 +17,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import com.doey.AplicacionDoey
 import com.doey.agente.SkillLoader
-import com.doey.ui.MemoryEntry
-import com.doey.ui.parseMemoryEntries
-import com.doey.ui.toJson
+import com.doey.ui.comun.MemoryEntry
+import com.doey.ui.comun.parseMemoryEntries
+import com.doey.ui.comun.toJson
 import com.doey.servicios.basico.DoeyAccessibilityService
 import com.doey.servicios.comun.DoeyTTSEngine
 import com.google.android.gms.location.LocationServices
@@ -796,7 +796,7 @@ class PersonalMemoryTool : Tool {
         val facts    = args["facts"] as? List<Map<String, String>> ?: return errorResult("facts required")
         val existing = store.getPersonalMemory()
         // Parsear entradas existentes (JSON o Markdown legacy)
-        val entries  = com.doey.ui.parseMemoryEntries(existing).toMutableList()
+        val entries  = parseMemoryEntries(existing).toMutableList()
         facts.forEach { f ->
             val fact = f["fact"] ?: return@forEach
             val cat  = f["category"] ?: "otro"
@@ -890,7 +890,7 @@ class AlarmTool : Tool {
                     val hour = (args["hour"] as? Number)?.toInt() ?: return errorResult("hour required")
                     val minute = (args["minute"] as? Number)?.toInt() ?: 0
                     val recurring = args["recurring"] as? Boolean ?: false
-                    com.doey.services.AlarmScheduler.scheduleAlarmAtTime(alarmId, title, desc, hour, minute, recurring)
+                    com.doey.servicios.comun.AlarmScheduler.scheduleAlarmAtTime(alarmId, title, desc, hour, minute, recurring)
                     
                     // Persistir alarma para la UI de Reloj
                     val prefs = ctx.getSharedPreferences("doey_alarms_store", 0)
@@ -918,13 +918,13 @@ class AlarmTool : Tool {
                 }
                 "timer" -> {
                     val delayMin = (args["delay_minutes"] as? Number)?.toInt() ?: return errorResult("delay_minutes required")
-                    com.doey.services.AlarmScheduler.scheduleAlarmInMinutes(alarmId, title, desc, delayMin)
+                    com.doey.servicios.comun.AlarmScheduler.scheduleAlarmInMinutes(alarmId, title, desc, delayMin)
                     successResult("Temporizador de $delayMin minutos iniciado")
                 }
                 "reminder" -> {
                     val hour = (args["hour"] as? Number)?.toInt() ?: return errorResult("hour required")
                     val minute = (args["minute"] as? Number)?.toInt() ?: 0
-                    com.doey.services.AlarmScheduler.scheduleAlarmAtTime(alarmId, title, desc, hour, minute, false)
+                    com.doey.servicios.comun.AlarmScheduler.scheduleAlarmAtTime(alarmId, title, desc, hour, minute, false)
                     successResult("Recordatorio programado para las ${String.format("%02d:%02d", hour, minute)}")
                 }
                 else -> errorResult("Unknown alarm type: $type")

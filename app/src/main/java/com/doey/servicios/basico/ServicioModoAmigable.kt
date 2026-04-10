@@ -126,7 +126,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
 
     private var pipeline: ConversationPipeline? = null
     private var pendingConfirmAction: (() -> Unit)? = null
-    private var speechRecognizer: com.doey.services.DoeySpeechRecognizer? = null
+    private var speechRecognizer: com.doey.servicios.comun.DoeySpeechRecognizer? = null
 
     override fun onCreate() {
         super.onCreate()

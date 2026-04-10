@@ -2,6 +2,8 @@ package com.doey.ui.comun
 
 import com.doey.ui.core.*
 import com.doey.MainViewModel
+
+@Composable
 fun SchedulesScreen(vm: MainViewModel) {
     val ctx = LocalContext.current
     var schedules by remember { mutableStateOf<List<JSONObject>>(emptyList()) }

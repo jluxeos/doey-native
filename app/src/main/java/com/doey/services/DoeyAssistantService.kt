@@ -7,6 +7,7 @@ import android.service.voice.VoiceInteractionSessionService
 import android.util.Log
 import com.doey.agente.SettingsStore
 import com.doey.servicios.basico.DoeyAccessibilityService
+import com.doey.servicios.basico.FriendlyModeService
 import com.doey.ui.MainActivity
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch

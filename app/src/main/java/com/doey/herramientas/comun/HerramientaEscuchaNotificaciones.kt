@@ -1,7 +1,7 @@
 package com.doey.herramientas.comun
 
 import com.doey.AplicacionDoey
-import com.doey.services.NotificationAccessManager
+import com.doey.servicios.basico.NotificationAccessManager
 import org.json.JSONArray
 import org.json.JSONObject
 

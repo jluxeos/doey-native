@@ -20,7 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.doey.agente.SettingsStore
-import com.doey.services.FriendlyModeService
+import com.doey.servicios.basico.FriendlyModeService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.doey.ui.core.*

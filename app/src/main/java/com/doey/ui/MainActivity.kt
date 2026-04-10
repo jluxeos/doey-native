@@ -11,6 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.doey.agente.ProfileStore
+import com.doey.ui.core.DoeyApp
 
 class MainActivity : ComponentActivity() {
 

@@ -10,7 +10,8 @@ import android.provider.Settings
 import android.view.KeyEvent
 import com.doey.AplicacionDoey
 import com.doey.herramientas.comun.*
-import com.doey.ui.parseMemoryEntries
+import com.doey.ui.comun.parseMemoryEntries
+import com.doey.ui.comun.MemoryEntry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
