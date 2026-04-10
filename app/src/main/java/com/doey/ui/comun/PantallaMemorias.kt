@@ -28,6 +28,8 @@ import android.content.Intent
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import com.doey.ui.core.*
+import com.doey.MainViewModel
 
 // ── Modelo de datos ───────────────────────────────────────────────────────────
 

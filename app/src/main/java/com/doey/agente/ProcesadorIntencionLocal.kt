@@ -194,7 +194,6 @@ object LocalIntentProcessor {
         }
 
         // WiFi
-        val wifiLower = text.lowercase()
         if (Regex("""(?:activa|enciende|prende|turn on|enable)\s+(?:el\s+)?(?:wifi|wi-fi)""", RegexOption.IGNORE_CASE).containsMatchIn(text))
             return LocalAction.ToggleWifi(true)
         if (Regex("""(?:desactiva|apaga|turn off|disable)\s+(?:el\s+)?(?:wifi|wi-fi)""", RegexOption.IGNORE_CASE).containsMatchIn(text))

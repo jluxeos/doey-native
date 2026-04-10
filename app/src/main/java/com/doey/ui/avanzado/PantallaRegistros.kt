@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.doey.agente.DoeyLogger
 import com.doey.agente.LogEntry
 import com.doey.agente.LogType
+import com.doey.ui.core.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

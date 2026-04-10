@@ -23,6 +23,8 @@ import com.doey.agente.SettingsStore
 import com.doey.services.FriendlyModeService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.doey.ui.core.*
+import com.doey.MainViewModel
 
 @Composable
 fun FriendlySettingsScreen(vm: MainViewModel) {

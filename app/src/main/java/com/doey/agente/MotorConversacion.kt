@@ -146,7 +146,7 @@ class ConversationPipeline(
 
             history.add(userMsg)
 
-            val result = runToolLoop(
+            val result = com.doey.agente.runToolLoop(
                 provider      = provider,
                 tools         = tools,
                 messages      = messages,
@@ -156,8 +156,8 @@ class ConversationPipeline(
             val assistantText = result.content.ifBlank { "Done." }
             val isSilent = assistantText.contains("__SILENT__")
 
+            // result.newMessages ya incluye el mensaje del asistente; no agregar de nuevo
             history.addAll(result.newMessages)
-            history.add(Message(role = "assistant", content = assistantText))
             trimHistory()
 
             if (isSilent) {

@@ -12,6 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.doey.MainViewModel
+import com.doey.ui.core.PurpleDark
+import com.doey.ui.core.Label2Light
 
 @Composable
 fun FlowModeScreen(vm: MainViewModel) {

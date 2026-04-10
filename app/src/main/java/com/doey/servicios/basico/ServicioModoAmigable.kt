@@ -46,7 +46,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.doey.DoeyApplication
+import com.doey.AplicacionDoey
 import com.doey.agente.ConversationPipeline
 import com.doey.agente.LocalIntentProcessor
 import com.doey.agente.ProfileStore
@@ -173,7 +173,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
     private fun initPipeline() {
         serviceScope.launch(Dispatchers.IO) {
             try {
-                val app = DoeyApplication.instance
+                val app = AplicacionDoey.instance
                 val settings = SettingsStore(app)
                 
                 val provider = com.doey.llm.LLMProviderFactory.create(
@@ -210,7 +210,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
                     removeDisabledSkillTools(skillLoader.getDisabledExclusiveTools(enabledSkills))
                 }
 
-                val profileStore = com.doey.agent.ProfileStore(app)
+                val profileStore = com.doey.agente.ProfileStore(app)
                 val isLowPower   = profileStore.isLowPowerMode()
                 val maxIter      = if (isLowPower) minOf(settings.getMaxIterations(), 5)
                                    else minOf(settings.getMaxIterations(), 8)
@@ -385,7 +385,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
             try {
                 statusState.value = FriendlyStatus.LISTENING
                 if (speechRecognizer == null) speechRecognizer = DoeySpeechRecognizer(this@FriendlyModeService)
-                val settings = SettingsStore(DoeyApplication.instance)
+                val settings = SettingsStore(AplicacionDoey.instance)
                 val lang     = settings.getLanguage().let { l ->
                     if (l == "system") java.util.Locale.getDefault().toLanguageTag() else l
                 }

@@ -15,13 +15,13 @@ import android.telephony.SmsManager
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
-import com.doey.DoeyApplication
+import com.doey.AplicacionDoey
 import com.doey.agente.SkillLoader
 import com.doey.ui.MemoryEntry
 import com.doey.ui.parseMemoryEntries
 import com.doey.ui.toJson
-import com.doey.services.DoeyAccessibilityService
-import com.doey.services.DoeyTTSEngine
+import com.doey.servicios.basico.DoeyAccessibilityService
+import com.doey.servicios.comun.DoeyTTSEngine
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -40,7 +40,7 @@ import kotlin.math.*
 // ── IntentTool ────────────────────────────────────────────────────────────────
 
 class IntentTool : Tool {
-    private val ctx get() = DoeyApplication.instance
+    private val ctx get() = AplicacionDoey.instance
     override fun name()        = "intent"
     override fun description() = "Control Android apps via Intents. Opens apps, starts navigation, makes calls, etc."
     override fun systemHint()  = "General-purpose app launcher. Prefer specific tools when available; use intent as fallback."
@@ -193,7 +193,7 @@ class DateTimeTool : Tool {
 // ── DeviceTool ────────────────────────────────────────────────────────────────
 
 class DeviceTool : Tool {
-    private val ctx get() = DoeyApplication.instance
+    private val ctx get() = AplicacionDoey.instance
     override fun name()        = "device"
     override fun description() = "Query device state: GPS location, battery, volume, Wi-Fi, Bluetooth. Calculate GPS distance."
     override fun systemHint()  = "Fetch GPS location before weather or navigation requests."
@@ -408,7 +408,7 @@ class QueryContactsTool : Tool {
     )
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
-        val ctx   = DoeyApplication.instance
+        val ctx   = AplicacionDoey.instance
         val query = args["query"] as? String ?: return@withContext errorResult("query required")
         val limit = (args["limit"] as? Number)?.toInt() ?: 10
         val list  = mutableListOf<String>()
@@ -443,7 +443,7 @@ class QuerySmsTool : Tool {
     )
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
-        val ctx     = DoeyApplication.instance
+        val ctx     = AplicacionDoey.instance
         val contact = args["contact"] as? String
         val limit   = (args["limit"] as? Number)?.toInt() ?: 10
         val list    = mutableListOf<String>()
@@ -481,7 +481,7 @@ class QueryCallLogTool : Tool {
     )
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
-        val ctx    = DoeyApplication.instance
+        val ctx    = AplicacionDoey.instance
         val limit  = (args["limit"] as? Number)?.toInt() ?: 10
         val tf     = args["type"] as? String ?: "all"
         val sel    = when (tf) {
@@ -713,7 +713,7 @@ class AppSearchTool : Tool {
     )
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
-        val ctx   = DoeyApplication.instance
+        val ctx   = AplicacionDoey.instance
         val query = (args["query"] as? String)?.lowercase() ?: return@withContext errorResult("query required")
         val pm    = ctx.packageManager
         val apps  = pm.getInstalledApplications(0)
@@ -746,7 +746,7 @@ class SkillDetailTool(private val skillLoader: SkillLoader) : Tool {
         val skill = skillLoader.getSkill(name)    ?: return errorResult("Skill not found: $name")
 
         val fragment = args["fragment"] as? String
-        val expertMode = kotlinx.coroutines.runBlocking { DoeyApplication.instance.settingsStore.getExpertMode() }
+        val expertMode = kotlinx.coroutines.runBlocking { AplicacionDoey.instance.settingsStore.getExpertMode() }
         
         val contentToReturn = if (fragment != null && skill.content.contains("## Fragmento: $fragment", ignoreCase = true)) {
             val regex = Regex("## Fragmento: $fragment(?i)(.*?)(?=## Fragmento:|\$)", RegexOption.DOT_MATCHES_ALL)
@@ -772,7 +772,7 @@ class SkillDetailTool(private val skillLoader: SkillLoader) : Tool {
 // ── PersonalMemoryTool ────────────────────────────────────────────────────────
 
 class PersonalMemoryTool : Tool {
-    private val store get() = DoeyApplication.instance.settingsStore
+    private val store get() = AplicacionDoey.instance.settingsStore
     override fun name()        = "memory_personal_upsert"
     override fun description() = "Store personal facts about the user for future context."
     override fun systemHint()  = "Call FIRST when you detect any stable personal fact in the user's message."
@@ -796,7 +796,7 @@ class PersonalMemoryTool : Tool {
         val facts    = args["facts"] as? List<Map<String, String>> ?: return errorResult("facts required")
         val existing = store.getPersonalMemory()
         // Parsear entradas existentes (JSON o Markdown legacy)
-        val entries  = com.doey.ui.comun.parseMemoryEntries(existing).toMutableList()
+        val entries  = com.doey.ui.parseMemoryEntries(existing).toMutableList()
         facts.forEach { f ->
             val fact = f["fact"] ?: return@forEach
             val cat  = f["category"] ?: "otro"
@@ -811,10 +811,10 @@ class PersonalMemoryTool : Tool {
             if (idx >= 0) {
                 entries[idx] = entries[idx].copy(definition = definition)
             } else {
-                entries.add(com.doey.ui.comun.MemoryEntry(category = cat, variable = variable, definition = definition))
+                entries.add(MemoryEntry(category = cat, variable = variable, definition = definition))
             }
         }
-        store.setPersonalMemory((entries as List<com.doey.ui.comun.MemoryEntry>).toJson())
+        store.setPersonalMemory((entries as List<MemoryEntry>).toJson())
         return successResult("Stored ${facts.size} fact(s)")
     }
 }
@@ -822,7 +822,7 @@ class PersonalMemoryTool : Tool {
 // ── FileStorageTool ───────────────────────────────────────────────────────────
 
 class FileStorageTool : Tool {
-    private val prefs get() = DoeyApplication.instance.getSharedPreferences("doey_files", Context.MODE_PRIVATE)
+    private val prefs get() = AplicacionDoey.instance.getSharedPreferences("doey_files", Context.MODE_PRIVATE)
     override fun name()        = "file_storage"
     override fun description() = "Read/write text files to persistent storage (notes, lists, data)."
 
@@ -859,7 +859,7 @@ class FileStorageTool : Tool {
 // ── AlarmTool ─────────────────────────────────────────────────────────────────
 
 class AlarmTool : Tool {
-    private val ctx get() = DoeyApplication.instance
+    private val ctx get() = AplicacionDoey.instance
     override fun name()        = "set_alarm"
     override fun description() = "Schedule alarms, timers, and reminders that sound even when app is closed."
     override fun systemHint()  = "Use for scheduling alarms, timers, and wake-up reminders. Always confirm time with user."
@@ -938,7 +938,7 @@ class AlarmTool : Tool {
 // ── AppSearchAndLaunchTool ─────────────────────────────────────────────────────
 
 class AppSearchAndLaunchTool : Tool {
-    private val ctx get() = DoeyApplication.instance
+    private val ctx get() = AplicacionDoey.instance
     override fun name()        = "find_and_launch_app"
     override fun description() = "Search for installed apps by name and launch them. Uses accessibility if needed."
     override fun systemHint()  = "Use when you don't know the exact package name. Searches installed apps and launches them."

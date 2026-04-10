@@ -18,9 +18,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.doey.DoeyApplication
+import com.doey.AplicacionDoey
 import com.doey.agente.SkillInfo
 import kotlinx.coroutines.launch
+import com.doey.ui.core.*
+import com.doey.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

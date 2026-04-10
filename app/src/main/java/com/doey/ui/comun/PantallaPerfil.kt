@@ -30,6 +30,8 @@ import com.doey.agente.ProfileStore
 import com.doey.agente.SettingsStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.doey.ui.core.*
+import com.doey.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

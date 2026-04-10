@@ -4,7 +4,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
-import com.doey.DoeyApplication
+import com.doey.AplicacionDoey
 import com.doey.agente.ConversationPipeline
 import com.doey.llm.LLMProviderFactory
 import com.doey.herramientas.comun.*
@@ -34,7 +34,7 @@ class SchedulerJobService : Service() {
     }
 
     private suspend fun run(instruction: String) {
-        val app      = DoeyApplication.instance
+        val app      = AplicacionDoey.instance
         val settings = app.settingsStore
 
         val provider = settings.getProvider()
@@ -69,7 +69,7 @@ class SchedulerJobService : Service() {
             language       = language,
             soul           = soul,
             personalMemory = personalMem,
-            userName       = com.doey.agent.ProfileStore(app).getUserName(),
+            userName       = com.doey.agente.ProfileStore(app).getUserName(),
             maxIterations  = 10
         )
         pipeline.setEnabledSkills(enabledSkills)
