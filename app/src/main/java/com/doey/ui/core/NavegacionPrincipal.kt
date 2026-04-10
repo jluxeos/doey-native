@@ -11,11 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.DrawerState
@@ -39,6 +34,7 @@ import com.doey.ui.core.TauText2
 import com.doey.ui.core.TauText3
 import com.doey.ui.core.updateGlassTheme
 import androidx.compose.runtime.*
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -88,31 +84,8 @@ val Label2Light    = TauText2
 val Label3Light    = TauText3
 val ErrorRed       = TauRed
 
-val DoeyColorsTau = lightColorScheme(
-    primary            = TauAccent,
-    onPrimary          = Color.White,
-    primaryContainer   = TauAccentGlow.copy(alpha = 0.2f),
-    secondary          = TauBlue,
-    onSecondary        = Color.White,
-    background         = TauBg,
-    surface            = Color.White,
-    surfaceVariant     = Color(0xFFF5F5F5),
-    onBackground       = TauText1,
-    onSurface          = TauText1,
-    onSurfaceVariant   = TauText2,
-    outline            = TauText3,
-    error              = TauRed,
-    errorContainer     = TauRed.copy(alpha = 0.15f)
-)
-
-val DoeyColorsLight = DoeyColorsTau
-val DoeyColorsDark  = DoeyColorsTau
-
-fun buildColorScheme(theme: String) = DoeyColorsTau.copy(
-    primary = TauAccent,
-    primaryContainer = TauAccentGlow,
-    secondary = TauBlue
-)
+// El sistema de colores ahora se gestiona directamente a través de SistemaGlassmorphism.kt
+// Se eliminan las definiciones de Material3 ColorScheme para usar la UI propia.
 
 // ── Navegación ────────────────────────────────────────────────────────────────
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
@@ -120,19 +93,19 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Habilidades        : Screen("habilidades",        "Habilidades",    CustomIcons.Star)
     object Memorias         : Screen("memorias",         "Memorias",       CustomIcons.Message)
     object Agendas          : Screen("agendas",          "Agendas",        CustomIcons.Clock)
-    object Diario           : Screen("diario",           "Diario",         Icons.Default.LibraryBooks)
-    object Permisos           : Screen("permisos",           "Permisos",       Icons.Default.Lock)
+    object Diario           : Screen("diario",           "Diario",         CustomIcons.LibraryBooks)
+    object Permisos           : Screen("permisos",           "Permisos",       CustomIcons.Lock)
     object Configuracion      : Screen("configuracion",      "Ajustes",        CustomIcons.Settings)
-    object Registros          : Screen("registros",          "Registros",      Icons.Default.BugReport)
-    object ModoFlujo          : Screen("modo_flujo",         "Modo Flujo",     Icons.Default.AccountTree)
-    object ModoAuto           : Screen("modo_auto",          "Modo Auto",      Icons.Default.DirectionsCar)
+    object Registros          : Screen("registros",          "Registros",      CustomIcons.BugReport)
+    object ModoFlujo          : Screen("modo_flujo",         "Modo Flujo",     CustomIcons.AccountTree)
+    object ModoAuto          : Screen("modo_auto",          "Modo Auto",      CustomIcons.DirectionsCar)
     object Macros           : Screen("macros",           "Macros",         CustomIcons.Star)
     object Perfil           : Screen("perfil",           "Mi Perfil",      CustomIcons.Person)
-    object AjustesBasicos     : Screen("ajustes_basicos",    "Modo Básico",    Icons.Default.Spa)
+    object AjustesBasicos     : Screen("ajustes_basicos",    "Modo Básico",    CustomIcons.Spa)
     
     object Reloj            : Screen("reloj",            "Reloj",          CustomIcons.Clock)
     object Alarmas          : Screen("alarmas",          "Alarmas",        CustomIcons.Clock)
-    object Recordatorios    : Screen("recordatorios",    "Recordatorios",  Icons.Default.NotificationsActive)
+    object Recordatorios    : Screen("recordatorios",    "Recordatorios",  CustomIcons.NotificationsActive)
     object Temporizadores   : Screen("temporizadores",   "Temporizadores", CustomIcons.Clock)
     object Cronometro       : Screen("cronometro",       "Cronómetro",     CustomIcons.Clock)
 }
@@ -187,9 +160,9 @@ fun DoeyApp() {
     }
 
     if (!onboardingDone) {
-        MaterialTheme(
-            colorScheme = buildColorScheme(activeTheme),
-            typography = DoeyTypography
+        // Usar UI propia sin MaterialTheme
+        CompositionLocalProvider(
+            // Aquí se podrían proveer tipografías o colores si fuera necesario
         ) {
             OnboardingFlow { name, profile, performance, provider, apiKey ->
                 profileStore.setUserName(name)
@@ -218,9 +191,9 @@ fun DoeyApp() {
     val scope       = rememberCoroutineScope()
     val isAdvanced  = userProfile == ProfileStore.PROFILE_ADVANCED
 
-    MaterialTheme(
-        colorScheme = buildColorScheme(activeTheme),
-        typography = DoeyTypography
+    // Usar UI propia sin MaterialTheme
+    CompositionLocalProvider(
+        // Aquí se podrían proveer tipografías o colores si fuera necesario
     ) {
         ModalNavigationDrawer(
             drawerState = drawerState,

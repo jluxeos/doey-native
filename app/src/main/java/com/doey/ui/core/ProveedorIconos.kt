@@ -1,22 +1,16 @@
 package com.doey.ui.core
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
  * Proveedor centralizado del icono de Doey
- * Usa ic_launcher_foreground en lugar de emojis genéricos
+ * Usa el sistema de iconos personalizados lineales minimalistas.
  */
 
 @Composable
@@ -25,9 +19,9 @@ fun DoeyIcon(
     size: Dp = 24.dp,
     tint: Color = Color.Unspecified
 ) {
-    // Usar el icono SmartToy como fallback seguro
+    // Usar el icono SmartToy personalizado como identidad de marca
     Icon(
-        imageVector = Icons.Default.SmartToy,
+        imageVector = CustomIcons.SmartToy,
         contentDescription = "Doey",
         modifier = modifier.size(size),
         tint = tint
