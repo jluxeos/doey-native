@@ -13,7 +13,29 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
+import com.doey.ui.core.DoeyTypography
+import com.doey.ui.core.TauAccent
+import com.doey.ui.core.TauAccentGlow
+import com.doey.ui.core.TauBg
+import com.doey.ui.core.TauBlue
+import com.doey.ui.core.TauRed
+import com.doey.ui.core.TauText1
+import com.doey.ui.core.TauText2
+import com.doey.ui.core.TauText3
+import com.doey.ui.core.updateGlassTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -148,7 +170,10 @@ fun DoeyApp() {
     }
 
     if (!onboardingDone) {
-        MaterialTheme(colorScheme = buildColorScheme(activeTheme)) {
+        MaterialTheme(
+            colorScheme = buildColorScheme(activeTheme),
+            typography = DoeyTypography
+        ) {
             OnboardingFlow { name, profile, performance, provider, apiKey ->
                 profileStore.setUserName(name)
                 profileStore.setUserProfile(
@@ -176,7 +201,10 @@ fun DoeyApp() {
     val scope       = rememberCoroutineScope()
     val isAdvanced  = userProfile == AlmacenPerfiles.PERFIL_AVANZADO
 
-    MaterialTheme(colorScheme = buildColorScheme(activeTheme)) {
+    MaterialTheme(
+        colorScheme = buildColorScheme(activeTheme),
+        typography = DoeyTypography
+    ) {
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
@@ -221,7 +249,7 @@ fun DoeyApp() {
 @Composable
 private fun DoeyTopBar(vm: ViewModelPrincipal, nav: NavController, onMenuClick: () -> Unit) {
     TopAppBar(
-        title = { Text("Doey AI", fontWeight = FontWeight.Bold, color = TauText1) },
+        title = { Text("Doey AI", style = MaterialTheme.typography.titleLarge, color = TauText1) },
         navigationIcon = {
             IconButton(onClick = onMenuClick) {
                 Icon(Icons.Default.Menu, "Menú", tint = TauText1)

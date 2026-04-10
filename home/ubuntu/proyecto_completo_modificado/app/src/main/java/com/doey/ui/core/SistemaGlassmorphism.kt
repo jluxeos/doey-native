@@ -13,11 +13,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import com.doey.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -40,9 +45,28 @@ var TauAccentGlow by mutableStateOf(Color(0x332196F3))
 var TauAccentLight by mutableStateOf(Color(0xFFBBDEFB))
 
 // Colores estáticos de soporte (Base Blanca)
-var TauText1    by mutableStateOf(Color(0xFF1A1A1A))
-var TauText2    by mutableStateOf(Color(0xFF4A4A4A))
-var TauText3    by mutableStateOf(Color(0xFF7A7A7A))
+val Poppins = FontFamily(
+    Font(R.font.poppins_regular, FontWeight.Normal),
+    Font(R.font.poppins_bold, FontWeight.Bold)
+)
+
+val DoeyTypography = Typography(
+    displayLarge = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 57.sp, color = TauText1),
+    displayMedium = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 45.sp, color = TauText1),
+    displaySmall = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 36.sp, color = TauText1),
+    headlineLarge = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 32.sp, color = TauText1),
+    headlineMedium = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 28.sp, color = TauText1),
+    headlineSmall = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 24.sp, color = TauText1),
+    titleLarge = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = TauText1),
+    titleMedium = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TauText1),
+    titleSmall = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TauText1),
+    bodyLarge = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Normal, fontSize = 16.sp, color = TauText1),
+    bodyMedium = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Normal, fontSize = 14.sp, color = TauText1),
+    bodySmall = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Normal, fontSize = 12.sp, color = TauText1),
+    labelLarge = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TauText1),
+    labelMedium = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Normal, fontSize = 12.sp, color = TauText1),
+    labelSmall = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Normal, fontSize = 11.sp, color = TauText1)
+)
 var TauSurface1 by mutableStateOf(Color(0x1A000000))
 var TauSurface2 by mutableStateOf(Color(0x33000000))
 var TauSurface3 by mutableStateOf(Color(0x4D000000))
@@ -54,8 +78,8 @@ val TauBlue     = GlassThemes.DeepSeaBlue
 val TauOrange   = GlassThemes.SolarOrange
 
 // Estado global de opacidad y desenfoque
-var GlassOpacity by mutableStateOf(0.4f)
-var GlassBlur    by mutableStateOf(20f)
+    var GlassOpacity by mutableStateOf(0.55f) // Opacidad del fondo de tarjeta
+    var GlassBlur    by mutableStateOf(20f)  // Desenfoque de la tarjeta
 
 // Función para actualizar el tema globalmente
 fun updateGlassTheme(themeName: String) {
@@ -89,38 +113,28 @@ fun GlassCard(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(24.dp))
+            .shadow(elevation = 8.dp, spotColor = Color.Black.copy(alpha = 0.08f), ambientColor = Color.Black.copy(alpha = 0.08f), shape = RoundedCornerShape(24.dp)) // Sombra de Elevación
     ) {
-        // Capa de fondo con desenfoque (Solo esta capa se difumina)
+        // Capa de fondo con desenfoque y opacidad
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .blur(if (blur > 0) blur.dp else 0.dp)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = opacity),
-                            Color.White.copy(alpha = opacity * 0.6f)
-                        )
-                    )
-                )
+                .background(Color.White.copy(alpha = 0.55f)) // Fondo de Tarjeta: Blanco con 55% de opacidad
+                .blur(if (blur > 0) blur.dp else 0.dp) // Efecto de Desenfoque
         )
         
-        // Capa de borde y contenido (Esta capa NO se difumina, manteniendo el texto nítido)
+        // Borde de Luz
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .border(
-                    width = 1.dp,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.8f),
-                            Color.White.copy(alpha = 0.2f)
-                        )
-                    ),
+                    width = 1.5.dp, // Borde de Luz: 1.5px
+                    color = Color.White.copy(alpha = 0.85f), // Borde de Luz: rgba(255, 255, 255, 0.85)
                     shape = RoundedCornerShape(24.dp)
                 )
         )
         
+        // Contenido (sin desenfoque)
         Column(modifier = Modifier.padding(16.dp)) {
             content()
         }
@@ -137,7 +151,7 @@ fun GlassButton(
     Surface(
         onClick = onClick,
         modifier = modifier.height(56.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = CircleShape, // Botones totalmente redondeados (pills)
         color = containerColor.copy(alpha = 0.15f),
         border = androidx.compose.foundation.BorderStroke(1.dp, containerColor.copy(alpha = 0.3f))
     ) {
@@ -162,16 +176,16 @@ fun DoeyTextField(
     trailingIcon: @Composable (() -> Unit)? = null
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label, color = TauText2, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium, color = TauText2, modifier = Modifier.padding(start = 4.dp))
         TextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = { Text(placeholder, color = TauText3) },
+            placeholder = { Text(placeholder, style = MaterialTheme.typography.bodyMedium, color = TauText3) },
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(24.dp)) // Radio de curvatura de 24px
                 .background(Color.Black.copy(alpha = 0.03f))
-                .border(1.dp, Color.Black.copy(alpha = 0.05f), RoundedCornerShape(16.dp)),
+                .border(1.dp, Color.Black.copy(alpha = 0.05f), RoundedCornerShape(24.dp)), // Radio de curvatura de 24px
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
@@ -197,7 +211,7 @@ fun TauSettingsSection(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
             Icon(icon, null, tint = TauAccent, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text(title.uppercase(), color = TauText2, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+            Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = TauText2, letterSpacing = 1.5.sp)
         }
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             content()
@@ -231,8 +245,8 @@ fun TauSwitchRow(
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, color = TauText1, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-            Text(subtitle, color = TauText3, fontSize = 11.sp)
+            Text(title, style = MaterialTheme.typography.bodyMedium, color = TauText1)
+            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = TauText3)
         }
         Switch(
             checked = checked,
@@ -261,7 +275,7 @@ fun DrawerItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(24.dp))
             .background(if (isSelected) TauAccent.copy(alpha = 0.1f) else Color.Transparent)
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -274,12 +288,11 @@ fun DrawerItem(
             modifier = Modifier.size(22.dp)
         )
         Spacer(Modifier.width(16.dp))
-        Text(
-            label, 
-            color = if (isSelected) TauAccent else TauText1, 
-            fontSize = 15.sp, 
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-        )
+            Text(
+                label, 
+                color = if (isSelected) TauAccent else TauText1, 
+                style = if (isSelected) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge
+            )
     }
 }
 
@@ -287,8 +300,7 @@ fun DrawerItem(
 fun DrawerSectionHeader(title: String) {
     Text(
         text = title.uppercase(),
-        fontSize = 10.sp,
-        fontWeight = FontWeight.ExtraBold,
+        style = MaterialTheme.typography.labelSmall,
         color = TauText3,
         modifier = Modifier.padding(horizontal = 28.dp, vertical = 12.dp),
         letterSpacing = 1.5.sp
@@ -305,7 +317,7 @@ fun GlassBackground(accentColor: Color = TauAccent) {
             modifier = Modifier
                 .size(400.dp)
                 .offset(x = (-100).dp, y = (-100).dp)
-                .blur(100.dp)
+                .blur(60.dp) // Desenfoque de 60px
                 .background(accentColor.copy(alpha = 0.1f), CircleShape)
         )
         // Orbe de luz traslúcido 2
@@ -314,7 +326,7 @@ fun GlassBackground(accentColor: Color = TauAccent) {
                 .size(300.dp)
                 .align(Alignment.BottomEnd)
                 .offset(x = 50.dp, y = 50.dp)
-                .blur(80.dp)
+                .blur(60.dp) // Desenfoque de 60px
                 .background(accentColor.copy(alpha = 0.08f), CircleShape)
         )
     }
