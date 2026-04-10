@@ -1,6 +1,6 @@
 package com.doey.agente
 
-import com.doey.tools.ToolRegistry
+import com.doey.herramientas.comun.ToolRegistry
 import java.text.SimpleDateFormat
 import java.util.*
 

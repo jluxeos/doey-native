@@ -48,16 +48,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.doey.ViewModelPrincipal
+import com.doey.MainViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.doey.agente.AlmacenPerfiles
-import com.doey.agente.AlmacenAjustes
+import com.doey.agente.ProfileStore
+import com.doey.agente.SettingsStore
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import kotlinx.coroutines.launch
+import com.doey.ui.comun.HomeScreen
+import com.doey.ui.comun.SettingsScreen
+import com.doey.ui.comun.ProfileScreen
+import com.doey.ui.comun.MemoriesScreen
+import com.doey.ui.comun.SchedulesScreen
+import com.doey.ui.comun.OnboardingFlow
+import com.doey.ui.comun.UserProfile
+import com.doey.ui.comun.PerformanceMode
+import com.doey.ui.basico.JournalScreen
+import com.doey.ui.basico.FriendlySettingsScreen
+import com.doey.ui.avanzado.SkillsScreen
+import com.doey.ui.avanzado.LogScreen
+import com.doey.ui.avanzado.PermissionsScreen
+import com.doey.ui.avanzado.FlowModeScreen
+import com.doey.ui.avanzado.MacrosScreen
 
 // Alias de compatibilidad (usando los de Glassmorphism.kt)
 val Purple         = TauAccent
@@ -123,11 +138,11 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DoeyApp() {
-    val vm  = viewModel<ViewModelPrincipal>()
+    val vm  = viewModel<MainViewModel>()
 
     val ctx = LocalContext.current
-    val profileStore = remember { AlmacenPerfiles(ctx) }
-    val settingsStore = remember { AlmacenAjustes(ctx) }
+    val profileStore = remember { ProfileStore(ctx) }
+    val settingsStore = remember { SettingsStore(ctx) }
 
     var onboardingDone by remember { mutableStateOf(profileStore.isOnboardingDone()) }
     var userProfile    by remember { mutableStateOf(profileStore.getUserProfile()) }
@@ -177,18 +192,18 @@ fun DoeyApp() {
             OnboardingFlow { name, profile, performance, provider, apiKey ->
                 profileStore.setUserName(name)
                 profileStore.setUserProfile(
-                    if (profile == UserProfile.BASIC) AlmacenPerfiles.PERFIL_BASICO else AlmacenPerfiles.PERFIL_AVANZADO
+                    if (profile == UserProfile.BASIC) ProfileStore.PROFILE_BASIC else ProfileStore.PROFILE_ADVANCED
                 )
                 profileStore.setPerformanceMode(
-                    if (performance == PerformanceMode.LOW_POWER) AlmacenPerfiles.RENDIMIENTO_BAJO else AlmacenPerfiles.RENDIMIENTO_ALTO
+                    if (performance == PerformanceMode.LOW_POWER) ProfileStore.PERF_LOW_POWER else ProfileStore.PERF_HIGH
                 )
                 profileStore.setOnboardingDone(true)
                 if (apiKey.isNotBlank()) {
-                    val settings = vm.obtenerAjustes()
+                    val settings = vm.getSettings()
                     settings.setApiKey(provider, apiKey)
-                    kotlinx.coroutines.MainScope().launch { settings.establecerProveedor(provider) }
+                    kotlinx.coroutines.MainScope().launch { settings.setProvider(provider) }
                 }
-                userProfile = if (profile == UserProfile.BASIC) AlmacenPerfiles.PERFIL_BASICO else AlmacenPerfiles.PERFIL_AVANZADO
+                userProfile = if (profile == UserProfile.BASIC) ProfileStore.PROFILE_BASIC else ProfileStore.PROFILE_ADVANCED
                 isLowPower  = performance == PerformanceMode.LOW_POWER
                 onboardingDone = true
             }
@@ -199,7 +214,7 @@ fun DoeyApp() {
     val nav         = rememberNavController()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope       = rememberCoroutineScope()
-    val isAdvanced  = userProfile == AlmacenPerfiles.PERFIL_AVANZADO
+    val isAdvanced  = userProfile == ProfileStore.PROFILE_ADVANCED
 
     MaterialTheme(
         colorScheme = buildColorScheme(activeTheme),
@@ -219,25 +234,25 @@ fun DoeyApp() {
             ) { padding ->
                 Box(Modifier.padding(padding)) {
                     NavHost(navController = nav, startDestination = Screen.Inicio.route) {
-                        composable(Screen.Inicio.route) { PantallaInicio(vm, nav) }
-                        composable(Screen.Configuracion.route) { PantallaConfiguracion(vm, onProfileChanged) }
-                        composable(Screen.Perfil.route) { PantallaPerfil(vm) }
-                        composable(Screen.Memorias.route) { PantallaMemorias(vm) }
-                        composable(Screen.Diario.route) { PantallaDiario(vm) }
-                        composable(Screen.Agendas.route) { PantallaAgendas(vm) }
-                        composable(Screen.Habilidades.route) { PantallaHabilidades(vm) }
-                        composable(Screen.Registros.route) { PantallaRegistros() }
-                        composable(Screen.Permisos.route) { PantallaPermisos() }
-                        composable(Screen.AjustesBasicos.route) { PantallaAjustesBasicos(vm) }
-                        composable(Screen.ModoFlujo.route) { PantallaModoFlujo(vm) }
-                        composable(Screen.ModoAuto.route) { PantallaModoAuto(vm) }
-                        composable(Screen.Macros.route) { PantallaMacros(vm) }
+                        composable(Screen.Inicio.route) { HomeScreen(vm, nav) }
+                        composable(Screen.Configuracion.route) { SettingsScreen(vm, onProfileChanged) }
+                        composable(Screen.Perfil.route) { ProfileScreen(vm) }
+                        composable(Screen.Memorias.route) { MemoriesScreen(vm) }
+                        composable(Screen.Diario.route) { JournalScreen(vm) }
+                        composable(Screen.Agendas.route) { SchedulesScreen(vm) }
+                        composable(Screen.Habilidades.route) { SkillsScreen(vm) }
+                        composable(Screen.Registros.route) { LogScreen() }
+                        composable(Screen.Permisos.route) { PermissionsScreen() }
+                        composable(Screen.AjustesBasicos.route) { FriendlySettingsScreen(vm) }
+                        composable(Screen.ModoFlujo.route) { FlowModeScreen(vm) }
+                        composable(Screen.ModoAuto.route) { SchedulesScreen(vm) }
+                        composable(Screen.Macros.route) { MacrosScreen(vm) }
                         
-                        composable(Screen.Reloj.route) { PantallaAgendas(vm) }
-                        composable(Screen.Alarmas.route) { PantallaAgendas(vm) }
-                        composable(Screen.Recordatorios.route) { PantallaAgendas(vm) }
-                        composable(Screen.Temporizadores.route) { PantallaAgendas(vm) }
-                        composable(Screen.Cronometro.route) { PantallaAgendas(vm) }
+                        composable(Screen.Reloj.route) { SchedulesScreen(vm) }
+                        composable(Screen.Alarmas.route) { SchedulesScreen(vm) }
+                        composable(Screen.Recordatorios.route) { SchedulesScreen(vm) }
+                        composable(Screen.Temporizadores.route) { SchedulesScreen(vm) }
+                        composable(Screen.Cronometro.route) { SchedulesScreen(vm) }
                     }
                 }
             }
@@ -247,7 +262,7 @@ fun DoeyApp() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DoeyTopBar(vm: ViewModelPrincipal, nav: NavController, onMenuClick: () -> Unit) {
+private fun DoeyTopBar(vm: MainViewModel, nav: NavController, onMenuClick: () -> Unit) {
     TopAppBar(
         title = { Text("Doey AI", style = MaterialTheme.typography.titleLarge, color = TauText1) },
         navigationIcon = {

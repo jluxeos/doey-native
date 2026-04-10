@@ -1,6 +1,6 @@
 package com.doey.herramientas.comun
 
-import com.doey.DoeyApplication
+import com.doey.AplicacionDoey
 import com.doey.services.NotificationAccessManager
 import org.json.JSONArray
 import org.json.JSONObject
@@ -13,7 +13,7 @@ class NotificationListenerTool : Tool {
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
         val action = args["action"] as? String ?: return errorResult("action required")
-        val context = DoeyApplication.instance
+        val context = AplicacionDoey.instance
 
         if (!NotificationAccessManager.isAccessGranted(context)) {
             return errorResult("Notification access not granted. Please enable it in Android Settings.")

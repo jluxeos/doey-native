@@ -2,8 +2,8 @@ package com.doey.agente
 import android.util.Log
 import com.doey.llm.LLMProvider
 import com.doey.llm.Message
-import com.doey.tools.ToolRegistry
-import com.doey.tools.errorResult
+import com.doey.herramientas.comun.ToolRegistry
+import com.doey.herramientas.comun.errorResult
 
 private const val TAG = "ToolLoop"
 

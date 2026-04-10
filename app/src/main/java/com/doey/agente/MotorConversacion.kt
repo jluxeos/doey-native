@@ -4,7 +4,7 @@ import android.util.Log
 import com.doey.llm.LLMProvider
 import com.doey.llm.LLMOptions
 import com.doey.llm.Message
-import com.doey.tools.ToolRegistry
+import com.doey.herramientas.comun.ToolRegistry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

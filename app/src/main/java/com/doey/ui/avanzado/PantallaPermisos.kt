@@ -1,4 +1,6 @@
 package com.doey.ui.avanzado
+
+import com.doey.ui.core.*
 fun PermissionsScreen() {
     val ctx = LocalContext.current
 

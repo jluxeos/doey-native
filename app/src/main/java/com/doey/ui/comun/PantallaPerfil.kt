@@ -26,10 +26,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.doey.agent.ProfileStore
-import com.doey.agent.SettingsStore
+import com.doey.agente.ProfileStore
+import com.doey.agente.SettingsStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.doey.ui.core.*
+import com.doey.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

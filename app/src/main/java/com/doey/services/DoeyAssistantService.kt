@@ -5,7 +5,7 @@ import android.os.Bundle
 import android.service.voice.VoiceInteractionSession
 import android.service.voice.VoiceInteractionSessionService
 import android.util.Log
-import com.doey.agent.SettingsStore
+import com.doey.agente.SettingsStore
 import com.doey.ui.MainActivity
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch

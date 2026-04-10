@@ -8,8 +8,8 @@ import android.os.SystemClock
 import android.provider.ContactsContract
 import android.provider.Settings
 import android.view.KeyEvent
-import com.doey.DoeyApplication
-import com.doey.tools.*
+import com.doey.AplicacionDoey
+import com.doey.herramientas.comun.*
 import com.doey.ui.parseMemoryEntries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -264,7 +264,7 @@ object FlowModeEngine {
     // ── Resolución de variables {{...}} ───────────────────────────────────────
 
     private suspend fun resolveVariables(args: Map<String, Any?>, context: Context): Map<String, Any?> {
-        val settings = (context.applicationContext as DoeyApplication).settingsStore
+        val settings = (context.applicationContext as AplicacionDoey).settingsStore
         val memories = parseMemoryEntries(settings.getPersonalMemory())
 
         fun resolveString(s: String): String {

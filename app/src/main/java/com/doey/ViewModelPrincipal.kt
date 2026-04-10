@@ -6,23 +6,25 @@ import android.speech.SpeechRecognizer
 import android.view.KeyEvent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.doey.agente.MotorConversacion
-import com.doey.agente.ProcesadorIntencionLocal
-import com.doey.agente.EstadoPipeline
-import com.doey.agente.AlmacenAjustes
-import com.doey.agente.CargadorHabilidades
-import com.doey.agente.AlmacenPerfiles
-import com.doey.servicios.basico.ServicioEscuchaNotificacionesDoey
-import com.doey.servicios.comun.EventosVozDoey
-import com.doey.servicios.comun.ReconocedorVozDoey
-import com.doey.servicios.comun.MotorTTSDoey
-import com.doey.servicios.comun.InformacionReproduccionActual
-import com.doey.servicios.comun.RepositorioReproduccionActual
-import com.doey.servicios.comun.ServicioPalabraActivacion
-import com.doey.herramientas.comun.RegistroHerramientas
-import com.doey.herramientas.comun.HerramientaDiario
-import com.doey.herramientas.comun.HerramientaEscuchaNotificaciones
-import com.doey.herramientas.comun.HerramientasProgramadorTemporizadorDiario
+import com.doey.agente.ConversationPipeline
+import com.doey.agente.LocalIntentProcessor
+import com.doey.agente.PipelineState
+import com.doey.agente.SettingsStore
+import com.doey.agente.SkillLoader
+import com.doey.agente.ProfileStore
+import com.doey.servicios.basico.NowPlayingInfo
+import com.doey.servicios.basico.NowPlayingRepository
+import com.doey.servicios.comun.DoeySpeechEvents
+import com.doey.servicios.comun.DoeySpeechRecognizer
+import com.doey.servicios.comun.DoeyTTSEngine
+// NowPlayingInfo ya importado desde com.doey.servicios.basico
+// NowPlayingRepository ya importado desde com.doey.servicios.basico
+import com.doey.servicios.comun.WakeWordService
+import com.doey.herramientas.comun.ToolRegistry
+import com.doey.herramientas.comun.JournalTool
+import com.doey.herramientas.comun.NotificationListenerTool
+import com.doey.herramientas.comun.SchedulerTool
+import com.doey.herramientas.comun.TimerTool
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -31,6 +33,24 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.doey.herramientas.comun.IntentTool
+import com.doey.herramientas.comun.SmsTool
+import com.doey.herramientas.comun.BeepTool
+import com.doey.herramientas.comun.DateTimeTool
+import com.doey.herramientas.comun.DeviceTool
+import com.doey.herramientas.comun.QueryContactsTool
+import com.doey.herramientas.comun.QuerySmsTool
+import com.doey.herramientas.comun.QueryCallLogTool
+import com.doey.herramientas.comun.HttpTool
+import com.doey.herramientas.comun.TTSTool
+import com.doey.herramientas.comun.AccessibilityTool
+import com.doey.herramientas.comun.AppSearchTool
+import com.doey.herramientas.comun.SkillDetailTool
+import com.doey.herramientas.comun.PersonalMemoryTool
+import com.doey.herramientas.comun.FileStorageTool
+import com.doey.herramientas.comun.AlarmTool
+import com.doey.herramientas.comun.AppSearchAndLaunchTool
+import com.doey.servicios.basico.DoeyOverlayService
 
 data class ChatMessage(
     val id: String = java.util.UUID.randomUUID().toString(),
@@ -41,7 +61,7 @@ data class ChatMessage(
 
 data class MainUiState(
     val messages: List<ChatMessage> = emptyList(),
-    val pipelineState: EstadoPipeline = EstadoPipeline.IDLE,
+    val pipelineState: PipelineState = PipelineState.IDLE,
     val partialSpeech: String = "",
     val errorMessage: String? = null,
     val isDrivingMode: Boolean = false,
@@ -49,7 +69,7 @@ data class MainUiState(
     val isListening: Boolean = false,
     val settingsSaved: Boolean = false,
     val isExpertMode: Boolean = false,
-    val nowPlaying: InformacionReproduccionActual = InformacionReproduccionActual()
+    val nowPlaying: NowPlayingInfo = NowPlayingInfo()
 )
 
 class MainViewModel(private val app: Application) : AndroidViewModel(app) {
@@ -142,37 +162,37 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun buildTools(skillLoader: SkillLoader, enabledSkills: List<String>) = RegistroHerramientas().apply {
-        register(HerramientaIntencion())
-        register(HerramientaSMS())
-        register(HerramientaSonido())
-        register(HerramientaFechaHora())
-        register(HerramientaDispositivo())
-        register(HerramientaConsultaContactos())
-        register(HerramientaConsultaSMS())
-        register(HerramientaConsultaRegistroLlamadas())
-        register(HerramientaHTTP())
-        register(HerramientaTTS())
-        register(HerramientaAccesibilidad())
-        register(HerramientaBusquedaApps())
-        register(HerramientaAlmacenamientoArchivos())
-        register(HerramientaDetalleHabilidad(skillLoader))
-        register(HerramientaMemoriaPersonal())
-        register(HerramientaDiario())
-        register(HerramientaTemporizador())
-        register(HerramientaProgramador())
-        register(HerramientaEscuchaNotificaciones())
-        register(HerramientaAlarma())
-        register(HerramientaBusquedaLanzamientoApps())
+    private fun buildTools(skillLoader: SkillLoader, enabledSkills: List<String>) = ToolRegistry().apply {
+        register(IntentTool())
+        register(SmsTool())
+        register(BeepTool())
+        register(DateTimeTool())
+        register(DeviceTool())
+        register(QueryContactsTool())
+        register(QuerySmsTool())
+        register(QueryCallLogTool())
+        register(HttpTool())
+        register(TTSTool())
+        register(AccessibilityTool())
+        register(AppSearchTool())
+        register(FileStorageTool())
+        register(SkillDetailTool(skillLoader))
+        register(PersonalMemoryTool())
+        register(JournalTool())
+        register(TimerTool())
+        register(SchedulerTool())
+        register(NotificationListenerTool())
+        register(AlarmTool())
+        register(AppSearchAndLaunchTool())
 
-        eliminarHerramientasHabilidadDeshabilitadas(skillLoader.getDisabledExclusiveTools(enabledSkills))
+        removeDisabledSkillTools(skillLoader.getDisabledExclusiveTools(enabledSkills))
     }
 
     // ── Observadores ─────────────────────────────────────────────────────────
 
     private fun observeNowPlaying() {
         viewModelScope.launch {
-            RepositorioReproduccionActual.nowPlaying.collect { info ->
+            NowPlayingRepository.nowPlaying.collect { info ->
                 _uiState.update { it.copy(nowPlaying = info) }
             }
         }
@@ -187,7 +207,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             // ── Procesador local de intenciones (ahorra tokens de IA) ─────────────
             val intent = LocalIntentProcessor.classify(text)
             when (intent) {
-                is ProcesadorIntencionLocal.IntentClass.Local -> {
+                is LocalIntentProcessor.IntentClass.Local -> {
                     // Ejecutar localmente sin gastar tokens
                     val result = executeLocalAction(intent.action)
                     if (result.isNotBlank()) {
@@ -202,9 +222,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     }
                     // Si falla la ejecución local, delegar a IA
                 }
-                is ProcesadorIntencionLocal.IntentClass.Complex -> {
+                is LocalIntentProcessor.IntentClass.Complex -> {
                     // Comando complejo: optimizar el prompt antes de enviar a IA
-                    val optimizedText = ProcesadorIntencionLocal.buildOptimizedPrompt(intent.subtasks, text)
+                    val optimizedText = LocalIntentProcessor.buildOptimizedPrompt(intent.subtasks, text)
                     p.processUtterance(
                         userText = optimizedText,
                         onSpeak  = if (voiceEnabled) { t, lang -> DoeyTTSEngine.speakAndWait(t, lang) } else null
@@ -212,7 +232,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     if (_uiState.value.isDrivingMode && voiceEnabled) { delay(500); startDrivingListen() }
                     return@launch
                 }
-                is ProcesadorIntencionLocal.IntentClass.Delegate -> { /* Delegar a IA normalmente */ }
+                is LocalIntentProcessor.IntentClass.Delegate -> { /* Delegar a IA normalmente */ }
             }
             // ── Delegar a IA ─────────────────────────────────────────────────────
             p.processUtterance(
@@ -236,13 +256,13 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private suspend fun executeLocalAction(action: LocalIntentProcessor.LocalAction): String {
         return try {
             when (action) {
-                is ProcesadorIntencionLocal.LocalAction.QueryInfo -> {
+                is LocalIntentProcessor.LocalAction.QueryInfo -> {
                     when (action.type) {
-                        ProcesadorIntencionLocal.InfoType.TIME -> {
+                        LocalIntentProcessor.InfoType.TIME -> {
                             val now = java.util.Calendar.getInstance()
                             "Son las ${now.get(java.util.Calendar.HOUR_OF_DAY)}:${String.format("%02d", now.get(java.util.Calendar.MINUTE))}"
                         }
-                        ProcesadorIntencionLocal.InfoType.DATE -> {
+                        LocalIntentProcessor.InfoType.DATE -> {
                             val now = java.util.Calendar.getInstance()
                             val months = listOf("enero","febrero","marzo","abril","mayo","junio",
                                 "julio","agosto","septiembre","octubre","noviembre","diciembre")
@@ -486,16 +506,16 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         val ctx = app.applicationContext
         if (enabled) {
             if (android.provider.Settings.canDrawOverlays(ctx)) {
-                val overlayInstance = com.doey.services.DoeyOverlayService.instance
+                val overlayInstance = DoeyOverlayService.instance
                 if (overlayInstance != null) {
                     overlayInstance.showBubble()
                 } else {
-                    val intent = Intent(ctx, com.doey.services.DoeyOverlayService::class.java)
+                    val intent = Intent(ctx, DoeyOverlayService::class.java)
                     ctx.startForegroundService(intent)
                 }
             }
         } else {
-            val intent = Intent(ctx, com.doey.services.DoeyOverlayService::class.java)
+            val intent = Intent(ctx, DoeyOverlayService::class.java)
             ctx.stopService(intent)
         }
     }

@@ -25,9 +25,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.doey.agent.DoeyLogger
-import com.doey.agent.LogEntry
-import com.doey.agent.LogType
+import com.doey.agente.DoeyLogger
+import com.doey.agente.LogEntry
+import com.doey.agente.LogType
+import com.doey.ui.core.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

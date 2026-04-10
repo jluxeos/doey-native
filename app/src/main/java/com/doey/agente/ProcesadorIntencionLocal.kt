@@ -4,9 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.ContactsContract
-import com.doey.tools.ToolResult
-import com.doey.tools.successResult
-import com.doey.tools.errorResult
+import com.doey.herramientas.comun.ToolResult
+import com.doey.herramientas.comun.successResult
+import com.doey.herramientas.comun.errorResult
 
 /**
  * Procesador local de intenciones — Doey 23.4.9 Ultra (Tau Version)

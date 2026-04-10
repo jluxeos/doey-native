@@ -20,8 +20,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.doey.agent.SettingsStore
+import com.doey.agente.SettingsStore
 import kotlinx.coroutines.launch
+import com.doey.ui.core.*
+import com.doey.MainViewModel
 
 /**
  * MacrosScreen — Doey 23.4.9 Ultra (Tau Version)

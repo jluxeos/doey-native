@@ -46,15 +46,15 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.doey.DoeyApplication
-import com.doey.agent.ConversationPipeline
-import com.doey.agent.LocalIntentProcessor
-import com.doey.agent.ProfileStore
-import com.doey.agent.SettingsStore
+import com.doey.AplicacionDoey
+import com.doey.agente.ConversationPipeline
+import com.doey.agente.LocalIntentProcessor
+import com.doey.agente.ProfileStore
+import com.doey.agente.SettingsStore
 import android.net.Uri
-import com.doey.agent.SystemPromptBuilder
-import com.doey.agent.SkillLoader
-import com.doey.tools.*
+import com.doey.agente.SystemPromptBuilder
+import com.doey.agente.SkillLoader
+import com.doey.herramientas.comun.*
 import com.doey.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -173,7 +173,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
     private fun initPipeline() {
         serviceScope.launch(Dispatchers.IO) {
             try {
-                val app = DoeyApplication.instance
+                val app = AplicacionDoey.instance
                 val settings = SettingsStore(app)
                 
                 val provider = com.doey.llm.LLMProviderFactory.create(
@@ -385,7 +385,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
             try {
                 statusState.value = FriendlyStatus.LISTENING
                 if (speechRecognizer == null) speechRecognizer = DoeySpeechRecognizer(this@FriendlyModeService)
-                val settings = SettingsStore(DoeyApplication.instance)
+                val settings = SettingsStore(AplicacionDoey.instance)
                 val lang     = settings.getLanguage().let { l ->
                     if (l == "system") java.util.Locale.getDefault().toLanguageTag() else l
                 }

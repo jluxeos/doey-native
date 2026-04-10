@@ -1,7 +1,7 @@
 package com.doey.herramientas.comun
 
 import android.content.Context
-import com.doey.DoeyApplication
+import com.doey.AplicacionDoey
 import com.doey.services.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -12,7 +12,7 @@ import java.util.*
 
 class SchedulerTool : Tool {
 
-    private val ctx get() = DoeyApplication.instance
+    private val ctx get() = AplicacionDoey.instance
 
     override fun name() = "scheduler"
 
@@ -201,7 +201,7 @@ class SchedulerTool : Tool {
 
 class TimerTool : Tool {
 
-    private val ctx get() = DoeyApplication.instance
+    private val ctx get() = AplicacionDoey.instance
 
     override fun name() = "timer"
 

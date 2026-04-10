@@ -19,10 +19,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.doey.agent.SettingsStore
+import com.doey.agente.SettingsStore
 import com.doey.services.FriendlyModeService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.doey.ui.core.*
+import com.doey.MainViewModel
 
 @Composable
 fun FriendlySettingsScreen(vm: MainViewModel) {
