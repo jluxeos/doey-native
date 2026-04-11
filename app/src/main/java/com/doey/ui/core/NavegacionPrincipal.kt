@@ -1,5 +1,10 @@
 package com.doey.ui.core
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.*
+import androidx.compose.foundation.lazy.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import android.content.Intent
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*

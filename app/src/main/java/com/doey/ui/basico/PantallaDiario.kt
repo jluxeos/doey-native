@@ -1,5 +1,12 @@
 package com.doey.ui.basico
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.*
+import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import com.doey.ui.core.*
 import com.doey.MainViewModel
 import com.doey.ui.comun.ItemCard

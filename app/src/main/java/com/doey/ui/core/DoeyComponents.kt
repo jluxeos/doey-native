@@ -2,26 +2,31 @@
 package com.doey.ui.core
 
 // ── DOEY COMPONENTS — Foundation-only UI kit ─────────────────────────────────
-// Replaces every Material Design 3 component used in the project.
 // Zero dependency on androidx.compose.material3.
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -30,10 +35,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.draw.paint
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
@@ -55,6 +61,7 @@ fun Text(
     fontSize: TextUnit = TextUnit.Unspecified,
     fontWeight: FontWeight? = null,
     fontStyle: FontStyle? = null,
+    fontFamily: FontFamily? = null,
     letterSpacing: TextUnit = TextUnit.Unspecified,
     textDecoration: TextDecoration? = null,
     textAlign: TextAlign? = null,
@@ -65,16 +72,39 @@ fun Text(
     minLines: Int = 1,
     style: TextStyle = TextStyle.Default
 ) {
-    val base = if (style.fontFamily == null) style.copy(fontFamily = ProductSans) else style
-    val merged = base.merge(TextStyle(
-        color         = color,
-        fontSize      = fontSize,
-        fontWeight    = fontWeight,
-        fontStyle     = fontStyle,
-        letterSpacing = letterSpacing,
-        textDecoration = textDecoration,
-        textAlign     = textAlign,
-        lineHeight    = lineHeight,
+    val ff = fontFamily ?: style.fontFamily ?: ProductSans
+    val merged = style.copy(fontFamily = ff).merge(TextStyle(
+        color = color, fontSize = fontSize, fontWeight = fontWeight,
+        fontStyle = fontStyle, letterSpacing = letterSpacing,
+        textDecoration = textDecoration, textAlign = textAlign, lineHeight = lineHeight,
+    ))
+    BasicText(text, modifier, merged, overflow, softWrap, maxLines, minLines)
+}
+
+@Composable
+fun Text(
+    text: AnnotatedString,
+    modifier: Modifier = Modifier,
+    color: Color = Color.Unspecified,
+    fontSize: TextUnit = TextUnit.Unspecified,
+    fontWeight: FontWeight? = null,
+    fontStyle: FontStyle? = null,
+    fontFamily: FontFamily? = null,
+    letterSpacing: TextUnit = TextUnit.Unspecified,
+    textDecoration: TextDecoration? = null,
+    textAlign: TextAlign? = null,
+    lineHeight: TextUnit = TextUnit.Unspecified,
+    overflow: TextOverflow = TextOverflow.Clip,
+    softWrap: Boolean = true,
+    maxLines: Int = Int.MAX_VALUE,
+    minLines: Int = 1,
+    style: TextStyle = TextStyle.Default
+) {
+    val ff = fontFamily ?: style.fontFamily ?: ProductSans
+    val merged = style.copy(fontFamily = ff).merge(TextStyle(
+        color = color, fontSize = fontSize, fontWeight = fontWeight,
+        fontStyle = fontStyle, letterSpacing = letterSpacing,
+        textDecoration = textDecoration, textAlign = textAlign, lineHeight = lineHeight,
     ))
     BasicText(text, modifier, merged, overflow, softWrap, maxLines, minLines)
 }
@@ -90,11 +120,7 @@ fun Icon(
 ) {
     val painter = rememberVectorPainter(imageVector)
     val cf = if (tint != Color.Unspecified) ColorFilter.tint(tint) else null
-    Box(
-        modifier = modifier
-            .defaultMinSize(minWidth = 24.dp, minHeight = 24.dp)
-            .paint(painter, colorFilter = cf, contentScale = ContentScale.Fit)
-    )
+    Box(modifier.paint(painter, colorFilter = cf, contentScale = ContentScale.Fit))
 }
 
 // ── ICON BUTTON ───────────────────────────────────────────────────────────────
@@ -147,15 +173,10 @@ data class DoeyButtonColors(
 )
 
 object ButtonDefaults {
-    fun buttonColors(
-        containerColor: Color = TauAccent,
-        contentColor: Color = Color.White
-    ) = DoeyButtonColors(containerColor = containerColor, contentColor = contentColor)
-
-    fun outlinedButtonColors(
-        containerColor: Color = Color.Transparent,
-        contentColor: Color = TauAccent
-    ) = DoeyButtonColors(containerColor = containerColor, contentColor = contentColor)
+    fun buttonColors(containerColor: Color = TauAccent, contentColor: Color = Color.White) =
+        DoeyButtonColors(containerColor = containerColor, contentColor = contentColor)
+    fun outlinedButtonColors(containerColor: Color = Color.Transparent, contentColor: Color = TauAccent) =
+        DoeyButtonColors(containerColor = containerColor, contentColor = contentColor)
 }
 
 @Composable
@@ -167,11 +188,10 @@ fun Button(
     contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
     content: @Composable RowScope.() -> Unit
 ) {
-    val bg = if (enabled) colors.containerColor else colors.disabledContainerColor
     Row(
         modifier = modifier
             .clip(CircleShape)
-            .background(bg)
+            .background(if (enabled) colors.containerColor else colors.disabledContainerColor)
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically,
@@ -262,29 +282,17 @@ fun Switch(
     enabled: Boolean = true,
     colors: DoeySwitchColors = DoeySwitchColors()
 ) {
-    val trackColor by animateColorAsState(
-        if (checked) colors.checkedTrackColor else colors.uncheckedTrackColor, label = "track")
-    val thumbColor by animateColorAsState(
-        if (checked) colors.checkedThumbColor else colors.uncheckedThumbColor, label = "thumb")
-    val thumbOffset by animateFloatAsState(
-        if (checked) 24f else 2f, animationSpec = tween(150), label = "offset")
-
+    val trackColor by animateColorAsState(if (checked) colors.checkedTrackColor else colors.uncheckedTrackColor, label = "t")
+    val thumbColor by animateColorAsState(if (checked) colors.checkedThumbColor else colors.uncheckedThumbColor, label = "th")
+    val offset by animateFloatAsState(if (checked) 24f else 2f, tween(150), label = "o")
     Box(
-        modifier = modifier
-            .width(52.dp).height(28.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(trackColor)
+        modifier = modifier.width(52.dp).height(28.dp)
+            .clip(RoundedCornerShape(14.dp)).background(trackColor)
             .border(1.dp, colors.uncheckedBorderColor, RoundedCornerShape(14.dp))
             .then(if (enabled) Modifier.clickable { onCheckedChange(!checked) } else Modifier),
         contentAlignment = Alignment.CenterStart
     ) {
-        Box(
-            Modifier
-                .padding(start = thumbOffset.dp)
-                .size(24.dp)
-                .clip(CircleShape)
-                .background(thumbColor)
-        )
+        Box(Modifier.padding(start = offset.dp).size(24.dp).clip(CircleShape).background(thumbColor))
     }
 }
 
@@ -360,39 +368,39 @@ private fun BaseTextField(
     singleLine: Boolean,
     maxLines: Int,
     enabled: Boolean,
+    readOnly: Boolean,
     visualTransformation: VisualTransformation,
+    textStyle: TextStyle?,
     keyboardOptions: KeyboardOptions,
     keyboardActions: KeyboardActions,
     colors: DoeyTextFieldColors,
     shape: androidx.compose.ui.graphics.Shape
 ) {
     var focused by remember { mutableStateOf(false) }
-    val borderColor by animateColorAsState(
-        if (focused) colors.focusedBorderColor else colors.unfocusedBorderColor, label = "border")
-    val containerColor by animateColorAsState(
-        if (focused) colors.focusedContainerColor else colors.unfocusedContainerColor, label = "container")
+    val borderColor by animateColorAsState(if (focused) colors.focusedBorderColor else colors.unfocusedBorderColor, label = "b")
+    val containerColor by animateColorAsState(if (focused) colors.focusedContainerColor else colors.unfocusedContainerColor, label = "c")
     val textColor = if (focused) colors.focusedTextColor else colors.unfocusedTextColor
+    val resolvedStyle = textStyle ?: TextStyle(color = textColor, fontFamily = ProductSans, fontSize = 14.sp)
 
     Column(modifier) {
         if (label != null) Box(Modifier.padding(start = 4.dp, bottom = 4.dp)) { label() }
         BasicTextField(
-            value              = value,
-            onValueChange      = onValueChange,
-            modifier           = Modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .background(containerColor)
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth()
+                .clip(shape).background(containerColor)
                 .border(1.5.dp, borderColor, shape)
                 .onFocusChanged { focused = it.isFocused },
-            singleLine         = singleLine,
-            maxLines           = maxLines,
-            enabled            = enabled,
+            singleLine = singleLine,
+            maxLines = maxLines,
+            enabled = enabled,
+            readOnly = readOnly,
             visualTransformation = visualTransformation,
-            keyboardOptions    = keyboardOptions,
-            keyboardActions    = keyboardActions,
-            textStyle          = TextStyle(color = textColor, fontFamily = ProductSans, fontSize = 14.sp),
-            cursorBrush        = SolidColor(colors.cursorColor),
-            decorationBox      = { inner ->
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            textStyle = resolvedStyle,
+            cursorBrush = SolidColor(colors.cursorColor),
+            decorationBox = { inner ->
                 Row(
                     Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -421,13 +429,15 @@ fun TextField(
     singleLine: Boolean = false,
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     enabled: Boolean = true,
+    readOnly: Boolean = false,
+    textStyle: TextStyle? = null,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     colors: DoeyTextFieldColors = DoeyTextFieldColors(),
     shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(12.dp)
 ) = BaseTextField(value, onValueChange, modifier, placeholder, label, leadingIcon, trailingIcon,
-    singleLine, maxLines, enabled, visualTransformation, keyboardOptions, keyboardActions, colors, shape)
+    singleLine, maxLines, enabled, readOnly, visualTransformation, textStyle, keyboardOptions, keyboardActions, colors, shape)
 
 @Composable
 fun OutlinedTextField(
@@ -441,13 +451,15 @@ fun OutlinedTextField(
     singleLine: Boolean = false,
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     enabled: Boolean = true,
+    readOnly: Boolean = false,
+    textStyle: TextStyle? = null,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     colors: DoeyTextFieldColors = DoeyTextFieldColors(),
     shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(12.dp)
 ) = BaseTextField(value, onValueChange, modifier, placeholder, label, leadingIcon, trailingIcon,
-    singleLine, maxLines, enabled, visualTransformation, keyboardOptions, keyboardActions, colors, shape)
+    singleLine, maxLines, enabled, readOnly, visualTransformation, textStyle, keyboardOptions, keyboardActions, colors, shape)
 
 // ── SCAFFOLD ──────────────────────────────────────────────────────────────────
 
@@ -456,13 +468,17 @@ fun Scaffold(
     modifier: Modifier = Modifier,
     topBar: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
+    floatingActionButton: @Composable () -> Unit = {},
     containerColor: Color = TauBg,
     content: @Composable (PaddingValues) -> Unit
 ) {
-    Column(modifier.fillMaxSize().background(containerColor)) {
-        topBar()
-        Box(Modifier.weight(1f)) { content(PaddingValues(0.dp)) }
-        bottomBar()
+    Box(modifier.fillMaxSize().background(containerColor)) {
+        Column(Modifier.fillMaxSize()) {
+            topBar()
+            Box(Modifier.weight(1f)) { content(PaddingValues(0.dp)) }
+            bottomBar()
+        }
+        Box(Modifier.align(Alignment.BottomEnd).padding(16.dp)) { floatingActionButton() }
     }
 }
 
@@ -471,8 +487,7 @@ fun Scaffold(
 data class DoeyTopBarColors(val containerColor: Color = Color.Transparent)
 
 object TopAppBarDefaults {
-    fun topAppBarColors(containerColor: Color = Color.Transparent) =
-        DoeyTopBarColors(containerColor = containerColor)
+    fun topAppBarColors(containerColor: Color = Color.Transparent) = DoeyTopBarColors(containerColor)
 }
 
 @Composable
@@ -484,11 +499,7 @@ fun TopAppBar(
     colors: DoeyTopBarColors = DoeyTopBarColors()
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(colors.containerColor)
-            .height(56.dp)
-            .padding(horizontal = 4.dp),
+        modifier = modifier.fillMaxWidth().background(colors.containerColor).height(56.dp).padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         navigationIcon()
@@ -521,31 +532,19 @@ fun ModalNavigationDrawer(
     gesturesEnabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val offsetFraction by animateFloatAsState(
-        targetValue = if (drawerState.isOpen) 0f else -1f,
-        animationSpec = tween(300),
-        label = "drawer"
-    )
+    val offset by animateFloatAsState(if (drawerState.isOpen) 0f else -1f, tween(300), label = "d")
     val scope = rememberCoroutineScope()
-
     Box(modifier.fillMaxSize()) {
         content()
         if (drawerState.isOpen) {
             Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.4f))
+                Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f))
                     .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
                         scope.launch { drawerState.close() }
                     }
             )
         }
-        Box(
-            Modifier
-                .fillMaxHeight()
-                .width(300.dp)
-                .offset(x = (300 * offsetFraction).dp)
-        ) { drawerContent() }
+        Box(Modifier.fillMaxHeight().width(300.dp).offset(x = (300 * offset).dp)) { drawerContent() }
     }
 }
 
@@ -556,11 +555,7 @@ fun ModalDrawerSheet(
     drawerContentColor: Color = TauText1,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxHeight()
-            .background(drawerContainerColor)
-    ) { content() }
+    Column(modifier.fillMaxHeight().background(drawerContainerColor)) { content() }
 }
 
 // ── ALERT DIALOG ──────────────────────────────────────────────────────────────
@@ -577,21 +572,13 @@ fun AlertDialog(
     properties: DialogProperties = DialogProperties()
 ) {
     Dialog(onDismissRequest = onDismissRequest, properties = properties) {
-        Box(
-            modifier = modifier
-                .shadow(8.dp, RoundedCornerShape(24.dp))
-                .clip(RoundedCornerShape(24.dp))
-                .background(containerColor)
-                .padding(24.dp)
-        ) {
+        Box(modifier.shadow(8.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp))
+            .background(containerColor).padding(24.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (title != null) title()
                 if (text  != null) text()
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically) {
                     if (dismissButton != null) dismissButton()
                     Spacer(Modifier.width(8.dp))
                     confirmButton()
@@ -628,25 +615,16 @@ fun RowScope.Tab(
     icon: @Composable (() -> Unit)? = null
 ) {
     Column(
-        modifier = modifier
-            .weight(1f)
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
+        modifier = modifier.weight(1f).clickable(onClick = onClick).padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (icon != null) icon()
         if (text != null) text()
-        Box(
-            Modifier
-                .padding(top = 4.dp)
-                .fillMaxWidth()
-                .height(2.dp)
-                .background(if (selected) TauAccent else Color.Transparent)
-        )
+        Box(Modifier.padding(top = 4.dp).fillMaxWidth().height(2.dp)
+            .background(if (selected) TauAccent else Color.Transparent))
     }
 }
 
-// Stand-alone Tab for non-RowScope usage
 @Composable
 fun Tab(
     selected: Boolean,
@@ -656,20 +634,13 @@ fun Tab(
     icon: @Composable (() -> Unit)? = null
 ) {
     Column(
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier = modifier.clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (icon != null) icon()
         if (text != null) text()
-        Box(
-            Modifier
-                .padding(top = 4.dp)
-                .fillMaxWidth()
-                .height(2.dp)
-                .background(if (selected) TauAccent else Color.Transparent)
-        )
+        Box(Modifier.padding(top = 4.dp).fillMaxWidth().height(2.dp)
+            .background(if (selected) TauAccent else Color.Transparent))
     }
 }
 
@@ -679,14 +650,24 @@ data class DoeyChipColors(
     val containerColor: Color = TauSurface1,
     val selectedContainerColor: Color = TauAccent.copy(alpha = 0.15f),
     val borderColor: Color = TauSurface3,
-    val selectedBorderColor: Color = TauAccent.copy(alpha = 0.4f)
+    val selectedBorderColor: Color = TauAccent.copy(alpha = 0.4f),
+    val labelColor: Color = TauText1,
+    val selectedLabelColor: Color = TauAccent,
+    val leadingIconColor: Color = TauText2,
+    val selectedLeadingIconColor: Color = TauAccent
 )
 
 object FilterChipDefaults {
     fun filterChipColors(
         containerColor: Color = TauSurface1,
-        selectedContainerColor: Color = TauAccent.copy(alpha = 0.15f)
-    ) = DoeyChipColors(containerColor = containerColor, selectedContainerColor = selectedContainerColor)
+        selectedContainerColor: Color = TauAccent.copy(alpha = 0.15f),
+        labelColor: Color = TauText1,
+        selectedLabelColor: Color = TauAccent,
+        leadingIconColor: Color = TauText2,
+        selectedLeadingIconColor: Color = TauAccent
+    ) = DoeyChipColors(containerColor, selectedContainerColor,
+        TauSurface3, TauAccent.copy(alpha = 0.4f),
+        labelColor, selectedLabelColor, leadingIconColor, selectedLeadingIconColor)
 
     fun filterChipBorder(
         borderColor: Color = TauSurface3,
@@ -712,12 +693,9 @@ fun FilterChip(
     val bg = if (selected) colors.selectedContainerColor else colors.containerColor
     val bStroke = border ?: BorderStroke(1.dp, if (selected) colors.selectedBorderColor else colors.borderColor)
     Row(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(bg)
+        modifier = modifier.clip(CircleShape).background(bg)
             .border(bStroke.width, bStroke.brush, CircleShape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -729,11 +707,8 @@ fun FilterChip(
 // ── DIVIDER ───────────────────────────────────────────────────────────────────
 
 @Composable
-fun HorizontalDivider(
-    modifier: Modifier = Modifier,
-    thickness: Dp = 1.dp,
-    color: Color = TauSurface3
-) = Box(modifier.fillMaxWidth().height(thickness).background(color))
+fun HorizontalDivider(modifier: Modifier = Modifier, thickness: Dp = 1.dp, color: Color = TauSurface3) =
+    Box(modifier.fillMaxWidth().height(thickness).background(color))
 
 @Composable
 fun Divider(modifier: Modifier = Modifier, thickness: Dp = 1.dp, color: Color = TauSurface3) =
@@ -749,11 +724,7 @@ fun Badge(
     content: @Composable (() -> Unit)? = null
 ) {
     Box(
-        modifier = modifier
-            .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
-            .clip(CircleShape)
-            .background(containerColor)
-            .padding(horizontal = 4.dp),
+        modifier = modifier.defaultMinSize(16.dp, 16.dp).clip(CircleShape).background(containerColor).padding(horizontal = 4.dp),
         contentAlignment = Alignment.Center
     ) { content?.invoke() }
 }
@@ -767,11 +738,8 @@ data class DoeySliderColors(
 )
 
 object SliderDefaults {
-    fun colors(
-        thumbColor: Color = TauAccent,
-        activeTrackColor: Color = TauAccent,
-        inactiveTrackColor: Color = TauSurface3
-    ) = DoeySliderColors(thumbColor, activeTrackColor, inactiveTrackColor)
+    fun colors(thumbColor: Color = TauAccent, activeTrackColor: Color = TauAccent, inactiveTrackColor: Color = TauSurface3) =
+        DoeySliderColors(thumbColor, activeTrackColor, inactiveTrackColor)
 }
 
 @Composable
@@ -786,25 +754,13 @@ fun Slider(
     onValueChangeFinished: (() -> Unit)? = null
 ) {
     val fraction = ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
-
-    BoxWithConstraints(
-        modifier = modifier.fillMaxWidth().height(40.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        val density = LocalDensity.current
-        val trackWidthPx = with(density) { maxWidth.toPx() }
-
+    BoxWithConstraints(modifier.fillMaxWidth().height(40.dp), contentAlignment = Alignment.Center) {
+        val trackWidthPx = with(LocalDensity.current) { maxWidth.toPx() }
         Box(
-            Modifier
-                .fillMaxWidth()
-                .height(4.dp)
-                .align(Alignment.Center)
-                .clip(RoundedCornerShape(2.dp))
-                .background(colors.inactiveTrackColor)
+            Modifier.fillMaxWidth().height(4.dp).align(Alignment.Center)
+                .clip(RoundedCornerShape(2.dp)).background(colors.inactiveTrackColor)
                 .then(if (enabled) Modifier.pointerInput(valueRange) {
-                    detectHorizontalDragGestures(
-                        onDragEnd = { onValueChangeFinished?.invoke() }
-                    ) { change, _ ->
+                    detectHorizontalDragGestures(onDragEnd = { onValueChangeFinished?.invoke() }) { change, _ ->
                         val f = (change.position.x / trackWidthPx).coerceIn(0f, 1f)
                         onValueChange(valueRange.start + f * (valueRange.endInclusive - valueRange.start))
                     }
@@ -813,13 +769,8 @@ fun Slider(
             Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(colors.activeTrackColor))
         }
         Box(
-            Modifier
-                .align(Alignment.CenterStart)
-                .offset(x = (fraction * maxWidth.value - 10).dp)
-                .size(20.dp)
-                .shadow(2.dp, CircleShape)
-                .clip(CircleShape)
-                .background(colors.thumbColor)
+            Modifier.align(Alignment.CenterStart).offset(x = (fraction * maxWidth.value - 10).dp)
+                .size(20.dp).shadow(2.dp, CircleShape).clip(CircleShape).background(colors.thumbColor)
         )
     }
 }
@@ -841,8 +792,62 @@ object CardDefaults {
     fun cardColors(containerColor: Color = TauSurface1) = containerColor
 }
 
+// ── EXPOSED DROPDOWN MENU ─────────────────────────────────────────────────────
+
+@Composable
+fun ExposedDropdownMenuBox(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(modifier.clickable { onExpandedChange(!expanded) }) { content() }
+}
+
+object ExposedDropdownMenuDefaults {
+    fun menuAnchor(): Modifier = Modifier
+    @Composable
+    fun TrailingIcon(expanded: Boolean) {
+        Icon(
+            imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+            contentDescription = null, tint = TauText2
+        )
+    }
+}
+
+@Composable
+fun ExposedDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    if (expanded) {
+        Box(modifier.shadow(8.dp, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(TauSurface1)) {
+            Column { content() }
+        }
+    }
+}
+
+@Composable
+fun DropdownMenuItem(
+    text: @Composable () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    leadingIcon: @Composable (() -> Unit)? = null
+) {
+    Row(
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (leadingIcon != null) { leadingIcon(); Spacer(Modifier.width(12.dp)) }
+        text()
+    }
+}
+
+fun Modifier.menuAnchor(): Modifier = this
+
 // ── NO-OP ANNOTATION ─────────────────────────────────────────────────────────
 
 @RequiresOptIn(message = "Doey experimental API")
 annotation class ExperimentalMaterial3Api
-

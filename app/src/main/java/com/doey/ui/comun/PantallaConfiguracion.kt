@@ -1,5 +1,8 @@
 package com.doey.ui.comun
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.*
+import androidx.compose.foundation.lazy.*
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
