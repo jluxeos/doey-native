@@ -882,7 +882,8 @@ class AlarmTool : Tool {
         val type = args["type"] as? String ?: return errorResult("type required")
         val title = args["title"] as? String ?: "Alarma"
         val desc = args["description"] as? String ?: ""
-        val alarmId = (System.currentTimeMillis() % 100000).toInt()
+        // ID estable basado en hora+título para evitar duplicados y colisiones
+        val alarmId = (title.hashCode() xor (System.currentTimeMillis() / 1000).toInt()) and 0x7FFFFFFF
 
         return try {
             when (type) {
@@ -903,16 +904,6 @@ class AlarmTool : Tool {
                         put("recurring", recurring)
                     })
                     prefs.edit().putString("alarms", alarms.toString()).apply()
-
-                    try {
-                        val intent = Intent("android.intent.action.SET_ALARM").apply {
-                            putExtra("android.intent.extra.alarm.HOUR", hour)
-                            putExtra("android.intent.extra.alarm.MINUTES", minute)
-                            putExtra("android.intent.extra.alarm.MESSAGE", title)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        ctx.startActivity(intent)
-                    } catch (e: Exception) {}
                     
                     successResult("Alarma programada para las ${String.format("%02d:%02d", hour, minute)}${if (recurring) " diariamente" else ""}")
                 }
