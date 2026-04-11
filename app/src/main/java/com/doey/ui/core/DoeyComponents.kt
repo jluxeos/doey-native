@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.paint
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
@@ -214,7 +215,7 @@ fun Button(
         modifier = modifier
             .shadow(if (enabled) 4.dp else 0.dp, shape)
             .clip(shape)
-            .background(gradient)
+            .background(brush = gradient)
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically,
