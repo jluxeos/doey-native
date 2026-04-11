@@ -35,6 +35,8 @@ import com.doey.MainViewModel
 import com.doey.agente.FlowModeEngine
 import com.doey.agente.FlowNode
 import com.doey.agente.FlowOption
+import com.doey.servicios.basico.FriendlyModeService
+import android.content.Intent
 
 
 @Composable
@@ -247,6 +249,23 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                                 fontSize = 18.sp,
                                 color = if (flowExpanded) TauText3 else TauAccent
                             )
+                        }
+
+                        // Botón 🌿 Modo Friendly
+                        IconButton(
+                            onClick = {
+                                val intent = Intent(ctx, FriendlyModeService::class.java).apply {
+                                    action = FriendlyModeService.ACTION_SHOW
+                                    putExtra(FriendlyModeService.EXTRA_CONTEXT_APP, "Inicio")
+                                }
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                    ctx.startForegroundService(intent)
+                                } else {
+                                    ctx.startService(intent)
+                                }
+                            }
+                        ) {
+                            Text("🌿", fontSize = 18.sp)
                         }
 
                         TextField(
