@@ -76,7 +76,7 @@ fun Text(
     val merged = style.copy(fontFamily = ff).merge(TextStyle(
         color = color, fontSize = fontSize, fontWeight = fontWeight,
         fontStyle = fontStyle, letterSpacing = letterSpacing,
-        textDecoration = textDecoration, textAlign = textAlign, lineHeight = lineHeight,
+        textDecoration = textDecoration, textAlign = textAlign ?: TextAlign.Unspecified, lineHeight = lineHeight,
     ))
     BasicText(text, modifier, merged, overflow, softWrap, maxLines, minLines)
 }
@@ -104,7 +104,7 @@ fun Text(
     val merged = style.copy(fontFamily = ff).merge(TextStyle(
         color = color, fontSize = fontSize, fontWeight = fontWeight,
         fontStyle = fontStyle, letterSpacing = letterSpacing,
-        textDecoration = textDecoration, textAlign = textAlign, lineHeight = lineHeight,
+        textDecoration = textDecoration, textAlign = textAlign ?: TextAlign.Unspecified, lineHeight = lineHeight,
     ))
     BasicText(text, modifier, merged, overflow, softWrap, maxLines, minLines)
 }
@@ -185,12 +185,13 @@ fun Button(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     colors: DoeyButtonColors = DoeyButtonColors(),
+    shape: androidx.compose.ui.graphics.Shape = CircleShape,
     contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
     content: @Composable RowScope.() -> Unit
 ) {
     Row(
         modifier = modifier
-            .clip(CircleShape)
+            .clip(shape)
             .background(if (enabled) colors.containerColor else colors.disabledContainerColor)
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(contentPadding),
@@ -205,13 +206,16 @@ fun OutlinedButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     colors: DoeyButtonColors = DoeyButtonColors(containerColor = Color.Transparent, contentColor = TauAccent),
+    shape: androidx.compose.ui.graphics.Shape = CircleShape,
+    border: BorderStroke? = null,
     content: @Composable RowScope.() -> Unit
 ) {
+    val effectiveBorder = border ?: BorderStroke(1.5.dp, colors.contentColor.copy(alpha = if (enabled) 0.5f else 0.2f))
     Row(
         modifier = modifier
-            .clip(CircleShape)
+            .clip(shape)
             .background(colors.containerColor)
-            .border(1.5.dp, colors.contentColor.copy(alpha = if (enabled) 0.5f else 0.2f), CircleShape)
+            .border(effectiveBorder.width, effectiveBorder.brush, shape)
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 24.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
