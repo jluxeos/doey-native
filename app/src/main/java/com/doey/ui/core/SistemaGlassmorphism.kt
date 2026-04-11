@@ -129,37 +129,16 @@ fun updateGlassTheme(themeName: String) {
 
 @Composable
 fun GlassBackground(accentColor: Color = TauAccent) {
-    Box(Modifier.fillMaxSize().background(TauBg)) {
-
-        // Orb 1 — Azul arriba-izquierda (principal)
-        Box(
-            Modifier
-                .size(420.dp)
-                .offset(x = (-80).dp, y = (-120).dp)
-                .blur(60.dp)
-                .background(accentColor.copy(alpha = 0.18f), CircleShape)
-        )
-
-        // Orb 2 — Verde abajo-derecha
-        Box(
-            Modifier
-                .size(320.dp)
-                .align(Alignment.BottomEnd)
-                .offset(x = 60.dp, y = 80.dp)
-                .blur(60.dp)
-                .background(GlassThemes.AuroraGreen.copy(alpha = 0.12f), CircleShape)
-        )
-
-        // Orb 3 — Púrpura centro-derecha (sutil)
-        Box(
-            Modifier
-                .size(250.dp)
-                .align(Alignment.CenterEnd)
-                .offset(x = 80.dp, y = (-40).dp)
-                .blur(60.dp)
-                .background(GlassThemes.NebulaPurple.copy(alpha = 0.09f), CircleShape)
-        )
-    }
+    // Gradiente diagonal: color del tema en esquinas (sup-izq e inf-der), blanco en el centro
+    val diagonalGradient = Brush.linearGradient(
+        0.0f to accentColor.copy(alpha = 0.15f),
+        0.5f to Color.White,
+        1.0f to accentColor.copy(alpha = 0.15f),
+        start = androidx.compose.ui.geometry.Offset(0f, 0f),
+        end = androidx.compose.ui.geometry.Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+    )
+    
+    Box(Modifier.fillMaxSize().background(diagonalGradient))
 }
 
 // ── GLASS CARD — IMPLEMENTACIÓN DE CAPAS ─────────────────────────────────────
@@ -172,8 +151,8 @@ fun GlassBackground(accentColor: Color = TauAccent) {
 fun GlassCard(
     modifier: Modifier = Modifier,
     radius: Int = 24,
-    opacity: Float = GlassOpacity,
-    blur: Float = GlassBlur,
+    opacity: Float = 0.70f, // Un poco más opaco para mejor legibilidad
+    blur: Float = 25f,      // Un poco más de blur para suavizar el fondo
     content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(radius.dp)
@@ -181,30 +160,33 @@ fun GlassCard(
     Box(
         modifier = modifier
             .shadow(
-                elevation     = 8.dp,
+                elevation     = 12.dp,
                 shape         = shape,
-                spotColor     = Color(0x14000000),   // rgba(0,0,0,0.08)
-                ambientColor  = Color(0x14000000)
+                spotColor     = Color(0x1A000000),   // rgba(0,0,0,0.10)
+                ambientColor  = Color(0x1A000000)
             )
             .clip(shape)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = opacity),
+                        Color.White.copy(alpha = opacity * 0.8f)
+                    )
+                )
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.9f),
+                        Color.White.copy(alpha = 0.3f)
+                    )
+                ),
+                shape = shape
+            )
     ) {
-        // Capa de fondo: rgba(255,255,255,0.55) + blur simulado
-        Box(
-            Modifier
-                .matchParentSize()
-                .blur(blur.dp)
-                .background(Color.White.copy(alpha = opacity))
-        )
-
-        // Borde de luz: rgba(255,255,255,0.85) 1.5dp
-        Box(
-            Modifier
-                .matchParentSize()
-                .border(1.5.dp, Color(0xD9FFFFFF), shape)
-        )
-
         // Contenido (encima, sin blur)
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(20.dp)) { // Más padding para airear el diseño
             content()
         }
     }

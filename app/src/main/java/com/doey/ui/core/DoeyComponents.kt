@@ -205,10 +205,16 @@ fun Button(
     contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
     content: @Composable RowScope.() -> Unit
 ) {
+    val containerColor = if (enabled) colors.containerColor else colors.disabledContainerColor
+    val gradient = Brush.verticalGradient(
+        colors = listOf(containerColor, containerColor.copy(alpha = 0.9f))
+    )
+    
     Row(
         modifier = modifier
+            .shadow(if (enabled) 4.dp else 0.dp, shape)
             .clip(shape)
-            .background(if (enabled) colors.containerColor else colors.disabledContainerColor)
+            .background(gradient)
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically,
@@ -328,8 +334,8 @@ data class DoeyTextFieldColors(
     val cursorColor: Color = TauAccent,
     val focusedPlaceholderColor: Color = TauText3,
     val unfocusedPlaceholderColor: Color = TauText3,
-    val focusedContainerColor: Color = Color(0x8CFFFFFF),
-    val unfocusedContainerColor: Color = Color(0x8CFFFFFF),
+    val focusedContainerColor: Color = Color(0xB3FFFFFF), // 70% opacidad
+    val unfocusedContainerColor: Color = Color(0x8CFFFFFF), // 55% opacidad
     val focusedIndicatorColor: Color = Color.Transparent,
     val unfocusedIndicatorColor: Color = Color.Transparent
 )
@@ -490,9 +496,16 @@ fun Scaffold(
     bottomBar: @Composable () -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
     containerColor: Color = TauBg,
+    useGlassBackground: Boolean = true,
     content: @Composable (PaddingValues) -> Unit
 ) {
-    Box(modifier.fillMaxSize().background(containerColor)) {
+    Box(modifier.fillMaxSize()) {
+        if (useGlassBackground) {
+            GlassBackground()
+        } else {
+            Box(Modifier.fillMaxSize().background(containerColor))
+        }
+        
         Column(Modifier.fillMaxSize()) {
             topBar()
             Box(Modifier.weight(1f)) { content(PaddingValues(0.dp)) }
