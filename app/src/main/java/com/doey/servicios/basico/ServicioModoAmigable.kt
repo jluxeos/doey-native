@@ -24,7 +24,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +55,7 @@ import com.doey.agente.SystemPromptBuilder
 import com.doey.agente.SkillLoader
 import com.doey.herramientas.comun.*
 import com.doey.ui.MainActivity
+import com.doey.ui.core.*
 import com.doey.servicios.comun.DoeySpeechRecognizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -519,7 +519,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
 
 // ── Composable: Barra Friendly ─────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 private fun FriendlyBar(
     status: FriendlyModeService.FriendlyStatus,
@@ -561,7 +561,7 @@ private fun FriendlyBar(
     val isAnimating = status == FriendlyModeService.FriendlyStatus.PROCESSING ||
             status == FriendlyModeService.FriendlyStatus.ACTING
 
-    MaterialTheme {
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -872,5 +872,4 @@ private fun FriendlyBar(
                 }
             }
         }
-    }
 }

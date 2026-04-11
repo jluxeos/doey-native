@@ -14,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +32,7 @@ import kotlinx.coroutines.launch
 import com.doey.ui.core.*
 import com.doey.MainViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun ProfileScreen(vm: MainViewModel) {
     val ctx          = LocalContext.current

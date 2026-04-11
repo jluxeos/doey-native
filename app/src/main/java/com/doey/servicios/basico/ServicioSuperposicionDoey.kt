@@ -26,7 +26,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +49,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.doey.ui.MainActivity
+import com.doey.ui.core.*
 
 /**
  * Servicio de overlay flotante para Doey.
@@ -176,8 +176,7 @@ class DoeyOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
             setViewTreeLifecycleOwner(this@DoeyOverlayService)
             setViewTreeSavedStateRegistryOwner(this@DoeyOverlayService)
             setContent {
-                MaterialTheme {
-                    // FIX BUG-2: AnimatedVisibility controla la burbuja sin destruir el servicio
+                // FIX BUG-2: AnimatedVisibility controla la burbuja sin destruir el servicio
                     AnimatedVisibility(
                         visible = isBubbleVisible.value,
                         enter   = scaleIn() + fadeIn(),
@@ -200,7 +199,6 @@ class DoeyOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
                             onDismiss  = { dismissOverlay() }
                         )
                     }
-                }
             }
         }
 

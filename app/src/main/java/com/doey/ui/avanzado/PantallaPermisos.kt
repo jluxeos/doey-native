@@ -8,7 +8,6 @@ import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,7 +23,7 @@ import com.doey.ui.comun.ItemCard
 import com.doey.servicios.basico.DoeyAccessibilityService
 import com.doey.servicios.basico.NotificationAccessManager
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun PermissionsScreen() {
     val ctx = LocalContext.current

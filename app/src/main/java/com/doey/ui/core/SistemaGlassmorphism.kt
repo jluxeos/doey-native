@@ -8,7 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,25 +83,25 @@ val ProductSans = FontFamily(
 // Alias para compatibilidad con código existente
 val Poppins = ProductSans
 
-val DoeyTypography = Typography(
+object DoeyTypography {
     // Títulos — Bold
-    displayLarge  = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 57.sp, color = Color(0xFF1A1A1A)),
-    displayMedium = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 45.sp, color = Color(0xFF1A1A1A)),
-    displaySmall  = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 36.sp, color = Color(0xFF1A1A1A)),
-    headlineLarge = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 32.sp, color = Color(0xFF1A1A1A)),
-    headlineMedium= TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 28.sp, color = Color(0xFF1A1A1A)),
-    headlineSmall = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 24.sp, color = Color(0xFF1A1A1A)),
-    titleLarge    = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 22.sp, color = Color(0xFF1A1A1A)),
-    titleMedium   = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 16.sp, color = Color(0xFF1A1A1A)),
-    titleSmall    = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 14.sp, color = Color(0xFF1A1A1A)),
+    val displayLarge   = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 57.sp, color = Color(0xFF1A1A1A))
+    val displayMedium  = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 45.sp, color = Color(0xFF1A1A1A))
+    val displaySmall   = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 36.sp, color = Color(0xFF1A1A1A))
+    val headlineLarge  = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 32.sp, color = Color(0xFF1A1A1A))
+    val headlineMedium = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 28.sp, color = Color(0xFF1A1A1A))
+    val headlineSmall  = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 24.sp, color = Color(0xFF1A1A1A))
+    val titleLarge     = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 22.sp, color = Color(0xFF1A1A1A))
+    val titleMedium    = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 16.sp, color = Color(0xFF1A1A1A))
+    val titleSmall     = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 14.sp, color = Color(0xFF1A1A1A))
     // Cuerpo — Regular
-    bodyLarge     = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Normal, fontSize = 16.sp, color = Color(0xFF1A1A1A)),
-    bodyMedium    = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Normal, fontSize = 14.sp, color = Color(0xFF1A1A1A)),
-    bodySmall     = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Normal, fontSize = 12.sp, color = Color(0xFF1A1A1A)),
-    labelLarge    = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 14.sp, color = Color(0xFF1A1A1A)),
-    labelMedium   = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Normal, fontSize = 12.sp, color = Color(0xFF1A1A1A)),
-    labelSmall    = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Normal, fontSize = 11.sp, color = Color(0xFF1A1A1A)),
-)
+    val bodyLarge      = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Normal, fontSize = 16.sp, color = Color(0xFF1A1A1A))
+    val bodyMedium     = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Normal, fontSize = 14.sp, color = Color(0xFF1A1A1A))
+    val bodySmall      = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Normal, fontSize = 12.sp, color = Color(0xFF1A1A1A))
+    val labelLarge     = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Bold,   fontSize = 14.sp, color = Color(0xFF1A1A1A))
+    val labelMedium    = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Normal, fontSize = 12.sp, color = Color(0xFF1A1A1A))
+    val labelSmall     = TextStyle(fontFamily = ProductSans, fontWeight = FontWeight.Normal, fontSize = 11.sp, color = Color(0xFF1A1A1A))
+}
 
 // ── FUNCIÓN DE TEMA ───────────────────────────────────────────────────────────
 
@@ -266,7 +266,7 @@ fun GlassOutlineButton(
 
 // ── TEXT FIELD ────────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun DoeyTextField(
     value: String,
@@ -280,7 +280,7 @@ fun DoeyTextField(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             label,
-            style    = MaterialTheme.typography.labelMedium,
+            style    = DoeyTypography.labelMedium,
             color    = TauText2,
             modifier = Modifier.padding(start = 4.dp)
         )
@@ -288,7 +288,7 @@ fun DoeyTextField(
             value           = value,
             onValueChange   = onValueChange,
             placeholder     = {
-                Text(placeholder, style = MaterialTheme.typography.bodyMedium, color = TauText3)
+                Text(placeholder, style = DoeyTypography.bodyMedium, color = TauText3)
             },
             modifier        = Modifier
                 .fillMaxWidth()
@@ -326,7 +326,7 @@ fun TauSettingsSection(
             Spacer(Modifier.width(8.dp))
             Text(
                 title.uppercase(),
-                style         = MaterialTheme.typography.labelSmall,
+                style         = DoeyTypography.labelSmall,
                 color         = TauText2,
                 letterSpacing = 1.5.sp
             )
@@ -369,8 +369,8 @@ fun TauSwitchRow(
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(title,    style = MaterialTheme.typography.bodyMedium,  color = TauText1)
-            Text(subtitle, style = MaterialTheme.typography.labelSmall,  color = TauText3)
+            Text(title,    style = DoeyTypography.bodyMedium,  color = TauText1)
+            Text(subtitle, style = DoeyTypography.labelSmall,  color = TauText3)
         }
         Switch(
             checked         = checked,
@@ -422,8 +422,8 @@ fun DrawerItem(
         Text(
             label,
             color = if (isSelected) TauAccent else TauText1,
-            style = if (isSelected) MaterialTheme.typography.titleMedium
-                    else MaterialTheme.typography.bodyLarge
+            style = if (isSelected) DoeyTypography.titleMedium
+                    else DoeyTypography.bodyLarge
         )
     }
 }
@@ -432,7 +432,7 @@ fun DrawerItem(
 fun DrawerSectionHeader(title: String) {
     Text(
         text          = title.uppercase(),
-        style         = MaterialTheme.typography.labelSmall,
+        style         = DoeyTypography.labelSmall,
         color         = TauText3,
         modifier      = Modifier.padding(horizontal = 28.dp, vertical = 12.dp),
         letterSpacing = 1.5.sp

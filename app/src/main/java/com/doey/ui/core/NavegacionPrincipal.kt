@@ -11,19 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.DrawerState
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ExperimentalMaterial3Api
-import com.doey.ui.core.DoeyTypography
 import com.doey.ui.core.TauAccent
 import com.doey.ui.core.TauAccentGlow
 import com.doey.ui.core.TauBg
@@ -110,7 +97,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Cronometro       : Screen("cronometro",       "Cronómetro",     CustomIcons.Clock)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun DoeyApp() {
     val vm  = viewModel<MainViewModel>()
@@ -235,11 +222,11 @@ fun DoeyApp() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 private fun DoeyTopBar(vm: MainViewModel, nav: NavController, onMenuClick: () -> Unit) {
     TopAppBar(
-        title = { Text("Doey AI", style = MaterialTheme.typography.titleLarge, color = TauText1) },
+        title = { Text("Doey AI", style = DoeyTypography.titleLarge, color = TauText1) },
         navigationIcon = {
             IconButton(onClick = onMenuClick) {
                                 Icon(CustomIcons.Menu, "Menú", tint = TauText1)

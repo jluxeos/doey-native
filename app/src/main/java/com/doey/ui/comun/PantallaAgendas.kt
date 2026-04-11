@@ -15,8 +15,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +31,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun SchedulesScreen(vm: MainViewModel) {
     val ctx = LocalContext.current
@@ -66,12 +64,7 @@ fun SchedulesScreen(vm: MainViewModel) {
             selectedTabIndex = selectedTab,
             containerColor   = TauSurface1,
             contentColor     = TauAccent,
-            indicator        = { tabPositions ->
-                TabRowDefaults.SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                    color = TauAccent
-                )
-            }
+            indicator        = {}
         ) {
             Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Alarmas",  fontSize = 12.sp) })
             Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Timers",   fontSize = 12.sp) })

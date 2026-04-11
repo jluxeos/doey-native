@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
@@ -30,7 +29,7 @@ import com.doey.agente.LogEntry
 import com.doey.agente.LogType
 import com.doey.ui.core.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun LogScreen() {
     val entries by DoeyLogger.entries.collectAsState()

@@ -5,7 +5,6 @@ package com.doey.ui.avanzado
 // Este archivo se mantiene vacío para no romper la ruta en DoeyApp.kt.
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -13,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.doey.MainViewModel
+import com.doey.ui.core.*
 import com.doey.ui.core.PurpleDark
 import com.doey.ui.core.Label2Light
 
