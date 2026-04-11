@@ -395,88 +395,16 @@ class GeminiProvider(
     } catch (_: Exception) { "Gemini Error HTTP $code" }
 }
 
-// ── Pollinations (GRATIS, sin API key) ────────────────────────────────────────
-
-class PollinationsProvider(
-    private val model: String = "openai"
-) : LLMProvider {
-
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
-    private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
-    private val BASE_URL   = "https://text.pollinations.ai/openai"
-
-    override fun getCurrentModel() = model
-
-    override suspend fun testConnection(): Pair<Boolean, String?> = withContext(Dispatchers.IO) {
-        try {
-            val body = JSONObject().apply {
-                put("model", model)
-                put("messages", JSONArray().put(JSONObject().apply {
-                    put("role", "user"); put("content", "hola")
-                }))
-                put("max_tokens", 5)
-            }
-            val resp = client.newCall(buildRequest(body)).execute()
-            val ok   = resp.isSuccessful
-            val err  = if (!ok) "Pollinations Error ${resp.code}" else null
-            resp.close()
-            Pair(ok, err)
-        } catch (e: Exception) { Pair(false, e.message) }
-    }
-
-    override suspend fun chat(
-        messages: List<Message>,
-        tools: List<ToolDefinition>,
-        options: LLMOptions
-    ): LLMResponse = withContext(Dispatchers.IO) {
-        val body = JSONObject().apply {
-            put("model", model)
-            put("messages", JSONArray().apply {
-                messages.forEach { msg ->
-                    put(JSONObject().apply {
-                        put("role", msg.role)
-                        put("content", msg.content)
-                    })
-                }
-            })
-            put("max_tokens", options.maxTokens)
-            put("temperature", options.temperature)
-        }
-        val resp = client.newCall(buildRequest(body)).execute()
-        val rb   = resp.body?.string() ?: throw Exception("Cuerpo vacío")
-        if (!resp.isSuccessful) throw Exception("Pollinations Error ${resp.code}: $rb")
-        val json    = JSONObject(rb)
-        val choice  = json.getJSONArray("choices").getJSONObject(0)
-        val content = choice.getJSONObject("message").optString("content", "")
-        LLMResponse(content, emptyList(), "stop")
-    }
-
-    private fun buildRequest(body: JSONObject) =
-        Request.Builder()
-            .url(BASE_URL)
-            .addHeader("Content-Type", "application/json")
-            .addHeader("Accept", "application/json")
-            .post(body.toString().toRequestBody(JSON_MEDIA))
-            .build()
-}
-
 // ── Factory ────────────────────────────────────────────────────────────────────
 
 object LLMProviderFactory {
     fun create(provider: String, apiKey: String, model: String, customUrl: String = ""): LLMProvider =
         when (provider) {
-            "gemini"       -> GeminiProvider(apiKey, model.ifBlank { "gemini-2.5-flash" })
-            "groq"         -> OpenAIProvider(apiKey, model.ifBlank { "llama-3.3-70b-versatile" },
-                                             "https://api.groq.com/openai/v1/chat/completions")
-            "openrouter"   -> OpenAIProvider(apiKey, model.ifBlank { "openrouter/free" },
-                                             "https://openrouter.ai/api/v1/chat/completions")
-            "pollinations" -> PollinationsProvider(model.ifBlank { "openai" })
-            "custom"       -> OpenAIProvider(apiKey, model,
-                                             customUrl.ifBlank { "https://api.openai.com/v1/chat/completions" })
-            else           -> GeminiProvider(apiKey, model.ifBlank { "gemini-2.5-flash" })
+            "gemini"     -> GeminiProvider(apiKey, model.ifBlank { "gemini-2.5-flash" })
+            "groq"       -> OpenAIProvider(apiKey, model.ifBlank { "llama-3.3-70b-versatile" },
+                                           "https://api.groq.com/openai/v1/chat/completions")
+            "openrouter" -> OpenAIProvider(apiKey, model.ifBlank { "meta-llama/llama-3.3-70b-instruct:free" },
+                                           "https://openrouter.ai/api/v1/chat/completions")
+            else         -> GeminiProvider(apiKey, model.ifBlank { "gemini-2.5-flash" })
         }
 }
