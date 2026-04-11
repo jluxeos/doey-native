@@ -78,7 +78,15 @@ fun Text(
         fontStyle = fontStyle, letterSpacing = letterSpacing,
         textDecoration = textDecoration, textAlign = textAlign ?: TextAlign.Unspecified, lineHeight = lineHeight,
     ))
-    BasicText(text, modifier, merged, overflow, softWrap, maxLines, minLines)
+    BasicText(
+        text = text,
+        modifier = modifier,
+        style = merged,
+        overflow = overflow,
+        softWrap = softWrap,
+        maxLines = maxLines,
+        minLines = minLines
+    )
 }
 
 @Composable
@@ -106,7 +114,15 @@ fun Text(
         fontStyle = fontStyle, letterSpacing = letterSpacing,
         textDecoration = textDecoration, textAlign = textAlign ?: TextAlign.Unspecified, lineHeight = lineHeight,
     ))
-    BasicText(text, modifier, merged, overflow, softWrap, maxLines, minLines)
+    BasicText(
+        text = text,
+        modifier = modifier,
+        style = merged,
+        overflow = overflow,
+        softWrap = softWrap,
+        maxLines = maxLines,
+        minLines = minLines
+    )
 }
 
 // ── ICON ──────────────────────────────────────────────────────────────────────
