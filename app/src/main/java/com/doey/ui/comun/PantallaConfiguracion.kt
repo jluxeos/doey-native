@@ -80,6 +80,8 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
         autoStartFriendly = settings.getAutoStartFriendly()
         friendlyBarHeight = settings.getFriendlyBarHeight()
         friendlyBarOpacity = settings.getFriendlyBarOpacity()
+        currentGlassOpacity = settings.getGlassOpacity()
+        currentGlassBlur = settings.getGlassBlur()
         
         updateGlassTheme(theme)
     }
@@ -249,30 +251,32 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                     Text("Configuración de Vidrio", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
                     
                     Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Opacidad: ${(currentGlassOpacity * 100).toInt()}%", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
-                            Slider(
-                                value = currentGlassOpacity,
-                                onValueChange = { 
-                                    currentGlassOpacity = it
-                                    GlassOpacity = it
-                                },
-                                valueRange = 0.05f..0.8f,
-                                modifier = Modifier.width(140.dp)
-                            )
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Desenfoque: ${currentGlassBlur.toInt()}dp", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
-                            Slider(
-                                value = currentGlassBlur,
-                                onValueChange = { 
-                                    currentGlassBlur = it
-                                    GlassBlur = it
-                                },
-                                valueRange = 0f..50f,
-                                modifier = Modifier.width(140.dp)
-                            )
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Opacidad: ${(currentGlassOpacity * 100).toInt()}%", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
+                        Slider(
+                            value = currentGlassOpacity,
+                            onValueChange = { 
+                                currentGlassOpacity = it
+                                GlassOpacity = it 
+                                scope.launch { settings.setGlassOpacity(it) }
+                            },
+                            valueRange = 0.1f..1f,
+                            modifier = Modifier.width(140.dp)
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Desenfoque: ${currentGlassBlur.toInt()}dp", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
+                        Slider(
+                            value = currentGlassBlur,
+                            onValueChange = { 
+                                currentGlassBlur = it
+                                GlassBlur = it
+                                scope.launch { settings.setGlassBlur(it) }
+                            },
+                            valueRange = 0f..50f,
+                            modifier = Modifier.width(140.dp)
+                        )
+                    }
                     }
                 }
 

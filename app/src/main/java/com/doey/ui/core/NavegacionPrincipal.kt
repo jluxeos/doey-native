@@ -119,6 +119,8 @@ fun DoeyApp() {
     LaunchedEffect(Unit) {
         activeTheme = settingsStore.getTheme()
         updateGlassTheme(activeTheme)
+        GlassOpacity = settingsStore.getGlassOpacity()
+        GlassBlur = settingsStore.getGlassBlur()
     }
 
     val scope2 = rememberCoroutineScope()

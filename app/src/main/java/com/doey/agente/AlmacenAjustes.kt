@@ -42,6 +42,8 @@ class SettingsStore(private val context: Context) {
     private val KEY_AUTO_START_FRIENDLY   = booleanPreferencesKey("auto_start_friendly")
     private val KEY_FRIENDLY_BAR_HEIGHT   = floatPreferencesKey("friendly_bar_height")
     private val KEY_FRIENDLY_BAR_OPACITY  = floatPreferencesKey("friendly_bar_opacity")
+    private val KEY_GLASS_OPACITY         = floatPreferencesKey("glass_opacity")
+    private val KEY_GLASS_BLUR            = floatPreferencesKey("glass_blur")
 
     // ── Encrypted SharedPreferences (API keys, secrets) ───────────────────────
     private val encPrefs: SharedPreferences by lazy {
@@ -80,8 +82,8 @@ class SettingsStore(private val context: Context) {
         encPrefs.edit().putString("custom_model_url", url).apply()
 
     // ── DataStore flows ───────────────────────────────────────────────────────
-    val provider: Flow<String>         = context.dataStore.data.map { it[KEY_PROVIDER] ?: "openrouter" }
-    val model: Flow<String>            = context.dataStore.data.map { it[KEY_MODEL] ?: "openrouter/auto" }
+    val provider: Flow<String>         = context.dataStore.data.map { it[KEY_PROVIDER] ?: "gemini" }
+    val model: Flow<String>            = context.dataStore.data.map { it[KEY_MODEL] ?: "gemini-2.5-flash-preview-04-17" }
     val language: Flow<String>         = context.dataStore.data.map { it[KEY_LANGUAGE] ?: "system" }
     val drivingMode: Flow<Boolean>     = context.dataStore.data.map { it[KEY_DRIVING_MODE] ?: false }
     val wakeWordEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_WAKE_WORD] ?: false }
@@ -120,10 +122,12 @@ class SettingsStore(private val context: Context) {
     suspend fun setAutoStartFriendly(v: Boolean)        = context.dataStore.edit { it[KEY_AUTO_START_FRIENDLY] = v }
     suspend fun setFriendlyBarHeight(v: Float)          = context.dataStore.edit { it[KEY_FRIENDLY_BAR_HEIGHT] = v }
     suspend fun setFriendlyBarOpacity(v: Float)         = context.dataStore.edit { it[KEY_FRIENDLY_BAR_OPACITY] = v }
+    suspend fun setGlassOpacity(v: Float)               = context.dataStore.edit { it[KEY_GLASS_OPACITY] = v }
+    suspend fun setGlassBlur(v: Float)                  = context.dataStore.edit { it[KEY_GLASS_BLUR] = v }
 
     // ── Suspend getters (first emission) ──────────────────────────────────────
-    suspend fun getProvider()        = provider.first()
-    suspend fun getModel()           = model.first()
+    suspend fun getProvider()        = context.dataStore.data.map { it[KEY_PROVIDER] ?: "gemini" }.first()
+    suspend fun getModel()           = context.dataStore.data.map { it[KEY_MODEL] ?: "gemini-2.5-flash-preview-04-17" }.first()
     suspend fun getLanguage()        = language.first()
     suspend fun getDrivingMode()     = drivingMode.first()
     suspend fun getWakeWordEnabled() = wakeWordEnabled.first()
@@ -148,6 +152,8 @@ class SettingsStore(private val context: Context) {
     suspend fun getAutoStartFriendly()          = context.dataStore.data.map { it[KEY_AUTO_START_FRIENDLY] ?: false }.first()
     suspend fun getFriendlyBarHeight()          = context.dataStore.data.map { it[KEY_FRIENDLY_BAR_HEIGHT] ?: 72f }.first()
     suspend fun getFriendlyBarOpacity()         = context.dataStore.data.map { it[KEY_FRIENDLY_BAR_OPACITY] ?: 0.95f }.first()
+    suspend fun getGlassOpacity()               = context.dataStore.data.map { it[KEY_GLASS_OPACITY] ?: 0.75f }.first()
+    suspend fun getGlassBlur()                  = context.dataStore.data.map { it[KEY_GLASS_BLUR] ?: 30f }.first()
 
     suspend fun getEnabledSkillsList(): List<String> =
         enabledSkills.first().let { raw ->

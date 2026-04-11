@@ -238,8 +238,11 @@ class ConversationPipeline(
 
         // Intentar con proveedor de respaldo (OpenRouter gratuito, sin API key necesaria)
         return try {
+            // Intentar usar la API key actual si el error no fue de autenticación
+            val currentApiKey = if (errorMsg.contains("401")) "" else (ctx.applicationContext as? com.doey.AplicacionDoey)?.settingsStore?.getApiKey(provider.getCurrentModel()) ?: ""
+            
             val backupProvider = com.doey.llm.LLMProviderFactory.create(
-                "openrouter", "", "meta-llama/llama-3.2-3b-instruct:free"
+                "openrouter", currentApiKey, "meta-llama/llama-3.2-3b-instruct:free"
             )
             val backupResult = backupProvider.chat(
                 messages = listOf(

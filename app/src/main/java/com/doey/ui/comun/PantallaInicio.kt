@@ -88,7 +88,7 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             }
 
             // Input Area
-            Box(Modifier.padding(16.dp)) {
+            Box(Modifier.padding(16.dp).imePadding()) {
                 GlassCard(
                     modifier = Modifier.fillMaxWidth(),
                     opacity = GlassOpacity,
