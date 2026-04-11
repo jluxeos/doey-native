@@ -129,11 +129,12 @@ fun updateGlassTheme(themeName: String) {
 
 @Composable
 fun GlassBackground(accentColor: Color = TauAccent) {
-    // Gradiente diagonal: color del tema en esquinas (sup-izq e inf-der), blanco en el centro
+    // Gradiente diagonal potenciado: color del tema más visible en esquinas
     val diagonalGradient = Brush.linearGradient(
-        0.0f to accentColor.copy(alpha = 0.15f),
-        0.5f to Color.White,
-        1.0f to accentColor.copy(alpha = 0.15f),
+        0.0f to accentColor.copy(alpha = 0.35f), // Aumentado de 0.15 a 0.35
+        0.4f to Color.White,
+        0.6f to Color.White,
+        1.0f to accentColor.copy(alpha = 0.35f), // Aumentado de 0.15 a 0.35
         start = androidx.compose.ui.geometry.Offset(0f, 0f),
         end = androidx.compose.ui.geometry.Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
     )
@@ -151,8 +152,8 @@ fun GlassBackground(accentColor: Color = TauAccent) {
 fun GlassCard(
     modifier: Modifier = Modifier,
     radius: Int = 24,
-    opacity: Float = 0.70f, // Un poco más opaco para mejor legibilidad
-    blur: Float = 25f,      // Un poco más de blur para suavizar el fondo
+    opacity: Float = 0.75f, // Ligeramente más opaco
+    blur: Float = 30f,      // Más blur para efecto vidrio real
     content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(radius.dp)
@@ -160,33 +161,48 @@ fun GlassCard(
     Box(
         modifier = modifier
             .shadow(
-                elevation     = 12.dp,
+                elevation     = 16.dp, // Sombra más profunda
                 shape         = shape,
-                spotColor     = Color(0x1A000000),   // rgba(0,0,0,0.10)
-                ambientColor  = Color(0x1A000000)
+                spotColor     = Color(0x26000000),   // rgba(0,0,0,0.15)
+                ambientColor  = Color(0x26000000)
             )
             .clip(shape)
             .background(
-                Brush.verticalGradient(
+                Brush.linearGradient( // Gradiente diagonal también en la tarjeta para textura
                     colors = listOf(
                         Color.White.copy(alpha = opacity),
-                        Color.White.copy(alpha = opacity * 0.8f)
+                        Color.White.copy(alpha = opacity * 0.6f),
+                        Color.White.copy(alpha = opacity * 0.9f)
                     )
                 )
             )
             .border(
-                width = 1.dp,
+                width = 1.5.dp, // Borde un poco más grueso
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.9f),
-                        Color.White.copy(alpha = 0.3f)
+                        Color.White.copy(alpha = 0.95f), // Brillo superior
+                        Color.White.copy(alpha = 0.2f),  // Transparencia media
+                        Color.White.copy(alpha = 0.5f)   // Reflejo inferior
                     )
                 ),
                 shape = shape
             )
     ) {
+        // Capa de textura (brillo sutil)
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(Color.White.copy(alpha = 0.15f), Color.Transparent),
+                        center = androidx.compose.ui.geometry.Offset(0f, 0f),
+                        radius = 500f
+                    )
+                )
+        )
+
         // Contenido (encima, sin blur)
-        Column(Modifier.padding(20.dp)) { // Más padding para airear el diseño
+        Column(Modifier.padding(24.dp)) { // Más padding para airear el diseño
             content()
         }
     }

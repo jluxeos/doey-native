@@ -211,16 +211,20 @@ fun Button(
         colors = listOf(containerColor, containerColor.copy(alpha = 0.9f))
     )
     
-    Row(
+    Box(
         modifier = modifier
             .shadow(if (enabled) 4.dp else 0.dp, shape)
             .clip(shape)
             .background(brush = gradient)
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(contentPadding),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) { content() }
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) { content() }
+    }
 }
 
 @Composable
@@ -234,16 +238,20 @@ fun OutlinedButton(
     content: @Composable RowScope.() -> Unit
 ) {
     val effectiveBorder = border ?: BorderStroke(1.5.dp, colors.contentColor.copy(alpha = if (enabled) 0.5f else 0.2f))
-    Row(
+    Box(
         modifier = modifier
             .clip(shape)
             .background(colors.containerColor)
             .border(effectiveBorder.width, effectiveBorder.brush, shape)
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 24.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) { content() }
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) { content() }
+    }
 }
 
 @Composable
@@ -507,12 +515,12 @@ fun Scaffold(
             Box(Modifier.fillMaxSize().background(containerColor))
         }
         
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
             topBar()
             Box(Modifier.weight(1f)) { content(PaddingValues(0.dp)) }
             bottomBar()
         }
-        Box(Modifier.align(Alignment.BottomEnd).padding(16.dp)) { floatingActionButton() }
+        Box(Modifier.align(Alignment.BottomEnd).padding(16.dp).navigationBarsPadding()) { floatingActionButton() }
     }
 }
 
