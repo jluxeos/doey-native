@@ -39,7 +39,6 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     var provider         by remember { mutableStateOf("gemini") }
     var apiKey           by remember { mutableStateOf("") }
     var model            by remember { mutableStateOf("") }
-    var customUrl        by remember { mutableStateOf("") }
     var theme            by remember { mutableStateOf("DeepSeaBlue") }
     var maxIterations    by remember { mutableStateOf(10) }
     var maxHistory       by remember { mutableStateOf(20) }
@@ -66,7 +65,6 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
         provider        = settings.getProvider()
         apiKey          = settings.getApiKey(provider)
         model           = settings.getModel()
-        customUrl       = settings.getCustomModelUrl()
         theme           = settings.getTheme()
         maxIterations   = settings.getMaxIterations()
         maxHistory      = settings.getMaxHistoryMessages()
@@ -94,21 +92,19 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
             "gemini"       -> "gemini-2.5-flash"
             "groq"         -> "llama-3.3-70b-versatile"
             "openrouter"   -> "meta-llama/llama-3.3-70b-instruct:free"
-            "pollinations" -> "openai"
             else           -> savedModel
         }
         // Si el modelo guardado no tiene sentido para este proveedor, usar el default
         val isCompatible = when (provider) {
-            "gemini"       -> savedModel.startsWith("gemini")
-            "groq"         -> !savedModel.startsWith("gemini") && !savedModel.contains("/")
-            "openrouter"   -> savedModel.contains("/") || savedModel.isBlank()
-            "pollinations" -> listOf("openai","mistral","claude","llama","command-r","unity","searchgpt","evil","midijourney","rtist","hormoz","hypnosis-tracy","bidara","sur","details","phi").any { savedModel == it } || savedModel.isBlank()
-            else           -> true
+            "gemini"     -> savedModel.startsWith("gemini")
+            "groq"       -> !savedModel.startsWith("gemini") && !savedModel.contains("/")
+            "openrouter" -> savedModel.contains("/") || savedModel.isBlank()
+            else         -> true
         }
         model = if (isCompatible && savedModel.isNotBlank()) savedModel else defaultForProvider
     }
 
-    val providers = listOf("gemini", "groq", "openrouter", "pollinations", "custom")
+    val providers = listOf("gemini", "groq", "openrouter")
 
     Box(Modifier.fillMaxSize()) {
         GlassBackground(accentColor = TauAccent)
@@ -136,8 +132,6 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                                 when (p) {
                                     "gemini"    -> CustomIcons.AutoAwesome
                                     "groq"      -> CustomIcons.Bolt
-                                    "pollinations" -> CustomIcons.AutoAwesome
-                                    "custom"    -> CustomIcons.Build
                                     else        -> CustomIcons.Cloud
                                 },
                                 null, tint = if (isSelected) TauAccent else TauText3, modifier = Modifier.size(20.dp)
@@ -148,8 +142,6 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                                 "gemini"       -> "Gemini"
                                 "groq"         -> "Groq"
                                 "openrouter"   -> "OpenRouter"
-                                "pollinations" -> "Pollinations (gratis)"
-                                "custom"       -> "Personalizado"
                                 else           -> p.replaceFirstChar { it.uppercase() }
                             },
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
@@ -165,7 +157,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                         value = apiKey,
                         onValueChange = { apiKey = it },
                         label = "API Key — ${provider.uppercase()}",
-                        placeholder = if (provider == "pollinations") "No necesita API key" else "Pega tu API key aquí"
+                        placeholder = "Pega tu API key aquí"
                     )
 
                     Spacer(Modifier.height(8.dp))
@@ -174,29 +166,18 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                         onValueChange = { model = it },
                         label = "Modelo",
                         placeholder = when (provider) {
-                            "gemini"       -> "gemini-2.5-flash"
-                            "groq"         -> "llama-3.3-70b-versatile"
-                            "openrouter"   -> "meta-llama/llama-3.3-70b-instruct:free"
-                            "pollinations" -> "openai"
-                            else           -> "nombre-del-modelo"
+                            "gemini"     -> "gemini-2.5-flash"
+                            "groq"       -> "llama-3.3-70b-versatile"
+                            "openrouter" -> "meta-llama/llama-3.3-70b-instruct:free"
+                            else         -> "nombre-del-modelo"
                         }
                     )
-
-                    if (provider == "custom") {
-                        DoeyTextField(
-                            value = customUrl,
-                            onValueChange = { customUrl = it },
-                            label = "URL Base",
-                            placeholder = "https://api.tu-servidor.com/v1"
-                        )
-                    }
 
                     Spacer(Modifier.height(12.dp))
                     GlassButton(onClick = {
                         scope.launch {
                             settings.setApiKey(provider, apiKey)
                             settings.setModel(model)
-                            if (provider == "custom") settings.setCustomModelUrl(customUrl)
                             showApiSaved = true
                             delay(2000)
                             showApiSaved = false
