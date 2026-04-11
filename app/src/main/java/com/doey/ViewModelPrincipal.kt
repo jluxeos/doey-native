@@ -56,7 +56,8 @@ data class ChatMessage(
     val id: String = java.util.UUID.randomUUID().toString(),
     val role: String,
     val text: String,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val respondedBy: String? = null  // "IRIS", "Gemini (gemini-2.5-flash)", etc.
 )
 
 data class MainUiState(
@@ -138,7 +139,27 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
         p.onTranscript = { role, text ->
             _uiState.update { s ->
-                val newList = s.messages + ChatMessage(role = role, text = text)
+                val respondedBy = if (role == "assistant") {
+                    val providerName = when (provider) {
+                        "gemini"       -> "Gemini"
+                        "groq"         -> "Groq"
+                        "openrouter"   -> "OpenRouter"
+                        "pollinations" -> "Pollinations"
+                        "custom"       -> "Custom"
+                        else           -> provider
+                    }
+                    val modelLabel = model.ifBlank {
+                        when (provider) {
+                            "gemini"       -> "gemini-2.5-flash"
+                            "groq"         -> "llama-3.3-70b-versatile"
+                            "openrouter"   -> "openrouter/free"
+                            "pollinations" -> "openai"
+                            else           -> ""
+                        }
+                    }
+                    "$providerName ($modelLabel)"
+                } else null
+                val newList = s.messages + ChatMessage(role = role, text = text, respondedBy = respondedBy)
                 s.copy(messages = newList.takeLast(50))
             }
         }
@@ -214,7 +235,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         _uiState.update { s ->
                             val newList = s.messages +
                                 ChatMessage(role = "user",      text = text) +
-                                ChatMessage(role = "assistant", text = result)
+                                ChatMessage(role = "assistant", text = result, respondedBy = "IRIS")
                             s.copy(messages = newList.takeLast(50))
                         }
                         if (voiceEnabled) DoeyTTSEngine.speakAndWait(result, resolveLanguage(settings.getLanguage()))
