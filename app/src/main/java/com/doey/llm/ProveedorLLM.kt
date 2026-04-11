@@ -459,6 +459,7 @@ class PollinationsProvider(
         Request.Builder()
             .url(BASE_URL)
             .addHeader("Content-Type", "application/json")
+            .addHeader("Accept", "application/json")
             .post(body.toString().toRequestBody(JSON_MEDIA))
             .build()
 }
@@ -471,7 +472,7 @@ object LLMProviderFactory {
             "gemini"       -> GeminiProvider(apiKey, model.ifBlank { "gemini-2.5-flash" })
             "groq"         -> OpenAIProvider(apiKey, model.ifBlank { "llama-3.3-70b-versatile" },
                                              "https://api.groq.com/openai/v1/chat/completions")
-            "openrouter"   -> OpenAIProvider(apiKey, model.ifBlank { "openrouter/auto" },
+            "openrouter"   -> OpenAIProvider(apiKey, model.ifBlank { "openrouter/free" },
                                              "https://openrouter.ai/api/v1/chat/completions")
             "pollinations" -> PollinationsProvider(model.ifBlank { "openai" })
             "custom"       -> OpenAIProvider(apiKey, model,
