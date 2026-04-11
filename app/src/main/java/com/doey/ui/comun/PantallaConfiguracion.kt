@@ -28,12 +28,14 @@ import kotlinx.coroutines.launch
 import com.doey.ui.core.*
 import com.doey.MainViewModel
 
+
 @Composable
 fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     val ctx      = LocalContext.current
     val settings = remember { vm.getSettings() }
     val scope    = rememberCoroutineScope()
 
+    // ── Estado de todos los ajustes ───────────────────────────────────────────
     var provider         by remember { mutableStateOf("gemini") }
     var apiKey           by remember { mutableStateOf("") }
     var model            by remember { mutableStateOf("") }
@@ -49,15 +51,17 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     var showApiSaved     by remember { mutableStateOf(false) }
     var showSettingsSaved by remember { mutableStateOf(false) }
     
+    // Glass Controls
     var currentGlassOpacity by remember { mutableStateOf(GlassOpacity) }
     var currentGlassBlur    by remember { mutableStateOf(GlassBlur) }
 
-    var friendlyMode      by remember { mutableStateOf(true) }
-    var friendlyContext   by remember { mutableStateOf(true) }
+    // Hidden Settings (Exposed)
+    var friendlyMode     by remember { mutableStateOf(true) }
     var autoStartFriendly by remember { mutableStateOf(false) }
     var friendlyBarHeight by remember { mutableStateOf(72f) }
     var friendlyBarOpacity by remember { mutableStateOf(0.95f) }
 
+    // Cargar todos los ajustes al iniciar
     LaunchedEffect(Unit) {
         provider        = settings.getProvider()
         apiKey          = settings.getApiKey(provider)
@@ -72,8 +76,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
         historyCompress = settings.getHistoryCompressionEnabled()
         debugMode       = settings.getDebugMode()
         
-        friendlyMode      = settings.getFriendlyModeEnabled()
-        friendlyContext   = settings.getFriendlyContextRead()
+        friendlyMode     = settings.getFriendlyModeEnabled()
         autoStartFriendly = settings.getAutoStartFriendly()
         friendlyBarHeight = settings.getFriendlyBarHeight()
         friendlyBarOpacity = settings.getFriendlyBarOpacity()
@@ -85,6 +88,24 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
 
     LaunchedEffect(provider) {
         apiKey = settings.getApiKey(provider)
+        // Si el modelo guardado corresponde a otro proveedor, sugerir el default correcto
+        val savedModel = settings.getModel()
+        val defaultForProvider = when (provider) {
+            "gemini"       -> "gemini-2.5-flash"
+            "groq"         -> "llama-3.3-70b-versatile"
+            "openrouter"   -> "meta-llama/llama-3.3-70b-instruct:free"
+            "pollinations" -> "openai"
+            else           -> savedModel
+        }
+        // Si el modelo guardado no tiene sentido para este proveedor, usar el default
+        val isCompatible = when (provider) {
+            "gemini"       -> savedModel.startsWith("gemini")
+            "groq"         -> !savedModel.startsWith("gemini") && !savedModel.contains("/")
+            "openrouter"   -> savedModel.contains("/") || savedModel.isBlank()
+            "pollinations" -> listOf("openai","mistral","claude","llama","command-r","unity","searchgpt","evil","midijourney","rtist","hormoz","hypnosis-tracy","bidara","sur","details","phi").any { savedModel == it } || savedModel.isBlank()
+            else           -> true
+        }
+        model = if (isCompatible && savedModel.isNotBlank()) savedModel else defaultForProvider
     }
 
     val providers = listOf("gemini", "groq", "openrouter", "pollinations", "custom")
@@ -100,6 +121,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
 
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
 
+                // ── 1. Cerebro de Doey ────────────────────────────────────────────
                 TauSettingsSection(title = "Cerebro de Doey", icon = CustomIcons.Psychology) {
                     providers.forEach { p ->
                         val isSelected = provider == p
@@ -143,7 +165,21 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                         value = apiKey,
                         onValueChange = { apiKey = it },
                         label = "API Key — ${provider.uppercase()}",
-                        placeholder = "Pega tu API key aquí"
+                        placeholder = if (provider == "pollinations") "No necesita API key" else "Pega tu API key aquí"
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+                    DoeyTextField(
+                        value = model,
+                        onValueChange = { model = it },
+                        label = "Modelo",
+                        placeholder = when (provider) {
+                            "gemini"       -> "gemini-2.5-flash"
+                            "groq"         -> "llama-3.3-70b-versatile"
+                            "openrouter"   -> "meta-llama/llama-3.3-70b-instruct:free"
+                            "pollinations" -> "openai"
+                            else           -> "nombre-del-modelo"
+                        }
                     )
 
                     if (provider == "custom") {
@@ -159,6 +195,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                     GlassButton(onClick = {
                         scope.launch {
                             settings.setApiKey(provider, apiKey)
+                            settings.setModel(model)
                             if (provider == "custom") settings.setCustomModelUrl(customUrl)
                             showApiSaved = true
                             delay(2000)
@@ -169,6 +206,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                     }
                 }
 
+                // ── 2. Optimización Avanzada ──────────────────────────────────────
                 TauSettingsSection(title = "Optimización Avanzada", icon = CustomIcons.Speed) {
                     TauSwitchRow(
                         title = "Optimizador de Tokens",
@@ -179,7 +217,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                     )
                     TauSwitchRow(
                         title = "Caché de System Prompt",
-                        subtitle = "Ahorra tokens por mensaje",
+                        subtitle = "Ahorra ~1000 tokens por mensaje",
                         icon = CustomIcons.Storage,
                         checked = promptCache,
                         onToggle = { promptCache = it }
@@ -217,8 +255,9 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                     }
                 }
 
+                // ── 3. Apariencia (Glass & Temas) ──────────────────────────────────
                 TauSettingsSection(title = "Apariencia", icon = CustomIcons.Palette) {
-                    Text("Temas Glass", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
+                    Text("Temas Glass (Base Blanca)", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         val themeList = listOf("DeepSeaBlue", "NebulaPurple", "AuroraGreen", "SolarOrange", "CrimsonVoid")
@@ -252,35 +291,36 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                     Text("Configuración de Vidrio", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
                     
                     Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Opacidad: ${(currentGlassOpacity * 100).toInt()}%", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
-                            Slider(
-                                value = currentGlassOpacity,
-                                onValueChange = { 
-                                    currentGlassOpacity = it
-                                    GlassOpacity = it 
-                                    scope.launch { settings.setGlassOpacity(it) }
-                                },
-                                valueRange = 0.1f..1f,
-                                modifier = Modifier.width(140.dp)
-                            )
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Desenfoque: ${currentGlassBlur.toInt()}dp", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
-                            Slider(
-                                value = currentGlassBlur,
-                                onValueChange = { 
-                                    currentGlassBlur = it
-                                    GlassBlur = it
-                                    scope.launch { settings.setGlassBlur(it) }
-                                },
-                                valueRange = 0f..50f,
-                                modifier = Modifier.width(140.dp)
-                            )
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Opacidad: ${(currentGlassOpacity * 100).toInt()}%", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
+                        Slider(
+                            value = currentGlassOpacity,
+                            onValueChange = { 
+                                currentGlassOpacity = it
+                                GlassOpacity = it 
+                                scope.launch { settings.setGlassOpacity(it) }
+                            },
+                            valueRange = 0.1f..1f,
+                            modifier = Modifier.width(140.dp)
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Desenfoque: ${currentGlassBlur.toInt()}dp", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
+                        Slider(
+                            value = currentGlassBlur,
+                            onValueChange = { 
+                                currentGlassBlur = it
+                                GlassBlur = it
+                                scope.launch { settings.setGlassBlur(it) }
+                            },
+                            valueRange = 0f..50f,
+                            modifier = Modifier.width(140.dp)
+                        )
+                    }
                     }
                 }
 
+                // ── 4. Modo Friendly (Hidden Exposed) ──────────────────────────────
                 TauSettingsSection(title = "Modo Friendly", icon = CustomIcons.Spa) {
                     TauSwitchRow(
                         title = "Habilitar Modo Friendly",
@@ -288,13 +328,6 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                         icon = CustomIcons.Visibility,
                         checked = friendlyMode,
                         onToggle = { friendlyMode = it }
-                    )
-                    TauSwitchRow(
-                        title = "Leer contexto de pantalla",
-                        subtitle = "Doey analiza la app activa",
-                        icon = CustomIcons.Psychology,
-                        checked = friendlyContext,
-                        onToggle = { friendlyContext = it }
                     )
                     TauSwitchRow(
                         title = "Inicio Automático",
@@ -333,6 +366,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                 GlassButton(onClick = {
                     scope.launch {
                         settings.setProvider(provider)
+                        settings.setModel(model)
                         settings.setTheme(theme)
                         settings.setMaxIterations(maxIterations)
                         settings.setMaxHistoryMessages(maxHistory)
@@ -343,7 +377,6 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                         settings.setDebugMode(debugMode)
                         
                         settings.setFriendlyModeEnabled(friendlyMode)
-                        settings.setFriendlyContextRead(friendlyContext)
                         settings.setAutoStartFriendly(autoStartFriendly)
                         settings.setFriendlyBarHeight(friendlyBarHeight)
                         settings.setFriendlyBarOpacity(friendlyBarOpacity)

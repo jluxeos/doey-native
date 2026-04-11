@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -31,6 +32,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.doey.ui.core.*
 import com.doey.MainViewModel
+import com.doey.agente.FlowModeEngine
+import com.doey.agente.FlowNode
+import com.doey.agente.FlowOption
 
 
 @Composable
@@ -41,6 +45,13 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
     val scope     = rememberCoroutineScope()
     val settings  = remember { vm.getSettings() }
     var theme     by remember { mutableStateOf("DeepSeaBlue") }
+    val ctx       = LocalContext.current
+
+    // ── Estado del carrusel de acciones rápidas ────────────────────────────────
+    var flowExpanded      by remember { mutableStateOf(false) }
+    var currentNode       by remember { mutableStateOf<FlowNode?>(null) }
+    var currentParams     by remember { mutableStateOf(mapOf<String, String>()) }
+    var flowFeedback      by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         theme = settings.getTheme()
@@ -51,14 +62,21 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
         if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.size - 1)
     }
 
+    // Ocultar feedback tras 2 segundos
+    LaunchedEffect(flowFeedback) {
+        if (flowFeedback != null) {
+            delay(2000)
+            flowFeedback = null
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         GlassBackground(accentColor = TauAccent)
 
         Column(Modifier.fillMaxSize()) {
-            // Top Bar (Empty space for system bars)
             Spacer(Modifier.height(32.dp))
-            
-            // Chat Area
+
+            // ── Chat ──────────────────────────────────────────────────────────
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp),
                 state = listState,
@@ -104,14 +122,133 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                 }
             }
 
-            // Input Area
-            Box(Modifier.padding(16.dp).imePadding()) {
+            // ── Feedback de acción rápida ─────────────────────────────────────
+            AnimatedVisibility(
+                visible = flowFeedback != null,
+                enter = fadeIn() + slideInVertically(),
+                exit  = fadeOut() + slideOutVertically()
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(TauAccent.copy(alpha = 0.15f))
+                        .border(1.dp, TauAccent.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = flowFeedback ?: "",
+                        color = TauAccent,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            // ── Carrusel de acciones rápidas (Modo Flujo integrado) ────────────
+            AnimatedVisibility(
+                visible = flowExpanded,
+                enter = fadeIn() + expandVertically(),
+                exit  = fadeOut() + shrinkVertically()
+            ) {
+                Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+
+                    // Migas de pan + botón cerrar
+                    Row(
+                        Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (currentNode != null) {
+                                Text(
+                                    "⚡ ",
+                                    fontSize = 13.sp,
+                                    color = TauText3,
+                                    modifier = Modifier.clickable {
+                                        currentNode = null
+                                        currentParams = emptyMap()
+                                    }
+                                )
+                            }
+                            Text(
+                                text = currentNode?.label ?: "Acciones rápidas",
+                                color = TauText2,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Text(
+                            "✕",
+                            color = TauText3,
+                            fontSize = 16.sp,
+                            modifier = Modifier.clickable {
+                                flowExpanded = false
+                                currentNode  = null
+                                currentParams = emptyMap()
+                            }
+                        )
+                    }
+
+                    // Chips de opciones
+                    val options = currentNode?.options ?: FlowModeEngine.getRootOptions()
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp)
+                    ) {
+                        items(options) { opt ->
+                            FlowChip(opt) {
+                                when {
+                                    // Navegar a sub-nodo
+                                    opt.nextNodeId != null -> {
+                                        val merged = currentParams + opt.params
+                                        scope.launch {
+                                            currentNode   = FlowModeEngine.getNodeById(ctx, opt.nextNodeId, merged)
+                                            currentParams = merged
+                                        }
+                                    }
+                                    // Ejecutar comando directo
+                                    opt.command != null -> {
+                                        scope.launch {
+                                            val result = FlowModeEngine.executeCommand(ctx, opt.command)
+                                            flowFeedback  = result.forUser ?: opt.label
+                                            flowExpanded  = false
+                                            currentNode   = null
+                                            currentParams = emptyMap()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Input area ────────────────────────────────────────────────────
+            Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp).imePadding()) {
                 GlassCard(
                     modifier = Modifier.fillMaxWidth(),
                     opacity = GlassOpacity,
                     blur = GlassBlur
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+
+                        // Botón ⚡ para abrir/cerrar el carrusel
+                        IconButton(
+                            onClick = {
+                                flowExpanded  = !flowExpanded
+                                currentNode   = null
+                                currentParams = emptyMap()
+                            }
+                        ) {
+                            Text(
+                                text = if (flowExpanded) "✕" else "⚡",
+                                fontSize = 18.sp,
+                                color = if (flowExpanded) TauText3 else TauAccent
+                            )
+                        }
+
                         TextField(
                             value = input,
                             onValueChange = { input = it },
@@ -140,7 +277,35 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                     }
                 }
             }
-            Spacer(Modifier.height(16.dp)) // Bottom navigation space
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+// ── Chip individual de acción rápida ──────────────────────────────────────────
+@Composable
+private fun FlowChip(opt: FlowOption, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(TauSurface2.copy(alpha = 0.6f))
+            .border(1.dp, TauAccent.copy(alpha = 0.25f), RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (opt.icon.isNotBlank()) {
+                Text(opt.icon, fontSize = 16.sp)
+            }
+            Text(
+                text = opt.label,
+                color = TauText1,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
+            )
+            if (opt.nextNodeId != null) {
+                Text("›", color = TauText3, fontSize = 14.sp)
+            }
         }
     }
 }

@@ -40,12 +40,12 @@ object LocalIntentProcessor {
         data class SetBrightness(val level: Int) : LocalAction()
         data class BrightnessStep(val up: Boolean) : LocalAction()
         data class ToggleAutoBrightness(val enable: Boolean) : LocalAction()
-        data class TakeScreenshot() : LocalAction()
-        data class LockScreen() : LocalAction()
+        class TakeScreenshot : LocalAction()
+        class LockScreen : LocalAction()
         data class SetAlarm(val hour: Int, val minute: Int, val label: String = "", val daysOfWeek: List<Int> = emptyList()) : LocalAction()
-        data class CancelAlarm() : LocalAction()
+        class CancelAlarm : LocalAction()
         data class SetTimer(val seconds: Long, val label: String = "") : LocalAction()
-        data class CancelTimer() : LocalAction()
+        class CancelTimer : LocalAction()
         data class Call(val contact: String) : LocalAction()
         data class CallEmergency(val number: String) : LocalAction()
         data class SendSms(val contact: String, val message: String) : LocalAction()
@@ -58,10 +58,10 @@ object LocalIntentProcessor {
         data class SearchMaps(val query: String) : LocalAction()
         data class OpenUrl(val url: String) : LocalAction()
         data class PlayMusic(val query: String, val app: String = "spotify") : LocalAction()
-        data class PauseMusic() : LocalAction()
-        data class ResumeMusic() : LocalAction()
-        data class NextTrack() : LocalAction()
-        data class PrevTrack() : LocalAction()
+        class PauseMusic : LocalAction()
+        class ResumeMusic : LocalAction()
+        class NextTrack : LocalAction()
+        class PrevTrack : LocalAction()
         data class QueryInfo(val type: InfoType) : LocalAction()
     }
 
@@ -476,23 +476,37 @@ object LocalIntentProcessor {
     // ─── Música ───────────────────────────────────────────────────────────────
 
     private fun matchMusic(lo: String): LocalAction? {
-        val musicTrigger = Regex("\\b(pon|reproduce|play|toca)\\b")
+        val musicTrigger = Regex("\\b(pon|reproduce|play|toca|ver|mira|busca|quiero ver|quiero escuchar|escucha|escuchar)\\b")
         if (!musicTrigger.containsMatchIn(lo)) return null
 
+        // "pon/ver un video de X en youtube / yt"
+        Regex("^(?:pon|reproduce|play|ver|mira|busca)\\s+(?:un\\s+)?(?:video|videos)\\s+(?:de\\s+)?['\"]?(.+?)['\"]?\\s+en\\s+(youtube|yt|youtube music|yt music)").find(lo)?.let { m ->
+            val q = m.groupValues[1].trim()
+            if (q.isNotBlank()) return LocalAction.PlayMusic(q, "youtube")
+        }
+        // "pon/ver un video de X" sin mencionar plataforma → YouTube
+        Regex("^(?:pon|reproduce|play|ver|mira|busca|quiero ver)\\s+(?:un\\s+)?(?:video|videos)\\s+(?:de\\s+)?['\"]?(.{2,80}?)['\"]?\\s*$").find(lo)?.let { m ->
+            val q = m.groupValues[1].trim()
+            if (q.isNotBlank()) return LocalAction.PlayMusic(q, "youtube")
+        }
+        // "ver X en youtube"
+        Regex("^(?:ver|mira|busca)\\s+['\"]?(.+?)['\"]?\\s+en\\s+(youtube|yt)\\s*$").find(lo)?.let { m ->
+            val q = m.groupValues[1].trim()
+            if (q.isNotBlank()) return LocalAction.PlayMusic(q, "youtube")
+        }
         // "pon CANCIÓN en PLATAFORMA"
-        Regex("^(?:pon|reproduce|play|toca)\\s+['\"]?(.+?)['\"]?\\s+en\\s+(spotify|youtube music|yt music|apple music|deezer)$").find(lo)?.let { m ->
+        Regex("^(?:pon|reproduce|play|toca|escucha)\\s+['\"]?(.+?)['\"]?\\s+en\\s+(spotify|youtube music|yt music|youtube|yt|apple music|deezer)$").find(lo)?.let { m ->
             val q   = m.groupValues[1].trim()
             val app = resolveApp(m.groupValues[2])
             if (q.isNotBlank()) return LocalAction.PlayMusic(q, app)
         }
-        // "pon música en PLATAFORMA" (sin canción específica)
-        Regex("^(?:pon|abre|reproduce|play)\\s+(?:musica\\s+)?(?:en\\s+)?(spotify|youtube music|yt music|apple music|deezer)$").find(lo)?.let { m ->
+        // "pon música/spotify/youtube en [plataforma]" (sin canción)
+        Regex("^(?:pon|abre|reproduce|play)\\s+(?:musica\\s+)?(?:en\\s+)?(spotify|youtube music|yt music|youtube|yt|apple music|deezer)$").find(lo)?.let { m ->
             return LocalAction.PlayMusic("", resolveApp(m.groupValues[1]))
         }
         // "pon/toca CANCIÓN" sin plataforma → Spotify por defecto
-        // Filtra palabras que no son nombres de canciones
-        val blacklist = setOf("volumen","brillo","wifi","bluetooth","alarma","linterna","silencio","modo","pantalla")
-        Regex("^(?:pon|reproduce|play|toca)\\s+(?:la cancion\\s+|la musica\\s+)?['\"]?(.{3,60}?)['\"]?\\s*$").find(lo)?.let { m ->
+        val blacklist = setOf("volumen","brillo","wifi","bluetooth","alarma","linterna","silencio","modo","pantalla","video","videos")
+        Regex("^(?:pon|reproduce|play|toca|escucha|quiero escuchar)\\s+(?:la cancion\\s+|la musica\\s+|el tema\\s+)?['\"]?(.{2,60}?)['\"]?\\s*$").find(lo)?.let { m ->
             val q = m.groupValues[1].trim()
             if (q.isNotBlank() && blacklist.none { q.contains(it) })
                 return LocalAction.PlayMusic(q, "spotify")
@@ -501,7 +515,8 @@ object LocalIntentProcessor {
     }
 
     private fun resolveApp(raw: String): String = when {
-        raw.contains("youtube") || raw.contains("yt") -> "youtube music"
+        raw == "youtube" || raw == "yt" -> "youtube"
+        raw.contains("youtube music") || raw.contains("yt music") -> "youtube music"
         raw.contains("apple")  -> "apple music"
         raw.contains("deezer") -> "deezer"
         else -> "spotify"

@@ -208,6 +208,28 @@ class ConversationPipeline(
             DoeyLogger.pipelineState("PROCESSING", "ERROR")
             onError?.invoke(e.message ?: "Unknown error")
             history.add(Message(role = "assistant", content = "[Error: ${e.message}]"))
+
+            // ── Fallback silencioso a Gemini / Google Assistant ───────────────────
+            // Si ARIA también falló, intentamos que Google Gemini tome el relevo
+            // sin mostrar ningún mensaje de error al usuario.
+            try {
+                val assistIntent = android.content.Intent(android.content.Intent.ACTION_VOICE_COMMAND).apply {
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                ctx.startActivity(assistIntent)
+                _state.value = PipelineState.IDLE
+                return ""  // Salir limpiamente, Gemini lo manejó
+            } catch (geminiEx: Exception) {
+                try {
+                    val assist2 = android.content.Intent(android.content.Intent.ACTION_ASSIST).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    ctx.startActivity(assist2)
+                    _state.value = PipelineState.IDLE
+                    return ""
+                } catch (_: Exception) { /* Gemini no disponible, continuar con error normal */ }
+            }
+
             _state.value = PipelineState.IDLE
             ""
         }
