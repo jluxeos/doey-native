@@ -67,20 +67,37 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             ) {
                 items(state.messages) { msg ->
                     val isUser = msg.role == "user"
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+                        horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
                     ) {
-                        GlassCard(
-                            modifier = Modifier.widthIn(max = 280.dp),
-                            opacity = if (isUser) GlassOpacity else GlassOpacity * 0.5f,
-                            blur = GlassBlur
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
                         ) {
+                            GlassCard(
+                                modifier = Modifier.widthIn(max = 280.dp),
+                                opacity = if (isUser) GlassOpacity else GlassOpacity * 0.5f,
+                                blur = GlassBlur
+                            ) {
+                                Text(
+                                    text = msg.text,
+                                    color = TauText1,
+                                    fontSize = 15.sp,
+                                    lineHeight = 20.sp
+                                )
+                            }
+                        }
+                        if (!isUser && msg.respondedBy != null) {
+                            val label = if (msg.respondedBy == "IRIS")
+                                "⚡ Respondió: IRIS (sin IA)"
+                            else
+                                "🤖 Respondió: ${msg.respondedBy}"
                             Text(
-                                text = msg.text,
-                                color = TauText1,
-                                fontSize = 15.sp,
-                                lineHeight = 20.sp
+                                text = label,
+                                color = TauText3,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(start = 6.dp, top = 3.dp)
                             )
                         }
                     }
