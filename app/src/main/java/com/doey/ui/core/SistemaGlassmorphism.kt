@@ -225,7 +225,7 @@ fun GlassButton(
         shadowElevation = 4.dp
     ) {
         Row(
-            Modifier.padding(horizontal = 28.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 28.dp),
             verticalAlignment    = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -253,7 +253,7 @@ fun GlassOutlineButton(
         contentAlignment = Alignment.Center
     ) {
         Row(
-            Modifier.padding(horizontal = 24.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp),
             verticalAlignment    = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
