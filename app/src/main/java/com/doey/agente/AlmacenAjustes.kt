@@ -83,7 +83,7 @@ class SettingsStore(private val context: Context) {
 
     // ── DataStore flows ───────────────────────────────────────────────────────
     val provider: Flow<String>         = context.dataStore.data.map { it[KEY_PROVIDER] ?: "gemini" }
-    val model: Flow<String>            = context.dataStore.data.map { it[KEY_MODEL] ?: "gemini-2.5-flash-preview-04-17" }
+    val model: Flow<String>            = context.dataStore.data.map { it[KEY_MODEL] ?: "gemini-2.5-flash" }
     val language: Flow<String>         = context.dataStore.data.map { it[KEY_LANGUAGE] ?: "system" }
     val drivingMode: Flow<Boolean>     = context.dataStore.data.map { it[KEY_DRIVING_MODE] ?: false }
     val wakeWordEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_WAKE_WORD] ?: false }
@@ -127,7 +127,7 @@ class SettingsStore(private val context: Context) {
 
     // ── Suspend getters (first emission) ──────────────────────────────────────
     suspend fun getProvider()        = context.dataStore.data.map { it[KEY_PROVIDER] ?: "gemini" }.first()
-    suspend fun getModel()           = context.dataStore.data.map { it[KEY_MODEL] ?: "gemini-2.5-flash-preview-04-17" }.first()
+    suspend fun getModel()           = context.dataStore.data.map { it[KEY_MODEL] ?: "gemini-2.5-flash" }.first()
     suspend fun getLanguage()        = language.first()
     suspend fun getDrivingMode()     = drivingMode.first()
     suspend fun getWakeWordEnabled() = wakeWordEnabled.first()

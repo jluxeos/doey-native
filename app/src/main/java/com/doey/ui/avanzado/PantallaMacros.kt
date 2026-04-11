@@ -92,7 +92,7 @@ fun MacrosScreen(vm: MainViewModel) {
                         contentColor = Color.White,
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(Icons.Default.Add, "Añadir macro", modifier = Modifier.size(22.dp))
+                        Icon(CustomIcons.Add, "Añadir macro", modifier = Modifier.size(22.dp))
                     }
                 }
                 // Búsqueda
@@ -100,7 +100,7 @@ fun MacrosScreen(vm: MainViewModel) {
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     placeholder = { Text("Buscar macro...", color = TauText3, fontSize = 14.sp) },
-                    leadingIcon = { Icon(Icons.Default.Search, null, tint = TauText3) },
+                    leadingIcon = { Icon(CustomIcons.Search, null, tint = TauText3) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = doeyFieldColors(),
@@ -120,7 +120,7 @@ fun MacrosScreen(vm: MainViewModel) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        Icons.Default.Star,
+                        CustomIcons.Star,
                         null,
                         tint = TauText3,
                         modifier = Modifier.size(48.dp)
@@ -223,13 +223,13 @@ private fun MacroCard(
                 }
                 Row {
                     IconButton(onClick = onExecute, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.PlayArrow, "Ejecutar", tint = TauGreen, modifier = Modifier.size(20.dp))
+                        Icon(CustomIcons.PlayArrow, "Ejecutar", tint = TauGreen, modifier = Modifier.size(20.dp))
                     }
                     IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Edit, "Editar", tint = TauText2, modifier = Modifier.size(18.dp))
+                        Icon(CustomIcons.Edit, "Editar", tint = TauText2, modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Delete, "Eliminar", tint = TauRed, modifier = Modifier.size(18.dp))
+                        Icon(CustomIcons.Delete, "Eliminar", tint = TauRed, modifier = Modifier.size(18.dp))
                     }
                 }
             }

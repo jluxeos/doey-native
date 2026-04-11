@@ -90,7 +90,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
         apiKey = settings.getApiKey(provider)
     }
 
-    val providers = listOf("gemini", "groq", "openrouter", "openai", "custom")
+    val providers = listOf("gemini", "groq", "openrouter", "pollinations", "custom")
 
     Box(Modifier.fillMaxSize()) {
         GlassBackground(accentColor = TauAccent)
@@ -104,7 +104,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
 
                 // ── 1. Cerebro de Doey ────────────────────────────────────────────
-                TauSettingsSection(title = "Cerebro de Doey", icon = Icons.Default.Psychology) {
+                TauSettingsSection(title = "Cerebro de Doey", icon = CustomIcons.Psychology) {
                     providers.forEach { p ->
                         val isSelected = provider == p
                         Row(
@@ -116,22 +116,29 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                         ) {
                             Icon(
                                 when (p) {
-                                    "gemini"    -> Icons.Default.AutoAwesome
-                                    "groq"      -> Icons.Default.Bolt
-                                    "openai"    -> Icons.Default.SmartToy
-                                    "custom"    -> Icons.Default.Build
-                                    else        -> Icons.Default.Cloud
+                                    "gemini"    -> CustomIcons.AutoAwesome
+                                    "groq"      -> CustomIcons.Bolt
+                                    "pollinations" -> CustomIcons.AutoAwesome
+                                    "custom"    -> CustomIcons.Build
+                                    else        -> CustomIcons.Cloud
                                 },
                                 null, tint = if (isSelected) TauAccent else TauText3, modifier = Modifier.size(20.dp)
                             )
                             Spacer(Modifier.width(16.dp))
                             Text(
-                                p.replaceFirstChar { it.uppercase() },
+                                when (p) {
+                                "gemini"       -> "Gemini"
+                                "groq"         -> "Groq"
+                                "openrouter"   -> "OpenRouter"
+                                "pollinations" -> "Pollinations (gratis)"
+                                "custom"       -> "Personalizado"
+                                else           -> p.replaceFirstChar { it.uppercase() }
+                            },
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSelected) TauAccent else TauText1,
                                 modifier = Modifier.weight(1f)
                             )
-                            if (isSelected) Icon(Icons.Default.CheckCircle, null, tint = TauAccent, modifier = Modifier.size(18.dp))
+                            if (isSelected) Icon(CustomIcons.CheckCircle, null, tint = TauAccent, modifier = Modifier.size(18.dp))
                         }
                     }
 
@@ -167,25 +174,25 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                 }
 
                 // ── 2. Optimización Avanzada ──────────────────────────────────────
-                TauSettingsSection(title = "Optimización Avanzada", icon = Icons.Default.Speed) {
+                TauSettingsSection(title = "Optimización Avanzada", icon = CustomIcons.Speed) {
                     TauSwitchRow(
                         title = "Optimizador de Tokens",
                         subtitle = "Reduce el costo y latencia",
-                        icon = Icons.Default.Savings,
+                        icon = CustomIcons.Savings,
                         checked = tokenOptimizer,
                         onToggle = { tokenOptimizer = it }
                     )
                     TauSwitchRow(
                         title = "Caché de System Prompt",
                         subtitle = "Ahorra ~1000 tokens por mensaje",
-                        icon = Icons.Default.Storage,
+                        icon = CustomIcons.Storage,
                         checked = promptCache,
                         onToggle = { promptCache = it }
                     )
                     TauSwitchRow(
                         title = "Compresión de Historial",
                         subtitle = "Resume mensajes antiguos",
-                        icon = Icons.Default.Compress,
+                        icon = CustomIcons.Compress,
                         checked = historyCompress,
                         onToggle = { historyCompress = it }
                     )
@@ -216,7 +223,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                 }
 
                 // ── 3. Apariencia (Glass & Temas) ──────────────────────────────────
-                TauSettingsSection(title = "Apariencia", icon = Icons.Default.Palette) {
+                TauSettingsSection(title = "Apariencia", icon = CustomIcons.Palette) {
                     Text("Temas Glass (Base Blanca)", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -242,7 +249,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                                     .border(if (isSelected) 3.dp else 0.dp, TauText1, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (isSelected) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                if (isSelected) Icon(CustomIcons.Check, null, tint = Color.White, modifier = Modifier.size(20.dp))
                             }
                         }
                     }
@@ -281,18 +288,18 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                 }
 
                 // ── 4. Modo Friendly (Hidden Exposed) ──────────────────────────────
-                TauSettingsSection(title = "Modo Friendly", icon = Icons.Default.Spa) {
+                TauSettingsSection(title = "Modo Friendly", icon = CustomIcons.Spa) {
                     TauSwitchRow(
                         title = "Habilitar Modo Friendly",
                         subtitle = "Barra de compañía interactiva",
-                        icon = Icons.Default.Visibility,
+                        icon = CustomIcons.Visibility,
                         checked = friendlyMode,
                         onToggle = { friendlyMode = it }
                     )
                     TauSwitchRow(
                         title = "Inicio Automático",
                         subtitle = "Al encender el dispositivo",
-                        icon = Icons.Default.PowerSettingsNew,
+                        icon = CustomIcons.PowerSettingsNew,
                         checked = autoStartFriendly,
                         onToggle = { autoStartFriendly = it }
                     )

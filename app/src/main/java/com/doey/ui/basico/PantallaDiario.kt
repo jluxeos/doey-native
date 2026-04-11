@@ -54,7 +54,7 @@ fun JournalScreen(vm: MainViewModel) {
     Column(Modifier.fillMaxSize().background(TauBg)) {
         TopAppBar(
             title   = { Text("Diario", color = TauText1, fontWeight = FontWeight.Bold) },
-            actions = { IconButton(onClick = { refresh() }) { Icon(Icons.Default.Refresh, "Actualizar", tint = TauText3) } },
+            actions = { IconButton(onClick = { refresh() }) { Icon(CustomIcons.Refresh, "Actualizar", tint = TauText3) } },
             colors  = TopAppBarDefaults.topAppBarColors(containerColor = TauSurface1)
         )
 
@@ -105,7 +105,7 @@ fun JournalScreen(vm: MainViewModel) {
 private fun DiarioEmptyState() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.Book, null, modifier = Modifier.size(64.dp), tint = TauSurface3)
+            Icon(CustomIcons.Book, null, modifier = Modifier.size(64.dp), tint = TauSurface3)
             Spacer(Modifier.height(16.dp))
             Text("Tu diario está vacío", color = TauText3, textAlign = TextAlign.Center, fontSize = 14.sp)
         }
@@ -134,7 +134,7 @@ private fun JournalCard(e: JSONObject, onDelete: () -> Unit) {
                     }
                 }
                 IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Delete, null, tint = TauRed, modifier = Modifier.size(18.dp))
+                    Icon(CustomIcons.Delete, null, tint = TauRed, modifier = Modifier.size(18.dp))
                 }
             }
             if (expanded) {

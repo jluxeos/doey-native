@@ -61,7 +61,7 @@ fun SchedulesScreen(vm: MainViewModel) {
     Column(Modifier.fillMaxSize().background(TauBg)) {
         TopAppBar(
             title   = { Text("Reloj", color = TauText1, fontWeight = FontWeight.Bold) },
-            actions = { IconButton(onClick = { refresh() }) { Icon(Icons.Default.Refresh, "Actualizar", tint = TauText3) } },
+            actions = { IconButton(onClick = { refresh() }) { Icon(CustomIcons.Refresh, "Actualizar", tint = TauText3) } },
             colors  = TopAppBarDefaults.topAppBarColors(containerColor = TauSurface1)
         )
 
@@ -92,7 +92,7 @@ fun SchedulesScreen(vm: MainViewModel) {
 private fun AlarmList(alarms: List<JSONObject>, onRefresh: () -> Unit) {
     val ctx = LocalContext.current
     if (alarms.isEmpty()) {
-        AgendaEmptyState("No hay alarmas activas", Icons.Default.Alarm)
+        AgendaEmptyState("No hay alarmas activas", CustomIcons.Alarm)
     } else {
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(alarms) { alarm ->
@@ -119,7 +119,7 @@ private fun AlarmList(alarms: List<JSONObject>, onRefresh: () -> Unit) {
 private fun TimerList(timers: List<JSONObject>, onRefresh: () -> Unit) {
     val ctx = LocalContext.current
     if (timers.isEmpty()) {
-        AgendaEmptyState("No hay temporizadores", Icons.Default.Timer)
+        AgendaEmptyState("No hay temporizadores", CustomIcons.Timer)
     } else {
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(timers) { t ->
@@ -135,7 +135,7 @@ private fun TimerList(timers: List<JSONObject>, onRefresh: () -> Unit) {
 private fun ScheduleList(schedules: List<JSONObject>, onRefresh: () -> Unit) {
     val ctx = LocalContext.current
     if (schedules.isEmpty()) {
-        AgendaEmptyState("Tu agenda está vacía", Icons.Default.EventNote)
+        AgendaEmptyState("Tu agenda está vacía", CustomIcons.EventNote)
     } else {
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(schedules) { s ->
@@ -170,7 +170,7 @@ private fun AlarmRow(a: JSONObject, onDelete: () -> Unit) {
                 onCheckedChange = { /* toggle pendiente */ },
                 colors          = SwitchDefaults.colors(checkedThumbColor = TauAccent)
             )
-            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, null, tint = TauRed) }
+            IconButton(onClick = onDelete) { Icon(CustomIcons.Delete, null, tint = TauRed) }
         }
     }
 }
@@ -193,7 +193,7 @@ private fun TimerRow(t: JSONObject, onCancel: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    if (type == "timer") Icons.Default.HourglassEmpty else Icons.Default.Timer,
+                    if (type == "timer") CustomIcons.HourglassEmpty else CustomIcons.Timer,
                     null, tint = TauAccent, modifier = Modifier.size(20.dp)
                 )
             }
@@ -202,7 +202,7 @@ private fun TimerRow(t: JSONObject, onCancel: () -> Unit) {
                 Text(label, color = TauText1, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 Text(sub,   color = TauText3, fontSize = 12.sp)
             }
-            IconButton(onClick = onCancel) { Icon(Icons.Default.Close, null, tint = TauText3) }
+            IconButton(onClick = onCancel) { Icon(CustomIcons.Close, null, tint = TauText3) }
         }
     }
 }
@@ -225,7 +225,7 @@ private fun ScheduleRow(s: JSONObject, onToggle: () -> Unit, onDelete: () -> Uni
                 Modifier.size(40.dp).clip(CircleShape).background(TauBlue.copy(0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Event, null, tint = TauBlue, modifier = Modifier.size(20.dp))
+                Icon(CustomIcons.Event, null, tint = TauBlue, modifier = Modifier.size(20.dp))
             }
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
@@ -234,11 +234,11 @@ private fun ScheduleRow(s: JSONObject, onToggle: () -> Unit, onDelete: () -> Uni
             }
             IconButton(onClick = onToggle) {
                 Icon(
-                    if (enabled) Icons.Default.PauseCircleFilled else Icons.Default.PlayCircleFilled,
+                    if (enabled) CustomIcons.PauseCircleFilled else CustomIcons.PlayCircleFilled,
                     null, tint = TauAccent
                 )
             }
-            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, null, tint = TauRed) }
+            IconButton(onClick = onDelete) { Icon(CustomIcons.Delete, null, tint = TauRed) }
         }
     }
 }

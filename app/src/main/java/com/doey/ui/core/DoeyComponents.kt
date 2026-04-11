@@ -851,7 +851,7 @@ object ExposedDropdownMenuDefaults {
     @Composable
     fun TrailingIcon(expanded: Boolean) {
         Icon(
-            imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+            imageVector = if (expanded) CustomIcons.ExpandLess else CustomIcons.ExpandMore,
             contentDescription = null, tint = TauText2
         )
     }

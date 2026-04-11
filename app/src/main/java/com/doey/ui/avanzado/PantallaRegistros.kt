@@ -69,7 +69,7 @@ fun LogScreen() {
                     // Toggle auto-scroll
                     IconButton(onClick = { autoScroll = !autoScroll }) {
                         Icon(
-                            if (autoScroll) Icons.Default.VerticalAlignBottom else Icons.Default.VerticalAlignCenter,
+                            if (autoScroll) CustomIcons.VerticalAlignBottom else CustomIcons.VerticalAlignCenter,
                             contentDescription = "Auto-scroll",
                             tint = if (autoScroll) Purple else Label3Light
                         )
@@ -86,11 +86,11 @@ fun LogScreen() {
                         }
                         context.startActivity(Intent.createChooser(intent, "Exportar Logs"))
                     }) {
-                        Icon(Icons.Default.FileDownload, contentDescription = "Exportar", tint = Label3Light)
+                        Icon(CustomIcons.FileDownload, contentDescription = "Exportar", tint = Label3Light)
                     }
                     // Limpiar logs
                     IconButton(onClick = { DoeyLogger.clear() }) {
-                        Icon(Icons.Default.DeleteSweep, contentDescription = "Limpiar", tint = Label3Light)
+                        Icon(CustomIcons.DeleteSweep, contentDescription = "Limpiar", tint = Label3Light)
                     }
                 }
             )
@@ -109,7 +109,7 @@ fun LogScreen() {
             if (filtered.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Terminal, null, tint = Label3Light,
+                        Icon(CustomIcons.Terminal, null, tint = Label3Light,
                             modifier = Modifier.size(48.dp))
                         Spacer(Modifier.height(8.dp))
                         Text("Sin registros aún", color = Label3Light, fontSize = 14.sp)
@@ -245,7 +245,7 @@ private fun LogEntryCard(
                 )
                 if (hasDetail) {
                     Icon(
-                        if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        if (isExpanded) CustomIcons.ExpandLess else CustomIcons.ExpandMore,
                         contentDescription = null,
                         tint = Label3Light,
                         modifier = Modifier.size(16.dp).padding(start = 2.dp)

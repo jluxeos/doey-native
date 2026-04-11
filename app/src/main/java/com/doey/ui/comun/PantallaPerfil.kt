@@ -78,7 +78,7 @@ fun ProfileScreen(vm: MainViewModel) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
 
                 // ── Asistente del Sistema ──────────────────────────────────────────
-                TauSettingsSection(title = "Asistente del Sistema", icon = Icons.Default.Assistant) {
+                TauSettingsSection(title = "Asistente del Sistema", icon = CustomIcons.Assistant) {
                     val statusColor = if (isDefaultAssistant) TauGreen else TauRed
                     val statusText  = if (isDefaultAssistant) "Doey es tu asistente principal" else "Doey NO es el asistente principal"
 
@@ -90,7 +90,7 @@ fun ProfileScreen(vm: MainViewModel) {
                     ) {
                         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                if (isDefaultAssistant) Icons.Default.CheckCircle else Icons.Default.Error,
+                                if (isDefaultAssistant) CustomIcons.CheckCircle else CustomIcons.Close,
                                 null, tint = statusColor, modifier = Modifier.size(20.dp)
                             )
                             Spacer(Modifier.width(12.dp))
@@ -113,14 +113,14 @@ fun ProfileScreen(vm: MainViewModel) {
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.Assistant, null, modifier = Modifier.size(18.dp))
+                        Icon(CustomIcons.Assistant, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(12.dp))
                         Text("Configurar como Asistente", fontWeight = FontWeight.Bold)
                     }
                 }
 
                 // ── Mis Datos ──────────────────────────────────────────────────────
-                TauSettingsSection(title = "Mis Datos", icon = Icons.Default.Badge) {
+                TauSettingsSection(title = "Mis Datos", icon = CustomIcons.Badge) {
                     DoeyTextField(
                         value         = userName,
                         onValueChange = {
@@ -133,9 +133,9 @@ fun ProfileScreen(vm: MainViewModel) {
                 }
 
                 // ── Tipo de usuario ────────────────────────────────────────────────
-                TauSettingsSection(title = "¿Cómo usas Doey?", icon = Icons.Default.Person) {
+                TauSettingsSection(title = "¿Cómo usas Doey?", icon = CustomIcons.Person) {
                     ProfileOptionRow(
-                        icon       = Icons.Default.Elderly,
+                        icon       = CustomIcons.Person,
                         title      = "Modo Básico",
                         subtitle   = "Interfaz simple, comandos de voz",
                         isSelected = userProfile == ProfileStore.PROFILE_BASIC,
@@ -147,7 +147,7 @@ fun ProfileScreen(vm: MainViewModel) {
                     )
                     Spacer(Modifier.height(12.dp))
                     ProfileOptionRow(
-                        icon       = Icons.Default.Code,
+                        icon       = CustomIcons.Code,
                         title      = "Modo Avanzado",
                         subtitle   = "Skills, logs, automatizaciones",
                         isSelected = userProfile == ProfileStore.PROFILE_ADVANCED,
@@ -160,9 +160,9 @@ fun ProfileScreen(vm: MainViewModel) {
                 }
 
                 // ── Modo de rendimiento ───────────────────────────────────────────
-                TauSettingsSection(title = "Rendimiento", icon = Icons.Default.Speed) {
+                TauSettingsSection(title = "Rendimiento", icon = CustomIcons.Speed) {
                     ProfileOptionRow(
-                        icon       = Icons.Default.BatteryAlert,
+                        icon       = CustomIcons.BatteryAlert,
                         title      = "Bajo Consumo",
                         subtitle   = "Máx. 6 iteraciones · Historial reducido",
                         isSelected = performanceMode == ProfileStore.PERF_LOW_POWER,
@@ -197,7 +197,7 @@ fun ProfileScreen(vm: MainViewModel) {
                     )
                     Spacer(Modifier.height(12.dp))
                     ProfileOptionRow(
-                        icon       = Icons.Default.Speed,
+                        icon       = CustomIcons.Speed,
                         title      = "Alto Rendimiento",
                         subtitle   = "Máx. 10 iteraciones · Historial completo",
                         isSelected = performanceMode == ProfileStore.PERF_HIGH,
@@ -241,14 +241,14 @@ fun ProfileScreen(vm: MainViewModel) {
                 }
 
                 // ── Permisos del Sistema ──────────────────────────────────────────
-                TauSettingsSection(title = "Permisos del Sistema", icon = Icons.Default.Lock) {
-                    PermissionRow(title = "Accesibilidad", icon = Icons.Default.Accessibility) {
+                TauSettingsSection(title = "Permisos del Sistema", icon = CustomIcons.Lock) {
+                    PermissionRow(title = "Accesibilidad", icon = CustomIcons.Accessibility) {
                         ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
                     }
-                    PermissionRow(title = "Notificaciones", icon = Icons.Default.Notifications) {
+                    PermissionRow(title = "Notificaciones", icon = CustomIcons.NotificationsActive) {
                         ctx.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
                     }
-                    PermissionRow(title = "Superposición", icon = Icons.Default.BubbleChart) {
+                    PermissionRow(title = "Superposición", icon = CustomIcons.Message) {
                         ctx.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${ctx.packageName}")).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
                     }
                 }
@@ -276,7 +276,7 @@ private fun PermissionRow(title: String, icon: ImageVector, onGrant: () -> Unit)
         }
         Spacer(Modifier.width(16.dp))
         Text(title, color = TauText1, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-        Icon(Icons.Default.OpenInNew, null, tint = TauText3, modifier = Modifier.size(16.dp))
+        Icon(CustomIcons.ArrowForward, null, tint = TauText3, modifier = Modifier.size(16.dp))
     }
 }
 
@@ -310,6 +310,6 @@ fun ProfileOptionRow(
             Text(title, fontWeight = FontWeight.Bold, color = if (isSelected) accentColor else TauText1, fontSize = 15.sp)
             Text(subtitle, fontSize = 12.sp, color = TauText3)
         }
-        if (isSelected) Icon(Icons.Default.CheckCircle, null, tint = accentColor, modifier = Modifier.size(20.dp))
+        if (isSelected) Icon(CustomIcons.CheckCircle, null, tint = accentColor, modifier = Modifier.size(20.dp))
     }
 }

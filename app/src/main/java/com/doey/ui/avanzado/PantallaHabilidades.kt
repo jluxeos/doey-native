@@ -41,12 +41,12 @@ fun SkillsScreen(vm: MainViewModel) {
     // Habilidades que ya vienen integradas y no dependen de APIs externas
     val defaultSkills = remember {
         listOf(
-            DefaultSkill("Control de Medios", "Controla la música, pausa, siguiente y anterior en cualquier app.", Icons.Default.MusicNote),
-            DefaultSkill("Ajustes del Sistema", "Cambia el brillo, volumen, Wi-Fi y modo no molestar.", Icons.Default.Settings),
-            DefaultSkill("Navegación y Mapas", "Abre rutas, busca lugares cercanos y gasolineras.", Icons.Default.Navigation),
-            DefaultSkill("Comunicación", "Envía mensajes por WhatsApp, Telegram o haz llamadas por voz.", Icons.Default.Chat),
-            DefaultSkill("Accesibilidad", "Controla la pantalla y realiza acciones mediante comandos de voz.", Icons.Default.Accessibility),
-            DefaultSkill("Calendario y Alarmas", "Gestiona tus eventos, recordatorios y despiértate a tiempo.", Icons.Default.Alarm)
+            DefaultSkill("Control de Medios", "Controla la música, pausa, siguiente y anterior en cualquier app.", CustomIcons.MusicNote),
+            DefaultSkill("Ajustes del Sistema", "Cambia el brillo, volumen, Wi-Fi y modo no molestar.", CustomIcons.Settings),
+            DefaultSkill("Navegación y Mapas", "Abre rutas, busca lugares cercanos y gasolineras.", CustomIcons.Navigation),
+            DefaultSkill("Comunicación", "Envía mensajes por WhatsApp, Telegram o haz llamadas por voz.", CustomIcons.Chat),
+            DefaultSkill("Accesibilidad", "Controla la pantalla y realiza acciones mediante comandos de voz.", CustomIcons.Accessibility),
+            DefaultSkill("Calendario y Alarmas", "Gestiona tus eventos, recordatorios y despiértate a tiempo.", CustomIcons.Alarm)
         )
     }
 
@@ -214,7 +214,7 @@ fun DefaultSkillCard(skill: DefaultSkill) {
                 )
             }
             Icon(
-                imageVector = Icons.Default.CheckCircle,
+                imageVector = CustomIcons.CheckCircle,
                 contentDescription = "Activo",
                 tint = Color(0xFF34C759),
                 modifier = Modifier.size(20.dp)
@@ -236,7 +236,7 @@ fun CreateSkillInfoCard() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = Icons.Default.Code,
+                imageVector = CustomIcons.Code,
                 contentDescription = null,
                 tint = Purple,
                 modifier = Modifier.size(40.dp)

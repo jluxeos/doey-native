@@ -55,12 +55,12 @@ enum class UserProfile(val title: String, val subtitle: String, val icon: ImageV
     BASIC(
         "Modo Básico",
         "Para personas que prefieren una experiencia simple y guiada. Doey hará todo por ti con solo hablarle.",
-        Icons.Default.AutoAwesome
+        CustomIcons.AutoAwesome
     ),
     ADVANCED(
         "Modo Experto",
         "Para usuarios que quieren control total: skills, logs, configuración avanzada y automatizaciones complejas.",
-        Icons.Default.Psychology
+        CustomIcons.Psychology
     )
 }
 
@@ -68,12 +68,12 @@ enum class PerformanceMode(val title: String, val subtitle: String, val icon: Im
     LOW_POWER(
         "Bajo Consumo",
         "Optimizado para dispositivos de gama baja. Sin animaciones, menos procesos en segundo plano.",
-        Icons.Default.BatteryAlert
+        CustomIcons.BatteryAlert
     ),
     HIGH_PERFORMANCE(
         "Alto Rendimiento",
         "Experiencia completa con animaciones, funciones avanzadas y mayor capacidad de respuesta.",
-        Icons.Default.Speed
+        CustomIcons.Speed
     )
 }
 
@@ -246,7 +246,7 @@ private fun WelcomeStep(onNext: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                Icons.Default.SmartToy,
+                CustomIcons.SmartToy,
                 contentDescription = null,
                 tint = OBAccent,
                 modifier = Modifier.size(64.dp)
@@ -290,7 +290,7 @@ private fun WelcomeStep(onNext: () -> Unit) {
                 color = Color.White
             )
             Spacer(Modifier.width(8.dp))
-            Icon(Icons.Default.ArrowForward, null, tint = Color.White)
+            Icon(CustomIcons.ArrowForward, null, tint = Color.White)
         }
     }
 }

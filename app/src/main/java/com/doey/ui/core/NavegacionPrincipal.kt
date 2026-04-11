@@ -279,7 +279,7 @@ private fun DoeyDrawerContent(
                         .padding(20.dp)
                 ) {
                     Column {
-                        Icon(Icons.Default.SmartToy, null, tint = TauAccent, modifier = Modifier.size(40.dp))
+                        Icon(CustomIcons.SmartToy, null, tint = TauAccent, modifier = Modifier.size(40.dp))
                         Spacer(Modifier.height(12.dp))
                         Text("Doey Assistant", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = TauText1)
                         Text(if (isAdvanced) "Modo Experto" else "Modo Básico", fontSize = 12.sp, color = TauText3)
@@ -287,47 +287,47 @@ private fun DoeyDrawerContent(
                 }
 
                 DrawerSectionHeader("Principal")
-                DrawerItem(Icons.Default.Home, "Inicio", currentRoute == Screen.Inicio.route) {
+                DrawerItem(CustomIcons.Home, "Inicio", currentRoute == Screen.Inicio.route) {
                     scope.launch { drawerState.close() }
                     nav.navigate(Screen.Inicio.route)
                 }
-                DrawerItem(Icons.Default.Person, "Mi Perfil", currentRoute == Screen.Perfil.route) {
+                DrawerItem(CustomIcons.Person, "Mi Perfil", currentRoute == Screen.Perfil.route) {
                     scope.launch { drawerState.close() }
                     nav.navigate(Screen.Perfil.route)
                 }
 
                 DrawerSectionHeader("Herramientas")
-                DrawerItem(Icons.Default.Extension, "Skills", currentRoute == Screen.Habilidades.route) {
+                DrawerItem(CustomIcons.Extension, "Skills", currentRoute == Screen.Habilidades.route) {
                     scope.launch { drawerState.close() }
                     nav.navigate(Screen.Habilidades.route)
                 }
-                DrawerItem(Icons.Default.Alarm, "Agendas", currentRoute == Screen.Agendas.route) {
+                DrawerItem(CustomIcons.Alarm, "Agendas", currentRoute == Screen.Agendas.route) {
                     scope.launch { drawerState.close() }
                     nav.navigate(Screen.Agendas.route)
                 }
-                DrawerItem(Icons.Default.Psychology, "Memorias", currentRoute == Screen.Memorias.route) {
+                DrawerItem(CustomIcons.Psychology, "Memorias", currentRoute == Screen.Memorias.route) {
                     scope.launch { drawerState.close() }
                     nav.navigate(Screen.Memorias.route)
                 }
 
                 if (isAdvanced) {
                     DrawerSectionHeader("Avanzado")
-                    DrawerItem(Icons.Default.AccountTree, "Modo Flujo", currentRoute == Screen.ModoFlujo.route) {
+                    DrawerItem(CustomIcons.AccountTree, "Modo Flujo", currentRoute == Screen.ModoFlujo.route) {
                         scope.launch { drawerState.close() }
                         nav.navigate(Screen.ModoFlujo.route)
                     }
-                    DrawerItem(Icons.Default.Star, "Macros", currentRoute == Screen.Macros.route) {
+                    DrawerItem(CustomIcons.Star, "Macros", currentRoute == Screen.Macros.route) {
                         scope.launch { drawerState.close() }
                         nav.navigate(Screen.Macros.route)
                     }
-                    DrawerItem(Icons.Default.BugReport, "Logs", currentRoute == Screen.Registros.route) {
+                    DrawerItem(CustomIcons.BugReport, "Logs", currentRoute == Screen.Registros.route) {
                         scope.launch { drawerState.close() }
                         nav.navigate(Screen.Registros.route)
                     }
                 }
 
                 DrawerSectionHeader("Sistema")
-                DrawerItem(Icons.Default.Settings, "Ajustes", currentRoute == Screen.Configuracion.route) {
+                DrawerItem(CustomIcons.Settings, "Ajustes", currentRoute == Screen.Configuracion.route) {
                     scope.launch { drawerState.close() }
                     nav.navigate(Screen.Configuracion.route)
                 }

@@ -80,7 +80,7 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Default.Spa, null,
+                            CustomIcons.Spa, null,
                             tint     = Color(0xFF4CAF50),
                             modifier = Modifier.size(32.dp)
                         )
@@ -121,7 +121,7 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
         }
 
         // ── Activación ──────────────────────────────────────────────────────
-        FriendlySection(title = "Activación", icon = Icons.Default.PowerSettingsNew) {
+        FriendlySection(title = "Activación", icon = CustomIcons.PowerSettingsNew) {
             FriendlySwitchRow(
                 title    = "Activar Modo Friendly",
                 subtitle = "Muestra la barra asistente en la parte inferior",
@@ -152,7 +152,7 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
         }
 
         // ── Comportamiento ──────────────────────────────────────────────────
-        FriendlySection(title = "Comportamiento", icon = Icons.Default.Tune) {
+        FriendlySection(title = "Comportamiento", icon = CustomIcons.Tune) {
             FriendlySwitchRow(
                 title    = "Leer contexto de app activa",
                 subtitle = "Doey lee el contenido de la pantalla al invocarla",
@@ -162,7 +162,7 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
         }
 
         // ── Apariencia — Fix #5: sliders ahora persisten ────────────────────
-        FriendlySection(title = "Apariencia", icon = Icons.Default.Palette) {
+        FriendlySection(title = "Apariencia", icon = CustomIcons.Palette) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     Modifier.fillMaxWidth(),
@@ -225,7 +225,7 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
             shape    = RoundedCornerShape(16.dp),
             colors   = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C))
         ) {
-            Icon(Icons.Default.Save, null)
+            Icon(CustomIcons.Save, null)
             Spacer(Modifier.width(8.dp))
             Text("Guardar Ajustes Friendly", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
@@ -237,7 +237,7 @@ fun FriendlySettingsScreen(vm: MainViewModel) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
+                    Icon(CustomIcons.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("¡Ajustes del Modo Friendly guardados!", color = Color(0xFF4CAF50), fontSize = 14.sp)
                 }

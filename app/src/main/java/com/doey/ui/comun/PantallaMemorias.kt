@@ -60,7 +60,7 @@ val MEMORY_CATEGORIES = listOf(
     MemoryCategory(
         id = "contacto",
         label = "Contactos",
-        icon = Icons.Default.Person,
+        icon = CustomIcons.Person,
         color = Color(0xFF1565C0),
         variableHint = "Nombre del contacto",
         definitionHint = "Relación o descripción",
@@ -73,7 +73,7 @@ val MEMORY_CATEGORIES = listOf(
     MemoryCategory(
         id = "lugar",
         label = "Lugares",
-        icon = Icons.Default.Place,
+        icon = CustomIcons.Place,
         color = Color(0xFF2E7D32),
         variableHint = "Nombre del lugar",
         definitionHint = "Para qué sirve / qué es",
@@ -86,7 +86,7 @@ val MEMORY_CATEGORIES = listOf(
     MemoryCategory(
         id = "app_favorita",
         label = "Apps favoritas",
-        icon = Icons.Default.Apps,
+        icon = CustomIcons.Apps,
         color = Color(0xFF6A1B9A),
         variableHint = "Nombre de la app",
         definitionHint = "Para qué la uso",
@@ -102,7 +102,7 @@ val MEMORY_CATEGORIES = listOf(
     MemoryCategory(
         id = "utilidad_favorita",
         label = "Utilidades favoritas",
-        icon = Icons.Default.Build,
+        icon = CustomIcons.Build,
         color = Color(0xFFE65100),
         variableHint = "Nombre de la herramienta",
         definitionHint = "Para qué la uso",
@@ -115,7 +115,7 @@ val MEMORY_CATEGORIES = listOf(
     MemoryCategory(
         id = "comida_favorita",
         label = "Comidas favoritas",
-        icon = Icons.Default.Restaurant,
+        icon = CustomIcons.Restaurant,
         color = Color(0xFFC62828),
         variableHint = "Nombre del platillo o comida",
         definitionHint = "Descripción o contexto",
@@ -128,7 +128,7 @@ val MEMORY_CATEGORIES = listOf(
     MemoryCategory(
         id = "dato_personal",
         label = "Datos personales",
-        icon = Icons.Default.Badge,
+        icon = CustomIcons.Badge,
         color = Color(0xFF00838F),
         variableHint = "Tipo de dato",
         definitionHint = "Valor",
@@ -141,7 +141,7 @@ val MEMORY_CATEGORIES = listOf(
     MemoryCategory(
         id = "preferencia",
         label = "Preferencias",
-        icon = Icons.Default.Tune,
+        icon = CustomIcons.Tune,
         color = Color(0xFF558B2F),
         variableHint = "Tipo de preferencia",
         definitionHint = "Mi preferencia",
@@ -154,7 +154,7 @@ val MEMORY_CATEGORIES = listOf(
     MemoryCategory(
         id = "otro",
         label = "Otro",
-        icon = Icons.Default.MoreHoriz,
+        icon = CustomIcons.MoreHoriz,
         color = Color(0xFF546E7A),
         variableHint = "Nombre / clave",
         definitionHint = "Valor / descripción",
@@ -267,7 +267,7 @@ fun MemoriesScreen(vm: MainViewModel) {
                 actions = {
                     if (isSaved) {
                         Icon(
-                            Icons.Default.CheckCircle, null, tint = Color(0xFF2E7D32),
+                            CustomIcons.CheckCircle, null, tint = Color(0xFF2E7D32),
                             modifier = Modifier.padding(end = 8.dp).size(20.dp)
                         )
                     }
@@ -280,10 +280,10 @@ fun MemoriesScreen(vm: MainViewModel) {
                         }
                         context.startActivity(Intent.createChooser(intent, "Exportar Memorias"))
                     }) {
-                        Icon(Icons.Default.Share, "Compartir", tint = Label3Light)
+                        Icon(CustomIcons.Share, "Compartir", tint = Label3Light)
                     }
                     IconButton(onClick = { showAddDialog = true }) {
-                        Icon(Icons.Default.Add, "Agregar", tint = Purple)
+                        Icon(CustomIcons.Add, "Agregar", tint = Purple)
                     }
                 }
             )
@@ -295,7 +295,7 @@ fun MemoriesScreen(vm: MainViewModel) {
                 containerColor = Purple,
                 contentColor   = OnPurple
             ) {
-                Icon(Icons.Default.Add, "Agregar memoria")
+                Icon(CustomIcons.Add, "Agregar memoria")
             }
         }
     ) { pad ->
@@ -309,7 +309,7 @@ fun MemoriesScreen(vm: MainViewModel) {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.padding(32.dp)
                 ) {
-                    Icon(Icons.Default.Psychology, null, tint = Label3Light,
+                    Icon(CustomIcons.Psychology, null, tint = Label3Light,
                         modifier = Modifier.size(64.dp))
                     Text("Sin memorias guardadas", fontWeight = FontWeight.Bold,
                         color = Label1Light, fontSize = 18.sp)
@@ -323,7 +323,7 @@ fun MemoriesScreen(vm: MainViewModel) {
                         onClick = { showAddDialog = true },
                         colors  = ButtonDefaults.buttonColors(containerColor = Purple)
                     ) {
-                        Icon(Icons.Default.Add, null, tint = OnPurple)
+                        Icon(CustomIcons.Add, null, tint = OnPurple)
                         Spacer(Modifier.width(8.dp))
                         Text("Agregar mi primera memoria", color = OnPurple)
                     }
@@ -342,7 +342,7 @@ fun MemoriesScreen(vm: MainViewModel) {
                     .map { key ->
                         MemoryCategory(
                             id = key, label = key,
-                            icon = Icons.Default.MoreHoriz,
+                            icon = CustomIcons.MoreHoriz,
                             color = Color(0xFF546E7A),
                             variableHint = "", definitionHint = ""
                         )
@@ -443,7 +443,7 @@ private fun CategorySection(
                     )
                 }
                 Icon(
-                    if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    if (isExpanded) CustomIcons.ExpandLess else CustomIcons.ExpandMore,
                     null, tint = Label3Light
                 )
             }
@@ -514,11 +514,11 @@ private fun MemoryEntryRow(
                 modifier = Modifier.weight(1.5f)
             )
             IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.Edit, "Editar", tint = catColor,
+                Icon(CustomIcons.Edit, "Editar", tint = catColor,
                     modifier = Modifier.size(16.dp))
             }
             IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.Delete, "Eliminar", tint = Color(0xFFC62828),
+                Icon(CustomIcons.Delete, "Eliminar", tint = Color(0xFFC62828),
                     modifier = Modifier.size(16.dp))
             }
         }
@@ -785,7 +785,7 @@ private fun AddEditMemoryDialog(
                         modifier = Modifier.weight(1f),
                         colors   = ButtonDefaults.buttonColors(containerColor = Purple)
                     ) {
-                        Icon(Icons.Default.Save, null, tint = OnPurple)
+                        Icon(CustomIcons.Save, null, tint = OnPurple)
                         Spacer(Modifier.width(6.dp))
                         Text(if (isEditing) "Actualizar" else "Guardar", color = OnPurple)
                     }
