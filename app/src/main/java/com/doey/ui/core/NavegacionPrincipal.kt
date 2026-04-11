@@ -57,56 +57,27 @@ import com.doey.ui.comun.OnboardingFlow
 import com.doey.ui.comun.UserProfile
 import com.doey.ui.comun.PerformanceMode
 import com.doey.ui.basico.JournalScreen
-import com.doey.ui.basico.FriendlySettingsScreen
 import com.doey.ui.avanzado.SkillsScreen
 import com.doey.ui.avanzado.LogScreen
 import com.doey.ui.avanzado.PermissionsScreen
-import com.doey.ui.avanzado.FlowModeScreen
 import com.doey.ui.avanzado.MacrosScreen
 
-// Alias de compatibilidad (usando los de Glassmorphism.kt)
-val Purple         = TauAccent
-val PurpleDark     = TauAccentGlow
-val OnPurple       = Color.White
-val Surface0Light  = TauSurface1
-val Surface1Light  = TauSurface2
-val Surface2Light  = TauSurface3
-val Label1Light    = TauText1
-val Label2Light    = TauText2
-val Label3Light    = TauText3
-val ErrorRed       = TauRed
-
-// El sistema de colores ahora se gestiona directamente a través de SistemaGlassmorphism.kt
-// Se eliminan las definiciones de Material3 ColorScheme para usar la UI propia.
-
-// ── Navegación ────────────────────────────────────────────────────────────────
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Inicio             : Screen("inicio",             "Inicio",         CustomIcons.Home)
     object Habilidades        : Screen("habilidades",        "Habilidades",    CustomIcons.Star)
-    object Memorias         : Screen("memorias",         "Memorias",       CustomIcons.Message)
-    object Agendas          : Screen("agendas",          "Agendas",        CustomIcons.Clock)
-    object Diario           : Screen("diario",           "Diario",         CustomIcons.LibraryBooks)
+    object Memorias           : Screen("memorias",           "Memorias",       CustomIcons.Message)
+    object Agendas            : Screen("agendas",            "Agendas",        CustomIcons.Clock)
+    object Diario             : Screen("diario",             "Diario",         CustomIcons.LibraryBooks)
     object Permisos           : Screen("permisos",           "Permisos",       CustomIcons.Lock)
     object Configuracion      : Screen("configuracion",      "Ajustes",        CustomIcons.Settings)
     object Registros          : Screen("registros",          "Registros",      CustomIcons.BugReport)
-    object ModoFlujo          : Screen("modo_flujo",         "Modo Flujo",     CustomIcons.AccountTree)
-    object ModoAuto          : Screen("modo_auto",          "Modo Auto",      CustomIcons.DirectionsCar)
-    object Macros           : Screen("macros",           "Macros",         CustomIcons.Star)
-    object Perfil           : Screen("perfil",           "Mi Perfil",      CustomIcons.Person)
-    object AjustesBasicos     : Screen("ajustes_basicos",    "Modo Básico",    CustomIcons.Spa)
-    
-    object Reloj            : Screen("reloj",            "Reloj",          CustomIcons.Clock)
-    object Alarmas          : Screen("alarmas",          "Alarmas",        CustomIcons.Clock)
-    object Recordatorios    : Screen("recordatorios",    "Recordatorios",  CustomIcons.NotificationsActive)
-    object Temporizadores   : Screen("temporizadores",   "Temporizadores", CustomIcons.Clock)
-    object Cronometro       : Screen("cronometro",       "Cronómetro",     CustomIcons.Clock)
+    object Macros             : Screen("macros",             "Macros",         CustomIcons.Star)
+    object Perfil             : Screen("perfil",             "Mi Perfil",      CustomIcons.Person)
 }
-
 
 @Composable
 fun DoeyApp() {
     val vm  = viewModel<MainViewModel>()
-
     val ctx = LocalContext.current
     val profileStore = remember { ProfileStore(ctx) }
     val settingsStore = remember { SettingsStore(ctx) }
@@ -154,28 +125,23 @@ fun DoeyApp() {
     }
 
     if (!onboardingDone) {
-        // Usar UI propia sin MaterialTheme
-        CompositionLocalProvider(
-            // Aquí se podrían proveer tipografías o colores si fuera necesario
-        ) {
-            OnboardingFlow { name, profile, performance, provider, apiKey ->
-                profileStore.setUserName(name)
-                profileStore.setUserProfile(
-                    if (profile == UserProfile.BASIC) ProfileStore.PROFILE_BASIC else ProfileStore.PROFILE_ADVANCED
-                )
-                profileStore.setPerformanceMode(
-                    if (performance == PerformanceMode.LOW_POWER) ProfileStore.PERF_LOW_POWER else ProfileStore.PERF_HIGH
-                )
-                profileStore.setOnboardingDone(true)
-                if (apiKey.isNotBlank()) {
-                    val settings = vm.getSettings()
-                    settings.setApiKey(provider, apiKey)
-                    kotlinx.coroutines.MainScope().launch { settings.setProvider(provider) }
-                }
-                userProfile = if (profile == UserProfile.BASIC) ProfileStore.PROFILE_BASIC else ProfileStore.PROFILE_ADVANCED
-                isLowPower  = performance == PerformanceMode.LOW_POWER
-                onboardingDone = true
+        OnboardingFlow { name, profile, performance, provider, apiKey ->
+            profileStore.setUserName(name)
+            profileStore.setUserProfile(
+                if (profile == UserProfile.BASIC) ProfileStore.PROFILE_BASIC else ProfileStore.PROFILE_ADVANCED
+            )
+            profileStore.setPerformanceMode(
+                if (performance == PerformanceMode.LOW_POWER) ProfileStore.PERF_LOW_POWER else ProfileStore.PERF_HIGH
+            )
+            profileStore.setOnboardingDone(true)
+            if (apiKey.isNotBlank()) {
+                val settings = vm.getSettings()
+                settings.setApiKey(provider, apiKey)
+                kotlinx.coroutines.MainScope().launch { settings.setProvider(provider) }
             }
+            userProfile = if (profile == UserProfile.BASIC) ProfileStore.PROFILE_BASIC else ProfileStore.PROFILE_ADVANCED
+            isLowPower  = performance == PerformanceMode.LOW_POWER
+            onboardingDone = true
         }
         return
     }
@@ -185,50 +151,35 @@ fun DoeyApp() {
     val scope       = rememberCoroutineScope()
     val isAdvanced  = userProfile == ProfileStore.PROFILE_ADVANCED
 
-    // Usar UI propia sin MaterialTheme
-    CompositionLocalProvider(
-        // Aquí se podrían proveer tipografías o colores si fuera necesario
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            DoeyDrawerContent(nav, drawerState, isAdvanced, isLowPower, scope)
+        }
     ) {
-        ModalNavigationDrawer(
-            drawerState = drawerState,
-            drawerContent = {
-                DoeyDrawerContent(nav, drawerState, isAdvanced, isLowPower, scope)
+        Scaffold(
+            containerColor = TauBg,
+            topBar = {
+                DoeyTopBar(vm, nav, onMenuClick = { scope.launch { drawerState.open() } })
             }
-        ) {
-            Scaffold(
-                containerColor = TauBg,
-                topBar = {
-                    DoeyTopBar(vm, nav, onMenuClick = { scope.launch { drawerState.open() } })
-                }
-            ) { padding ->
-                Box(Modifier.padding(padding)) {
-                    NavHost(navController = nav, startDestination = Screen.Inicio.route) {
-                        composable(Screen.Inicio.route) { HomeScreen(vm, nav) }
-                        composable(Screen.Configuracion.route) { SettingsScreen(vm, onProfileChanged) }
-                        composable(Screen.Perfil.route) { ProfileScreen(vm) }
-                        composable(Screen.Memorias.route) { MemoriesScreen(vm) }
-                        composable(Screen.Diario.route) { JournalScreen(vm) }
-                        composable(Screen.Agendas.route) { SchedulesScreen(vm) }
-                        composable(Screen.Habilidades.route) { SkillsScreen(vm) }
-                        composable(Screen.Registros.route) { LogScreen() }
-                        composable(Screen.Permisos.route) { PermissionsScreen() }
-                        composable(Screen.AjustesBasicos.route) { FriendlySettingsScreen(vm) }
-                        composable(Screen.ModoFlujo.route) { FlowModeScreen(vm) }
-                        composable(Screen.ModoAuto.route) { SchedulesScreen(vm) }
-                        composable(Screen.Macros.route) { MacrosScreen(vm) }
-                        
-                        composable(Screen.Reloj.route) { SchedulesScreen(vm) }
-                        composable(Screen.Alarmas.route) { SchedulesScreen(vm) }
-                        composable(Screen.Recordatorios.route) { SchedulesScreen(vm) }
-                        composable(Screen.Temporizadores.route) { SchedulesScreen(vm) }
-                        composable(Screen.Cronometro.route) { SchedulesScreen(vm) }
-                    }
+        ) { padding ->
+            Box(Modifier.padding(padding)) {
+                NavHost(navController = nav, startDestination = Screen.Inicio.route) {
+                    composable(Screen.Inicio.route) { HomeScreen(vm, nav) }
+                    composable(Screen.Configuracion.route) { SettingsScreen(vm, onProfileChanged) }
+                    composable(Screen.Perfil.route) { ProfileScreen(vm) }
+                    composable(Screen.Memorias.route) { MemoriesScreen(vm) }
+                    composable(Screen.Diario.route) { JournalScreen(vm) }
+                    composable(Screen.Agendas.route) { SchedulesScreen(vm) }
+                    composable(Screen.Habilidades.route) { SkillsScreen(vm) }
+                    composable(Screen.Registros.route) { LogScreen() }
+                    composable(Screen.Permisos.route) { PermissionsScreen() }
+                    composable(Screen.Macros.route) { MacrosScreen(vm) }
                 }
             }
         }
     }
 }
-
 
 @Composable
 private fun DoeyTopBar(vm: MainViewModel, nav: NavController, onMenuClick: () -> Unit) {
@@ -236,12 +187,12 @@ private fun DoeyTopBar(vm: MainViewModel, nav: NavController, onMenuClick: () ->
         title = { Text("Doey AI", style = DoeyTypography.titleLarge, color = TauText1) },
         navigationIcon = {
             IconButton(onClick = onMenuClick) {
-                                Icon(CustomIcons.Menu, "Menú", tint = TauText1)
+                Icon(CustomIcons.Menu, "Menú", tint = TauText1)
             }
         },
         actions = {
             IconButton(onClick = { nav.navigate(Screen.Perfil.route) }) {
-                                Icon(CustomIcons.Person, "Perfil", tint = TauText1)
+                Icon(CustomIcons.Person, "Perfil", tint = TauText1)
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -268,7 +219,6 @@ private fun DoeyDrawerContent(
             GlassBackground(accentColor = TauAccent)
             
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                // Header del Drawer
                 Box(
                     Modifier
                         .fillMaxWidth()
@@ -312,10 +262,6 @@ private fun DoeyDrawerContent(
 
                 if (isAdvanced) {
                     DrawerSectionHeader("Avanzado")
-                    DrawerItem(CustomIcons.AccountTree, "Modo Flujo", currentRoute == Screen.ModoFlujo.route) {
-                        scope.launch { drawerState.close() }
-                        nav.navigate(Screen.ModoFlujo.route)
-                    }
                     DrawerItem(CustomIcons.Star, "Macros", currentRoute == Screen.Macros.route) {
                         scope.launch { drawerState.close() }
                         nav.navigate(Screen.Macros.route)
