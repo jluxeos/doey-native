@@ -109,7 +109,7 @@ class DoeyAccessibilityService : AccessibilityService() {
      * Build a human-readable text representation of the current UI tree.
      * Retries up to 5 times with increasing delays for slow-rendering apps.
      */
-    fun buildAccessibilityTree(): String {
+    fun buildAccessibilityTree(expectedPackage: String? = null): String {
         DoeyLogger.accessibilitySend("get_tree", null, "Leyendo árbol de pantalla")
         reportToOverlay(
             this,
@@ -117,6 +117,20 @@ class DoeyAccessibilityService : AccessibilityService() {
             "Leyendo pantalla...",
             "Analizando elementos de UI"
         )
+        // Si se especifica un paquete, esperar hasta 3s a que quede en primer plano
+        if (expectedPackage != null) {
+            val deadline = System.currentTimeMillis() + 3000L
+            while (System.currentTimeMillis() < deadline) {
+                val root = rootInActiveWindow
+                if (root != null) {
+                    val pkg = root.packageName?.toString()
+                    root.recycle()
+                    if (pkg == expectedPackage) break
+                }
+                Thread.sleep(150)
+            }
+        }
+
         val retryDelays = longArrayOf(50, 100, 200, 300, 500)
 
         for (attempt in retryDelays.indices) {
@@ -124,6 +138,13 @@ class DoeyAccessibilityService : AccessibilityService() {
             val root = rootInActiveWindow
 
             if (root != null) {
+                // Si se pidió un paquete específico y la ventana activa es otra, saltar
+                val rootPkg = root.packageName?.toString()
+                if (expectedPackage != null && rootPkg != null && rootPkg != expectedPackage) {
+                    root.recycle()
+                    if (attempt < retryDelays.size - 1) Thread.sleep(retryDelays[attempt])
+                    continue
+                }
                 val sb = StringBuilder()
                 try {
                     traverseNode(root, sb, 0)
@@ -144,7 +165,11 @@ class DoeyAccessibilityService : AccessibilityService() {
                 Thread.sleep(retryDelays[attempt])
             }
         }
-        return "No active window found. Make sure the target app is open and in the foreground."
+        val msg = if (expectedPackage != null)
+            "No active window found for $expectedPackage. Make sure the app is open and in the foreground."
+        else
+            "No active window found. Make sure the target app is open and in the foreground."
+        return msg
     }
 
     private fun traverseNode(node: AccessibilityNodeInfo, sb: StringBuilder, depth: Int) {
@@ -247,36 +272,15 @@ class DoeyAccessibilityService : AccessibilityService() {
 
         val result = when (action) {
             "click" -> {
-                // Intento 1: usar el nodo del mapa actual
                 val rect = Rect()
                 node.getBoundsInScreen(rect)
-                var clicked = if (rect.width() > 0 && rect.height() > 0) {
+                if (rect.width() > 0 && rect.height() > 0) {
                     val cx = (rect.left + rect.right) / 2
                     val cy = (rect.top + rect.bottom) / 2
                     dispatchTapGestureSync(cx, cy)
                 } else {
                     node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                 }
-                // Si falla, refrescar árbol y reintentar hasta 2 veces
-                // (necesario cuando la UI se re-renderiza entre get_tree y click)
-                if (!clicked) {
-                    for (retry in 1..2) {
-                        Thread.sleep(300L * retry)
-                        buildAccessibilityTree() // refresca nodeMap
-                        val freshNode = nodeMap[nodeId] ?: break
-                        val freshRect = Rect()
-                        freshNode.getBoundsInScreen(freshRect)
-                        clicked = if (freshRect.width() > 0 && freshRect.height() > 0) {
-                            val cx = (freshRect.left + freshRect.right) / 2
-                            val cy = (freshRect.top + freshRect.bottom) / 2
-                            dispatchTapGestureSync(cx, cy)
-                        } else {
-                            freshNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                        }
-                        if (clicked) break
-                    }
-                }
-                clicked
             }
             "long_click" -> {
                 val ok = node.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)
