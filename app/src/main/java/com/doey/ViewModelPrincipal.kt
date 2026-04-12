@@ -351,6 +351,37 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         val minutes = (uptime % 3600) / 60
                         "⏱️ El dispositivo lleva encendido $hours horas y $minutes minutos"
                     }
+                    LocalIntentProcessor.InfoType.NETWORK_SPEED -> {
+                        val tm = app.getSystemService(android.content.Context.TELEPHONY_SERVICE) as? android.telephony.TelephonyManager
+                        val wifi = app.getSystemService(android.content.Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+                        val wifiInfo = wifi?.connectionInfo
+                        if (wifiInfo != null && wifiInfo.rssi != 0) {
+                            val speed = wifiInfo.linkSpeed
+                            "📶 WiFi conectado a ${wifiInfo.ssid}, velocidad de enlace: $speed Mbps"
+                        } else {
+                            val type = tm?.networkType ?: 0
+                            val typeName = when (type) {
+                                android.telephony.TelephonyManager.NETWORK_TYPE_LTE -> "4G LTE"
+                                android.telephony.TelephonyManager.NETWORK_TYPE_NR  -> "5G"
+                                android.telephony.TelephonyManager.NETWORK_TYPE_HSDPA,
+                                android.telephony.TelephonyManager.NETWORK_TYPE_HSUPA,
+                                android.telephony.TelephonyManager.NETWORK_TYPE_HSPA -> "3G HSPA"
+                                android.telephony.TelephonyManager.NETWORK_TYPE_EDGE -> "2G EDGE"
+                                else -> "desconocido"
+                            }
+                            "📡 Conectado por datos móviles ($typeName)"
+                        }
+                    }
+                    LocalIntentProcessor.InfoType.IP_ADDRESS -> {
+                        val wifi = app.getSystemService(android.content.Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+                        val ipInt = wifi?.connectionInfo?.ipAddress ?: 0
+                        if (ipInt != 0) {
+                            val ip = "${ipInt and 0xFF}.${(ipInt shr 8) and 0xFF}.${(ipInt shr 16) and 0xFF}.${(ipInt shr 24) and 0xFF}"
+                            "🌐 Tu IP local es: $ip"
+                        } else {
+                            "⚠️ No se pudo obtener la IP (sin WiFi activo)"
+                        }
+                    }
                 }
 
                 // ── Navegación del Sistema ──────────────────────────────────────────
