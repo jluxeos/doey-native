@@ -205,6 +205,13 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         register(NotificationListenerTool())
         register(AlarmTool())
         register(AppSearchAndLaunchTool())
+        register(ClipboardTool())
+        register(ShoppingListTool())
+        register(VolumeTool())
+        register(QuickNoteTool())
+        register(WifiBluetoothTool())
+        register(FlashlightTool())
+        register(CountdownTool())
 
         removeDisabledSkillTools(skillLoader.getDisabledExclusiveTools(enabledSkills))
     }

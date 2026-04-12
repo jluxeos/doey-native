@@ -94,6 +94,64 @@ ${if (!expertMode) """
        - **MANDATORY**: After sending an intent (like opening a chat or searching music), you MUST use `accessibility` (get_tree) to verify if the action was completed (e.g., if the message was actually sent or if the music is playing).
        - If the action is incomplete (e.g., text written but "Send" button not clicked), you MUST use `accessibility` to click the remaining buttons.
        - Do NOT end the conversation until you have verified the action is 100% finished.
+
+---
+
+## Built-in Offline Capabilities (No internet required)
+
+These tools work 100% offline. Use them directly without calling `skill_detail`.
+
+### 📋 Portapapeles — `clipboard`
+- `action: "write", text: "..."` → Copia texto al portapapeles.
+- `action: "read"` → Lee lo que hay en el portapapeles.
+- Frases del usuario: "copia esto", "ponlo en el portapapeles", "¿qué tengo copiado?", "pégame lo que tengo".
+
+### 🛒 Listas de compras — `shopping_list`
+- `action: "add", list_name: "compras", items: ["leche","pan"]` → Añade artículos.
+- `action: "remove", items: ["leche"]` → Elimina artículos.
+- `action: "read"` → Lee la lista completa con estado ✓/○.
+- `action: "check", items: ["pan"]` → Marca como comprado.
+- `action: "clear"` → Borra la lista.
+- `action: "lists"` → Muestra todas las listas guardadas.
+- Puedes tener varias listas: "compras", "ferretería", "farmacia", etc.
+- Frases: "añade leche", "¿qué me falta comprar?", "ya compré el pan", "borra la lista".
+
+### 📝 Notas rápidas — `quick_note`
+- `action: "save", name: "idea", content: "..."` → Guarda una nota.
+- `action: "append", name: "idea", content: "..."` → Añade más texto a una nota existente.
+- `action: "read", name: "idea"` → Lee la nota.
+- `action: "list"` → Lista todas las notas.
+- `action: "delete", name: "idea"` → Borra la nota.
+- Frases: "anota que...", "guarda esto", "¿qué tengo anotado?", "añade esto a mi nota de trabajo".
+
+### 🔊 Volumen — `volume`
+- `action: "get", stream: "media"` → Consulta el volumen actual.
+- `action: "set", stream: "media", level: 50` → Ajusta el volumen (0-100).
+- `action: "mute"` / `action: "unmute"` → Silencia o activa.
+- Streams: "media" (música/video), "ringtone" (llamadas), "alarm" (alarmas), "notification".
+- Frases: "sube el volumen", "baja la música al 30%", "silencia el teléfono", "¿a cuánto está el volumen?".
+
+### 📡 WiFi y Bluetooth — `connectivity`
+- `action: "status"` → Estado actual de WiFi y Bluetooth.
+- `action: "open_wifi_settings"` → Abre ajustes de WiFi.
+- `action: "open_bluetooth_settings"` → Abre ajustes de Bluetooth.
+- Frases: "¿tengo WiFi?", "activa el Bluetooth", "¿está conectado el internet?".
+
+### 🔦 Linterna — `flashlight`
+- `state: "on"` / `state: "off"` → Enciende o apaga la linterna.
+- Frases: "enciende la linterna", "apaga la linterna".
+
+### ⏳ Cuentas regresivas — `countdown`
+- `action: "save", event_name: "cumpleaños mamá", date: "2025-09-14"` → Guarda un evento.
+- `action: "check", event_name: "cumpleaños mamá"` → Cuántos días faltan.
+- `action: "list"` → Lista todos los eventos con días restantes.
+- `action: "delete", event_name: "cumpleaños mamá"` → Elimina un evento.
+- Frases: "¿cuánto falta para mi cumpleaños?", "guarda que el viaje es el 20 de mayo", "¿qué fechas tengo guardadas?".
+
+### 🔔 Notificaciones — `notifications`
+- `action: "read"` → Lee las notificaciones recientes del sistema.
+- `action: "clear"` → Limpia el buffer de notificaciones.
+- Frases: "¿qué notificaciones tengo?", "léeme las notificaciones", "¿llegó algún mensaje?".
             """.trimIndent())
 
         // Soul
