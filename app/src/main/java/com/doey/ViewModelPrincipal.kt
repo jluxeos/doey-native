@@ -1016,6 +1016,201 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         ""  // No mostrar mensaje, Gemini lo maneja visualmente
                     }
                 }
+                // ── NFC ──────────────────────────────────────────────────────────
+                is LocalIntentProcessor.LocalAction.ToggleNfc -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_NFC_SETTINGS).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    app.startActivity(intent)
+                    if (action.enable) "📡 Te abro ajustes de NFC para activarlo" else "📡 Te abro ajustes de NFC para desactivarlo"
+                }
+
+                // ── Modo oscuro ──────────────────────────────────────────────────
+                is LocalIntentProcessor.LocalAction.ToggleDarkMode -> {
+                    val mode = if (action.enable)
+                        android.app.UiModeManager.MODE_NIGHT_YES
+                    else
+                        android.app.UiModeManager.MODE_NIGHT_NO
+                    val uiManager = app.getSystemService(android.content.Context.UI_MODE_SERVICE) as android.app.UiModeManager
+                    uiManager.nightMode = mode
+                    if (action.enable) "🌙 Modo oscuro activado" else "☀️ Modo claro activado"
+                }
+
+                // ── Hotspot ──────────────────────────────────────────────────────
+                is LocalIntentProcessor.LocalAction.ToggleHotspot -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    app.startActivity(intent)
+                    if (action.enable) "📶 Te abro ajustes de punto de acceso" else "📶 Te abro ajustes para desactivar hotspot"
+                }
+
+                // ── Cronómetro ──────────────────────────────────────────────────
+                is LocalIntentProcessor.LocalAction.StartStopwatch -> {
+                    val intent = android.content.Intent(android.provider.AlarmClock.ACTION_SET_TIMER).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    // Abrir reloj en pestaña cronómetro
+                    val clockIntent = app.packageManager.getLaunchIntentForPackage("com.google.android.deskclock")
+                        ?: android.content.Intent("android.intent.action.SHOW_ALARMS").apply {
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    clockIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    app.startActivity(clockIntent)
+                    "⏱️ Abriendo el cronómetro"
+                }
+
+                is LocalIntentProcessor.LocalAction.StopStopwatch -> {
+                    "⏹️ Para el cronómetro en la app del reloj"
+                }
+
+                // ── Shuffle / Repeat ─────────────────────────────────────────────
+                is LocalIntentProcessor.LocalAction.ShuffleMusic -> {
+                    val intent = android.content.Intent(android.media.session.MediaController::class.java.name).apply {
+                        action = "com.spotify.music.playbackstatechanged"
+                    }
+                    // Simular tecla media para shuffle — enviar broadcast genérico
+                    val keyEvent = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
+                    val mediaIntent = android.content.Intent(android.content.Intent.ACTION_MEDIA_BUTTON).apply {
+                        putExtra(android.content.Intent.EXTRA_KEY_EVENT, keyEvent)
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    "🔀 Activa el modo aleatorio en tu app de música"
+                }
+
+                is LocalIntentProcessor.LocalAction.RepeatToggle -> {
+                    "🔁 Activa el modo repetición en tu app de música"
+                }
+
+                // ── Apps rápidas ─────────────────────────────────────────────────
+                is LocalIntentProcessor.LocalAction.OpenCamera -> {
+                    val intent = android.content.Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    app.startActivity(intent)
+                    "📷 Abriendo la cámara"
+                }
+
+                is LocalIntentProcessor.LocalAction.OpenGallery -> {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                        type = "image/*"
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    app.startActivity(intent)
+                    "🖼️ Abriendo la galería"
+                }
+
+                is LocalIntentProcessor.LocalAction.OpenContacts -> {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                        data = android.provider.ContactsContract.Contacts.CONTENT_URI
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    app.startActivity(intent)
+                    "👥 Abriendo contactos"
+                }
+
+                is LocalIntentProcessor.LocalAction.OpenDialer -> {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_DIAL).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    app.startActivity(intent)
+                    "📞 Abriendo el marcador"
+                }
+
+                is LocalIntentProcessor.LocalAction.OpenCalculator -> {
+                    val intent = app.packageManager.getLaunchIntentForPackage("com.google.android.calculator")
+                        ?: android.content.Intent().apply {
+                            setClassName("com.android.calculator2", "com.android.calculator2.Calculator")
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    app.startActivity(intent)
+                    "🧮 Abriendo la calculadora"
+                }
+
+                is LocalIntentProcessor.LocalAction.OpenCalendar -> {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                        data = android.net.Uri.parse("content://com.android.calendar/time")
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    app.startActivity(intent)
+                    "📅 Abriendo el calendario"
+                }
+
+                is LocalIntentProcessor.LocalAction.OpenMaps -> {
+                    val intent = app.packageManager.getLaunchIntentForPackage("com.google.android.apps.maps")
+                        ?: android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("geo:0,0")).apply {
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    app.startActivity(intent)
+                    "🗺️ Abriendo Maps"
+                }
+
+                is LocalIntentProcessor.LocalAction.OpenBrowser -> {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com")).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    app.startActivity(intent)
+                    "🌐 Abriendo el navegador"
+                }
+
+                is LocalIntentProcessor.LocalAction.OpenFiles -> {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                        type = "*/*"
+                        addCategory(android.content.Intent.CATEGORY_OPENABLE)
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    val pm = app.packageManager
+                    val filesApp = pm.getLaunchIntentForPackage("com.google.android.apps.nbu.files")
+                        ?: pm.getLaunchIntentForPackage("com.android.documentsui")
+                    if (filesApp != null) {
+                        filesApp.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        app.startActivity(filesApp)
+                    } else {
+                        app.startActivity(intent)
+                    }
+                    "📁 Abriendo el explorador de archivos"
+                }
+
+                is LocalIntentProcessor.LocalAction.OpenClock -> {
+                    val intent = app.packageManager.getLaunchIntentForPackage("com.google.android.deskclock")
+                        ?: android.content.Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS).apply {
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    app.startActivity(intent)
+                    "🕐 Abriendo el reloj"
+                }
+
+                is LocalIntentProcessor.LocalAction.SetRingtoneVolume -> {
+                    val am = app.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+                    val max = am.getStreamMaxVolume(android.media.AudioManager.STREAM_RING)
+                    val level = (action.level * max / 100).coerceIn(0, max)
+                    am.setStreamVolume(android.media.AudioManager.STREAM_RING, level, 0)
+                    "🔔 Volumen del timbre al ${action.level}%"
+                }
+
+                is LocalIntentProcessor.LocalAction.SetAlarmVolume -> {
+                    val am = app.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+                    val max = am.getStreamMaxVolume(android.media.AudioManager.STREAM_ALARM)
+                    val level = (action.level * max / 100).coerceIn(0, max)
+                    am.setStreamVolume(android.media.AudioManager.STREAM_ALARM, level, 0)
+                    "⏰ Volumen de alarma al ${action.level}%"
+                }
+
+                is LocalIntentProcessor.LocalAction.ShareText -> {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_TEXT, action.text)
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    app.startActivity(android.content.Intent.createChooser(intent, "Compartir").apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    })
+                    "📤 Compartiendo texto"
+                }
+
                 else -> "" // Fallback para cualquier acción no manejada explícitamente
             }
         } catch (e: Exception) {
