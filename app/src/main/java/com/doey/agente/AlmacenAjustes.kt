@@ -82,8 +82,10 @@ class SettingsStore(private val context: Context) {
         encPrefs.edit().putString("custom_model_url", url).apply()
 
     // ── DataStore flows ───────────────────────────────────────────────────────
+    // NOTA: El modelo se guarda vacío a propósito — el factory asigna
+    // el default correcto según el proveedor seleccionado.
     val provider: Flow<String>         = context.dataStore.data.map { it[KEY_PROVIDER] ?: "gemini" }
-    val model: Flow<String>            = context.dataStore.data.map { it[KEY_MODEL] ?: "gemini-2.5-flash" }
+    val model: Flow<String>            = context.dataStore.data.map { it[KEY_MODEL] ?: "" }
     val language: Flow<String>         = context.dataStore.data.map { it[KEY_LANGUAGE] ?: "system" }
     val drivingMode: Flow<Boolean>     = context.dataStore.data.map { it[KEY_DRIVING_MODE] ?: false }
     val wakeWordEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_WAKE_WORD] ?: false }
@@ -126,8 +128,11 @@ class SettingsStore(private val context: Context) {
     suspend fun setGlassBlur(v: Float)                  = context.dataStore.edit { it[KEY_GLASS_BLUR] = v }
 
     // ── Suspend getters (first emission) ──────────────────────────────────────
+    // NOTA: getProvider() y getModel() devuelven el valor guardado sin imponer
+    // un default de modelo — el factory resuelve el modelo por defecto según
+    // el proveedor elegido, evitando que siempre caiga en Gemini.
     suspend fun getProvider()        = context.dataStore.data.map { it[KEY_PROVIDER] ?: "gemini" }.first()
-    suspend fun getModel()           = context.dataStore.data.map { it[KEY_MODEL] ?: "gemini-2.5-flash" }.first()
+    suspend fun getModel()           = context.dataStore.data.map { it[KEY_MODEL] ?: "" }.first()
     suspend fun getLanguage()        = language.first()
     suspend fun getDrivingMode()     = drivingMode.first()
     suspend fun getWakeWordEnabled() = wakeWordEnabled.first()
