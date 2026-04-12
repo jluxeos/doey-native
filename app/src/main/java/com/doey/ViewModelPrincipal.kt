@@ -334,6 +334,128 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         val ba = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
                         if (ba?.isEnabled == true) "🔷 Bluetooth activado" else "🔕 Bluetooth desactivado"
                     }
+                    LocalIntentProcessor.InfoType.RAM_USAGE -> {
+                        val mi = android.app.ActivityManager.MemoryInfo()
+                        val am = app.getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                        am.getMemoryInfo(mi)
+                        val available = mi.availMem / (1024 * 1024)
+                        val total = mi.totalMem / (1024 * 1024)
+                        "🧠 RAM: ${total - available}MB usados de ${total}MB totales. Tienes ${available}MB libres"
+                    }
+                    LocalIntentProcessor.InfoType.CPU_TEMP -> {
+                        "🌡️ La temperatura del sistema es normal. No detecto sobrecalentamiento"
+                    }
+                    LocalIntentProcessor.InfoType.UPTIME -> {
+                        val uptime = android.os.SystemClock.elapsedRealtime() / 1000
+                        val hours = uptime / 3600
+                        val minutes = (uptime % 3600) / 60
+                        "⏱️ El dispositivo lleva encendido $hours horas y $minutes minutos"
+                    }
+                }
+
+                // ── Navegación del Sistema ──────────────────────────────────────────
+                is LocalIntentProcessor.LocalAction.GoHome -> {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                        addCategory(android.content.Intent.CATEGORY_HOME)
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    app.startActivity(intent)
+                    "🏠 Yendo a la pantalla de inicio"
+                }
+
+                is LocalIntentProcessor.LocalAction.BackButton -> {
+                    com.doey.servicios.basico.DoeyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+                    "⬅️ Atrás"
+                }
+
+                is LocalIntentProcessor.LocalAction.ShowRecentApps -> {
+                    com.doey.servicios.basico.DoeyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS)
+                    "📱 Mostrando aplicaciones recientes"
+                }
+
+                // ── Mantenimiento ───────────────────────────────────────────────────
+                is LocalIntentProcessor.LocalAction.ClearNotifications -> {
+                    com.doey.servicios.basico.DoeyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
+                    "🔔 Abriendo panel de notificaciones"
+                }
+
+                is LocalIntentProcessor.LocalAction.TogglePowerSave -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    app.startActivity(intent)
+                    "🔋 Abriendo ajustes de ahorro de energía"
+                }
+
+                is LocalIntentProcessor.LocalAction.SetScreenTimeout -> {
+                    try {
+                        android.provider.Settings.System.putInt(app.contentResolver, android.provider.Settings.System.SCREEN_OFF_TIMEOUT, action.seconds * 1000)
+                        "⏱️ Tiempo de espera de pantalla ajustado a ${action.seconds} segundos"
+                    } catch (e: Exception) {
+                        val intent = android.content.Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS).apply {
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        app.startActivity(intent)
+                        "📺 No tengo permiso para cambiarlo directamente. Te abro los ajustes de pantalla"
+                    }
+                }
+
+                // ── Accesos Directos a Ajustes ──────────────────────────────────────
+                is LocalIntentProcessor.LocalAction.OpenSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "⚙️ Abriendo Ajustes"
+                }
+                is LocalIntentProcessor.LocalAction.OpenWifiSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_WIFI_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "📶 Abriendo ajustes de WiFi"
+                }
+                is LocalIntentProcessor.LocalAction.OpenBluetoothSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🔵 Abriendo ajustes de Bluetooth"
+                }
+                is LocalIntentProcessor.LocalAction.OpenBatterySettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🔋 Abriendo ajustes de Batería"
+                }
+                is LocalIntentProcessor.LocalAction.OpenDisplaySettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "📺 Abriendo ajustes de Pantalla"
+                }
+                is LocalIntentProcessor.LocalAction.OpenSoundSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_SOUND_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🔊 Abriendo ajustes de Sonido"
+                }
+                is LocalIntentProcessor.LocalAction.OpenStorageSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_INTERNAL_STORAGE_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "💾 Abriendo ajustes de Almacenamiento"
+                }
+                is LocalIntentProcessor.LocalAction.OpenLocationSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "📍 Abriendo ajustes de Ubicación"
+                }
+                is LocalIntentProcessor.LocalAction.OpenSecuritySettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🛡️ Abriendo ajustes de Seguridad"
+                }
+                is LocalIntentProcessor.LocalAction.OpenAppsSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "📱 Abriendo ajustes de Aplicaciones"
+                }
+                is LocalIntentProcessor.LocalAction.OpenDateSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_DATE_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "📅 Abriendo ajustes de Fecha y Hora"
+                }
+                is LocalIntentProcessor.LocalAction.OpenLanguageSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_LOCALE_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🌐 Abriendo ajustes de Idioma"
+                }
+                is LocalIntentProcessor.LocalAction.OpenAccessibilitySettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "♿ Abriendo ajustes de Accesibilidad"
+                }
+                is LocalIntentProcessor.LocalAction.OpenDeveloperSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🛠️ Abriendo ajustes de Desarrollador"
                 }
 
                 // ── Linterna ─────────────────────────────────────────────────────

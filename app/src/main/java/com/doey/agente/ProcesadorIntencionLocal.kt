@@ -63,11 +63,50 @@ object LocalIntentProcessor {
         class NextTrack : LocalAction()
         class PrevTrack : LocalAction()
         data class QueryInfo(val type: InfoType) : LocalAction()
+        class ClearNotifications : LocalAction()
+        class ShowRecentApps : LocalAction()
+        class GoHome : LocalAction()
+        class BackButton : LocalAction()
+        data class SetScreenTimeout(val seconds: Int) : LocalAction()
+        class TogglePowerSave : LocalAction()
+        class OpenSettings : LocalAction()
+        class OpenBatterySettings : LocalAction()
+        class OpenWifiSettings : LocalAction()
+        class OpenBluetoothSettings : LocalAction()
+        class OpenDisplaySettings : LocalAction()
+        class OpenSoundSettings : LocalAction()
+        class OpenStorageSettings : LocalAction()
+        class OpenAccessibilitySettings : LocalAction()
+        class OpenDeveloperSettings : LocalAction()
+        class OpenLocationSettings : LocalAction()
+        class OpenSecuritySettings : LocalAction()
+        class OpenAppsSettings : LocalAction()
+        class OpenDateSettings : LocalAction()
+        class OpenLanguageSettings : LocalAction()
+        class OpenAccountSettings : LocalAction()
+        class OpenPrivacySettings : LocalAction()
+        class OpenNotificationSettings : LocalAction()
+        class OpenSearchSettings : LocalAction()
+        class OpenPrintSettings : LocalAction()
+        class OpenCastSettings : LocalAction()
+        class OpenNfcSettings : LocalAction()
+        class OpenDataUsageSettings : LocalAction()
+        class OpenVpnSettings : LocalAction()
+        class OpenApnSettings : LocalAction()
+        class OpenUserDictionarySettings : LocalAction()
+        class OpenSyncSettings : LocalAction()
+        class OpenInputMethodSettings : LocalAction()
+        class OpenCaptioningSettings : LocalAction()
+        class OpenDreamSettings : LocalAction()
+        class OpenZenModeSettings : LocalAction()
+        class OpenUsageAccessSettings : LocalAction()
+        class OpenOverlaySettings : LocalAction()
+        class OpenWriteSettings : LocalAction()
     }
 
     enum class VolumeStream { MEDIA, RING, ALARM, NOTIFICATION }
     enum class SilentMode { SILENT, VIBRATE, NORMAL }
-    enum class InfoType { TIME, DATE, BATTERY, STORAGE, WIFI_STATUS, BT_STATUS }
+    enum class InfoType { TIME, DATE, BATTERY, STORAGE, WIFI_STATUS, BT_STATUS, RAM_USAGE, CPU_TEMP, UPTIME }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Guardas: estas condiciones hacen Delegate inmediato
@@ -165,6 +204,9 @@ object LocalIntentProcessor {
             ?: matchMusic(lo)
             ?: matchUrl(lo)
             ?: matchSystemQuery(lo)
+            ?: matchNavigationActions(lo)
+            ?: matchSettingsShortcuts(lo)
+            ?: matchDeviceMaintenance(lo)
             ?: matchOpenApp(lo)
 
     // ─── Linterna ────────────────────────────────────────────────────────────
@@ -546,7 +588,66 @@ object LocalIntentProcessor {
             -> LocalAction.QueryInfo(InfoType.WIFI_STATUS)
         Regex("\\b(esta (el )?bluetooth (activo|on)|tengo bluetooth activo)\\b").containsMatchIn(lo)
             -> LocalAction.QueryInfo(InfoType.BT_STATUS)
+        Regex("\\b(cuanta ram|uso de ram|memoria ram|ram libre)\\b").containsMatchIn(lo)
+            -> LocalAction.QueryInfo(InfoType.RAM_USAGE)
+        Regex("\\b(temperatura|esta caliente|temp del cpu|calentamiento)\\b").containsMatchIn(lo)
+            -> LocalAction.QueryInfo(InfoType.CPU_TEMP)
+        Regex("\\b(tiempo encendido|uptime|cuanto lleva prendido)\\b").containsMatchIn(lo)
+            -> LocalAction.QueryInfo(InfoType.UPTIME)
         else -> null
+    }
+
+    // ─── Navegación del Sistema ──────────────────────────────────────────────
+
+    private fun matchNavigationActions(lo: String): LocalAction? = when {
+        Regex("\\b(ve a inicio|pantalla principal|go home|vuelve a inicio|ir a home)\\b").containsMatchIn(lo)
+            -> LocalAction.GoHome()
+        Regex("\\b(atras|regresa|vuelve|go back|boton atras)\\b").containsMatchIn(lo)
+            -> LocalAction.BackButton()
+        Regex("\\b(apps recientes|multitarea|cambiar de app|recent apps|ver aplicaciones abiertas)\\b").containsMatchIn(lo)
+            -> LocalAction.ShowRecentApps()
+        else -> null
+    }
+
+    // ─── Accesos Directos a Ajustes ──────────────────────────────────────────
+
+    private fun matchSettingsShortcuts(lo: String): LocalAction? = when {
+        Regex("\\b(ajustes|configuracion|settings)\\b").containsMatchIn(lo) -> when {
+            lo.contains("wifi") -> LocalAction.OpenWifiSettings()
+            lo.contains("bluetooth") -> LocalAction.OpenBluetoothSettings()
+            lo.contains("bateria") || lo.contains("pila") -> LocalAction.OpenBatterySettings()
+            lo.contains("pantalla") || lo.contains("brillo") -> LocalAction.OpenDisplaySettings()
+            lo.contains("sonido") || lo.contains("volumen") -> LocalAction.OpenSoundSettings()
+            lo.contains("almacenamiento") || lo.contains("espacio") -> LocalAction.OpenStorageSettings()
+            lo.contains("ubicacion") || lo.contains("gps") -> LocalAction.OpenLocationSettings()
+            lo.contains("seguridad") -> LocalAction.OpenSecuritySettings()
+            lo.contains("aplicaciones") || lo.contains("apps") -> LocalAction.OpenAppsSettings()
+            lo.contains("fecha") || lo.contains("hora") -> LocalAction.OpenDateSettings()
+            lo.contains("idioma") -> LocalAction.OpenLanguageSettings()
+            lo.contains("accesibilidad") -> LocalAction.OpenAccessibilitySettings()
+            lo.contains("desarrollador") -> LocalAction.OpenDeveloperSettings()
+            else -> LocalAction.OpenSettings()
+        }
+        else -> null
+    }
+
+    // ─── Mantenimiento y Dispositivo ─────────────────────────────────────────
+
+    private fun matchDeviceMaintenance(lo: String): LocalAction? {
+        if (Regex("\\b(limpia|borra|quita|clear)\\b.*(notificaciones|avisos)").containsMatchIn(lo))
+            return LocalAction.ClearNotifications()
+        
+        if (Regex("\\b(ahorro de energia|modo ahorro|power save)\\b").containsMatchIn(lo))
+            return LocalAction.TogglePowerSave()
+
+        Regex("\\b(apaga la pantalla en|tiempo de espera|screen timeout)\\b.*(\\d+)\\s*(segundos|minutos)?").find(lo)?.let { m ->
+            val value = m.groupValues[2].toIntOrNull() ?: return@let
+            val unit = m.groupValues[3]
+            val seconds = if (unit == "minutos") value * 60 else value
+            return LocalAction.SetScreenTimeout(seconds)
+        }
+        
+        return null
     }
 
     // ─── Abrir app (genérico — siempre al final) ──────────────────────────────
