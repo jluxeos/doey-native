@@ -247,15 +247,36 @@ class DoeyAccessibilityService : AccessibilityService() {
 
         val result = when (action) {
             "click" -> {
+                // Intento 1: usar el nodo del mapa actual
                 val rect = Rect()
                 node.getBoundsInScreen(rect)
-                if (rect.width() > 0 && rect.height() > 0) {
+                var clicked = if (rect.width() > 0 && rect.height() > 0) {
                     val cx = (rect.left + rect.right) / 2
                     val cy = (rect.top + rect.bottom) / 2
                     dispatchTapGestureSync(cx, cy)
                 } else {
                     node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                 }
+                // Si falla, refrescar árbol y reintentar hasta 2 veces
+                // (necesario cuando la UI se re-renderiza entre get_tree y click)
+                if (!clicked) {
+                    for (retry in 1..2) {
+                        Thread.sleep(300L * retry)
+                        buildAccessibilityTree() // refresca nodeMap
+                        val freshNode = nodeMap[nodeId] ?: break
+                        val freshRect = Rect()
+                        freshNode.getBoundsInScreen(freshRect)
+                        clicked = if (freshRect.width() > 0 && freshRect.height() > 0) {
+                            val cx = (freshRect.left + freshRect.right) / 2
+                            val cy = (freshRect.top + freshRect.bottom) / 2
+                            dispatchTapGestureSync(cx, cy)
+                        } else {
+                            freshNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        }
+                        if (clicked) break
+                    }
+                }
+                clicked
             }
             "long_click" -> {
                 val ok = node.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)
