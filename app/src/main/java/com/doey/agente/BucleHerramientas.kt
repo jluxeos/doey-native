@@ -61,7 +61,7 @@ suspend fun runToolLoop(
         // Ejemplo: TOOLCALL>[{...}]WOLCALL> o similares que el modelo escribe como texto
         val hallucinatedToolCall = response.finishReason == "stop"
             && response.toolCalls.isEmpty()
-            && (response.content.contains("TOOLCALL>") || response.content.contains("tool_call") && response.content.contains("{"name""))
+            && (response.content.contains("TOOLCALL>") || (response.content.contains("tool_call") && response.content.contains("""name""")))
         if (hallucinatedToolCall) {
             DoeyLogger.info("Tool call alucinada detectada en texto — descartando y pidiendo reintento")
             val retryMsg = Message(role = "user", content = "Tu respuesta anterior contenía una llamada a herramienta en formato de texto en lugar de usarla correctamente. Por favor, usa la herramienta de forma estructurada.")
