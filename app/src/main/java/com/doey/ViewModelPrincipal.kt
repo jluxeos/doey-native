@@ -1066,15 +1066,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
                 // ── Shuffle / Repeat ─────────────────────────────────────────────
                 is LocalIntentProcessor.LocalAction.ShuffleMusic -> {
-                    val intent = android.content.Intent(android.media.session.MediaController::class.java.name).apply {
-                        action = "com.spotify.music.playbackstatechanged"
-                    }
-                    // Simular tecla media para shuffle — enviar broadcast genérico
-                    val keyEvent = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
-                    val mediaIntent = android.content.Intent(android.content.Intent.ACTION_MEDIA_BUTTON).apply {
-                        putExtra(android.content.Intent.EXTRA_KEY_EVENT, keyEvent)
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
                     "🔀 Activa el modo aleatorio en tu app de música"
                 }
 
