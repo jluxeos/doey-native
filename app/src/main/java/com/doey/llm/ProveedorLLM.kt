@@ -405,6 +405,8 @@ object LLMProviderFactory {
                                            "https://api.groq.com/openai/v1/chat/completions")
             "openrouter" -> OpenAIProvider(apiKey, model.ifBlank { "meta-llama/llama-3.3-70b-instruct:free" },
                                            "https://openrouter.ai/api/v1/chat/completions")
-            else         -> GeminiProvider(apiKey, model.ifBlank { "gemini-2.5-flash" })
+            "custom"     -> OpenAIProvider(apiKey, model.ifBlank { "gpt-4o-mini" },
+                                           customUrl.ifBlank { "https://api.openai.com/v1/chat/completions" })
+            else         -> throw IllegalArgumentException("Proveedor desconocido: '$provider'. Valores válidos: gemini, groq, openrouter, custom.")
         }
 }
