@@ -50,6 +50,13 @@ import com.doey.herramientas.comun.PersonalMemoryTool
 import com.doey.herramientas.comun.FileStorageTool
 import com.doey.herramientas.comun.AlarmTool
 import com.doey.herramientas.comun.AppSearchAndLaunchTool
+import com.doey.herramientas.comun.ClipboardTool
+import com.doey.herramientas.comun.ShoppingListTool
+import com.doey.herramientas.comun.VolumeTool
+import com.doey.herramientas.comun.QuickNoteTool
+import com.doey.herramientas.comun.WifiBluetoothTool
+import com.doey.herramientas.comun.FlashlightTool
+import com.doey.herramientas.comun.CountdownTool
 import com.doey.servicios.basico.DoeyOverlayService
 
 data class ChatMessage(
