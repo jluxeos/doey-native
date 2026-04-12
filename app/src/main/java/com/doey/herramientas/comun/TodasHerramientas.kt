@@ -681,7 +681,7 @@ class AccessibilityTool : Tool {
             }
             "wait_for_app" -> {
                 val pkg     = args["package_name"] as? String ?: return errorResult("package_name required")
-                val timeout = (args["timeout_ms"] as? Number)?.toLong() ?: 5000L
+                val timeout = (args["timeout_ms"] as? Number)?.toLong() ?: 15000L
                 val ok      = withContext(Dispatchers.IO) { svc.waitForPackage(pkg, timeout) }
                 if (ok) successResult("$pkg is in foreground") else errorResult("Timed out waiting for $pkg")
             }
