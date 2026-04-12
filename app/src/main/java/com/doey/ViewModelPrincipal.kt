@@ -449,6 +449,82 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_LOCALE_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🌐 Abriendo ajustes de Idioma"
                 }
+                is LocalIntentProcessor.LocalAction.OpenAccountSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_SYNC_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "👤 Abriendo ajustes de Cuentas"
+                }
+                is LocalIntentProcessor.LocalAction.OpenPrivacySettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_PRIVACY_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🔒 Abriendo ajustes de Privacidad"
+                }
+                is LocalIntentProcessor.LocalAction.OpenNotificationSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🔔 Abriendo ajustes de Notificaciones"
+                }
+                is LocalIntentProcessor.LocalAction.OpenSearchSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_SEARCH_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🔍 Abriendo ajustes de Búsqueda"
+                }
+                is LocalIntentProcessor.LocalAction.OpenPrintSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_PRINT_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🖨️ Abriendo ajustes de Impresión"
+                }
+                is LocalIntentProcessor.LocalAction.OpenCastSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_CAST_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "📺 Abriendo ajustes de Transmisión"
+                }
+                is LocalIntentProcessor.LocalAction.OpenNfcSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_NFC_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "📡 Abriendo ajustes de NFC"
+                }
+                is LocalIntentProcessor.LocalAction.OpenDataUsageSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "📊 Abriendo ajustes de Uso de datos"
+                }
+                is LocalIntentProcessor.LocalAction.OpenVpnSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_VPN_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🛡️ Abriendo ajustes de VPN"
+                }
+                is LocalIntentProcessor.LocalAction.OpenApnSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_APN_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🌐 Abriendo ajustes de APN"
+                }
+                is LocalIntentProcessor.LocalAction.OpenUserDictionarySettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_USER_DICTIONARY_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "📖 Abriendo Diccionario de usuario"
+                }
+                is LocalIntentProcessor.LocalAction.OpenSyncSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_SYNC_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🔄 Abriendo ajustes de Sincronización"
+                }
+                is LocalIntentProcessor.LocalAction.OpenInputMethodSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "⌨️ Abriendo ajustes de Teclado"
+                }
+                is LocalIntentProcessor.LocalAction.OpenCaptioningSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_CAPTIONING_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "💬 Abriendo ajustes de Subtítulos"
+                }
+                is LocalIntentProcessor.LocalAction.OpenDreamSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_DREAM_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🌙 Abriendo ajustes de Protector de pantalla"
+                }
+                is LocalIntentProcessor.LocalAction.OpenZenModeSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_ZEN_MODE_PRIORITY_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🤫 Abriendo ajustes de No molestar"
+                }
+                is LocalIntentProcessor.LocalAction.OpenUsageAccessSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "📊 Abriendo acceso a Uso"
+                }
+                is LocalIntentProcessor.LocalAction.OpenOverlaySettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "🖼️ Abriendo ajustes de Superposición"
+                }
+                is LocalIntentProcessor.LocalAction.OpenWriteSettings -> {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    app.startActivity(intent); "✍️ Abriendo ajustes de Escritura"
+                }
                 is LocalIntentProcessor.LocalAction.OpenAccessibilitySettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "♿ Abriendo ajustes de Accesibilidad"
@@ -909,6 +985,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         ""  // No mostrar mensaje, Gemini lo maneja visualmente
                     }
                 }
+                else -> "" // Fallback para cualquier acción no manejada explícitamente
             }
         } catch (e: Exception) {
             "" // Cualquier fallo → delegar a IA
