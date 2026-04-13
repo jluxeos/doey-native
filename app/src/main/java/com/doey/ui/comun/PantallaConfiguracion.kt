@@ -54,12 +54,6 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     var currentGlassOpacity by remember { mutableStateOf(GlassOpacity) }
     var currentGlassBlur    by remember { mutableStateOf(GlassBlur) }
 
-    // Hidden Settings (Exposed)
-    var friendlyMode     by remember { mutableStateOf(true) }
-    var autoStartFriendly by remember { mutableStateOf(false) }
-    var friendlyBarHeight by remember { mutableStateOf(72f) }
-    var friendlyBarOpacity by remember { mutableStateOf(0.95f) }
-
     // Cargar todos los ajustes al iniciar
     LaunchedEffect(Unit) {
         provider        = settings.getProvider()
@@ -74,10 +68,6 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
         historyCompress = settings.getHistoryCompressionEnabled()
         debugMode       = settings.getDebugMode()
         
-        friendlyMode     = settings.getFriendlyModeEnabled()
-        autoStartFriendly = settings.getAutoStartFriendly()
-        friendlyBarHeight = settings.getFriendlyBarHeight()
-        friendlyBarOpacity = settings.getFriendlyBarOpacity()
         currentGlassOpacity = settings.getGlassOpacity()
         currentGlassBlur = settings.getGlassBlur()
         
@@ -301,48 +291,6 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                     }
                 }
 
-                // ── 4. Modo Friendly (Hidden Exposed) ──────────────────────────────
-                TauSettingsSection(title = "Modo Friendly", icon = CustomIcons.Spa) {
-                    TauSwitchRow(
-                        title = "Habilitar Modo Friendly",
-                        subtitle = "Barra de compañía interactiva",
-                        icon = CustomIcons.Visibility,
-                        checked = friendlyMode,
-                        onToggle = { friendlyMode = it }
-                    )
-                    TauSwitchRow(
-                        title = "Inicio Automático",
-                        subtitle = "Al encender el dispositivo",
-                        icon = CustomIcons.PowerSettingsNew,
-                        checked = autoStartFriendly,
-                        onToggle = { autoStartFriendly = it }
-                    )
-                    
-                    Spacer(Modifier.height(12.dp))
-                    Text("Personalización de Barra", fontWeight = FontWeight.Bold, color = TauText2, fontSize = 13.sp)
-                    
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Altura: ${friendlyBarHeight.toInt()}dp", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
-                            Slider(
-                                value = friendlyBarHeight,
-                                onValueChange = { friendlyBarHeight = it },
-                                valueRange = 40f..120f,
-                                modifier = Modifier.width(140.dp)
-                            )
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Opacidad Barra: ${(friendlyBarOpacity * 100).toInt()}%", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
-                            Slider(
-                                value = friendlyBarOpacity,
-                                onValueChange = { friendlyBarOpacity = it },
-                                valueRange = 0.5f..1.0f,
-                                modifier = Modifier.width(140.dp)
-                            )
-                        }
-                    }
-                }
-
                 Spacer(Modifier.height(12.dp))
                 GlassButton(onClick = {
                     scope.launch {
@@ -356,11 +304,6 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                         settings.setSystemPromptCacheEnabled(promptCache)
                         settings.setHistoryCompressionEnabled(historyCompress)
                         settings.setDebugMode(debugMode)
-                        
-                        settings.setFriendlyModeEnabled(friendlyMode)
-                        settings.setAutoStartFriendly(autoStartFriendly)
-                        settings.setFriendlyBarHeight(friendlyBarHeight)
-                        settings.setFriendlyBarOpacity(friendlyBarOpacity)
                         
                         showSettingsSaved = true
                         delay(2000)

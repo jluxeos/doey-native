@@ -61,8 +61,6 @@ import com.doey.ui.basico.FriendlySettingsScreen
 import com.doey.ui.avanzado.SkillsScreen
 import com.doey.ui.avanzado.LogScreen
 import com.doey.ui.avanzado.PermissionsScreen
-import com.doey.ui.avanzado.FlowModeScreen
-import com.doey.ui.avanzado.MacrosScreen
 
 // Alias de compatibilidad (usando los de Glassmorphism.kt)
 val Purple         = TauAccent
@@ -89,8 +87,6 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Permisos           : Screen("permisos",           "Permisos",       CustomIcons.Lock)
     object Configuracion      : Screen("configuracion",      "Ajustes",        CustomIcons.Settings)
     object Registros          : Screen("registros",          "Registros",      CustomIcons.BugReport)
-    object ModoAuto          : Screen("modo_auto",          "Modo Auto",      CustomIcons.DirectionsCar)
-    object Macros           : Screen("macros",           "Macros",         CustomIcons.Star)
     object Perfil           : Screen("perfil",           "Mi Perfil",      CustomIcons.Person)
     object AjustesBasicos     : Screen("ajustes_basicos",    "Modo Básico",    CustomIcons.Spa)
     
@@ -212,8 +208,6 @@ fun DoeyApp() {
                         composable(Screen.Registros.route) { LogScreen() }
                         composable(Screen.Permisos.route) { PermissionsScreen() }
                         composable(Screen.AjustesBasicos.route) { FriendlySettingsScreen(vm) }
-                        composable(Screen.ModoAuto.route) { SchedulesScreen(vm) }
-                        composable(Screen.Macros.route) { MacrosScreen(vm) }
                         
                         composable(Screen.Reloj.route) { SchedulesScreen(vm) }
                         composable(Screen.Alarmas.route) { SchedulesScreen(vm) }
@@ -310,10 +304,6 @@ private fun DoeyDrawerContent(
 
                 if (isAdvanced) {
                     DrawerSectionHeader("Avanzado")
-                    DrawerItem(CustomIcons.Star, "Macros", currentRoute == Screen.Macros.route) {
-                        scope.launch { drawerState.close() }
-                        nav.navigate(Screen.Macros.route)
-                    }
                     DrawerItem(CustomIcons.BugReport, "Logs", currentRoute == Screen.Registros.route) {
                         scope.launch { drawerState.close() }
                         nav.navigate(Screen.Registros.route)
