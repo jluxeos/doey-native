@@ -1185,8 +1185,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         }
                     }
                 }
-                    }
-                }
 
                 // ── Controles de reproducción ─────────────────────────────────────
                 is LocalIntentProcessor.LocalAction.PauseMusic -> {
