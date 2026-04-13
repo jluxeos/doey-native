@@ -307,8 +307,8 @@ private fun FlowChip(opt: FlowOption, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(TauSurface2.copy(alpha = 0.6f))
-            .border(1.dp, TauAccent.copy(alpha = 0.25f), RoundedCornerShape(20.dp))
+            .background(TauSurface1)
+            .border(1.dp, TauSeparator, RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {

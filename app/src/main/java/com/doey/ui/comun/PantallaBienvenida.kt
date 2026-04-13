@@ -31,15 +31,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.doey.ui.core.*
 
-// ── Colores del Onboarding (Base Blanca) ──────────────────────────────────────
-private val OBGradientStart = Color(0xFFFFFFFF)
-private val OBGradientEnd   = Color(0xFFF5F5F5)
-private val OBAccent        = Color(0xFF2196F3)
-private val OBAccentLight   = Color(0xFFBBDEFB)
-private val OBText          = Color(0xFF1A1A1A)
-private val OBTextSub       = Color(0xFF7A7A7A)
-private val OBCard          = Color(0x1A000000)
-private val OBCardBorder    = Color(0x1A000000)
+// ── Colores del Onboarding — delegados al tema global ─────────────────────────
+private val OBGradientStart get() = Color(0xFFF0F2F7)
+private val OBGradientEnd   get() = Color(0xFFE8ECF4)
+private val OBAccent        get() = TauAccent
+private val OBAccentLight   get() = TauAccentLight
+private val OBText          get() = TauText1
+private val OBTextSub       get() = TauText3
+private val OBCard          = Color(0x0F000000)
+private val OBCardBorder    = Color(0x18000000)
 
 enum class OnboardingStep {
     WELCOME,
@@ -91,13 +91,8 @@ fun OnboardingFlow(
     var apiKey by remember { mutableStateOf("") }
 
     Box(
-        Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(listOf(OBGradientStart, OBGradientEnd))
-            )
+        Modifier.fillMaxSize()
     ) {
-        // Fondo dinámico con orbes (estilo Glassmorphism)
         GlassBackground(accentColor = OBAccent)
 
         AnimatedContent(
