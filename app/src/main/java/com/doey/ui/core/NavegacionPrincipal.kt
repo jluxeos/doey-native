@@ -293,7 +293,7 @@ private fun DoeyDrawerContent(
                     scope.launch { drawerState.close() }
                     nav.navigate(Screen.Habilidades.route)
                 }
-                DrawerItem(CustomIcons.Alarm, "Agendas", currentRoute == Screen.Agendas.route) {
+                DrawerItem(CustomIcons.Alarm, "Utilerías", currentRoute == Screen.Agendas.route) {
                     scope.launch { drawerState.close() }
                     nav.navigate(Screen.Agendas.route)
                 }

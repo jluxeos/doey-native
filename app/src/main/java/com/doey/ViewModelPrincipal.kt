@@ -806,60 +806,39 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
                 // ── Alarma nativa (AlarmManager — sin abrir app de reloj) ─────────
                 is LocalIntentProcessor.LocalAction.SetAlarmNative -> {
-                    try {
-                        val am = app.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
-                        val cal = java.util.Calendar.getInstance().apply {
-                            set(java.util.Calendar.HOUR_OF_DAY, action.hour)
-                            set(java.util.Calendar.MINUTE, action.minute)
-                            set(java.util.Calendar.SECOND, 0)
-                            set(java.util.Calendar.MILLISECOND, 0)
-                            if (timeInMillis <= System.currentTimeMillis()) {
-                                add(java.util.Calendar.DAY_OF_YEAR, 1)
-                            }
-                        }
-                        val label = action.label.ifBlank { "Alarma Doey" }
-                        val notifIntent = android.content.Intent(app, com.doey.servicios.comun.AlarmReceiver::class.java).apply {
-                            putExtra("alarm_label", label)
-                            putExtra("alarm_hour", action.hour)
-                            putExtra("alarm_minute", action.minute)
-                        }
-                        val requestCode = (action.hour * 100 + action.minute)
-                        val pi = android.app.PendingIntent.getBroadcast(
-                            app, requestCode, notifIntent,
-                            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
-                        )
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
-                            // Fallback: usar AlarmClock intent si no hay permiso SCHEDULE_EXACT_ALARM
-                            val fallback = android.content.Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
-                                putExtra(android.provider.AlarmClock.EXTRA_HOUR, action.hour)
-                                putExtra(android.provider.AlarmClock.EXTRA_MINUTES, action.minute)
-                                putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, true)
-                                if (label.isNotBlank()) putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, label)
-                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            app.startActivity(fallback)
-                        } else {
-                            am.setAlarmClock(
-                                android.app.AlarmManager.AlarmClockInfo(cal.timeInMillis, pi),
-                                pi
-                            )
-                        }
-                        val h = String.format("%02d", action.hour)
-                        val m = String.format("%02d", action.minute)
-                        "⏰ Alarma puesta para las $h:$m${if (label != "Alarma Doey") " — $label" else ""}"
-                    } catch (e: Exception) {
-                        // Último fallback: AlarmClock intent
-                        val intent = android.content.Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
-                            putExtra(android.provider.AlarmClock.EXTRA_HOUR, action.hour)
-                            putExtra(android.provider.AlarmClock.EXTRA_MINUTES, action.minute)
-                            putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, true)
-                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        app.startActivity(intent)
-                        val h = String.format("%02d", action.hour)
-                        val m = String.format("%02d", action.minute)
-                        "⏰ Alarma puesta para las $h:$m"
+                    // Igual que SetAlarm (IA): usar ACTION_SET_ALARM para que aparezca en la app de Reloj
+                    val label = action.label.ifBlank { "Alarma Doey" }
+                    val intent = android.content.Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
+                        putExtra(android.provider.AlarmClock.EXTRA_HOUR, action.hour)
+                        putExtra(android.provider.AlarmClock.EXTRA_MINUTES, action.minute)
+                        putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, label)
+                        putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, true)
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
+                    try { app.startActivity(intent) } catch (_: Exception) { }
+                    // Persistir en doey_alarms_store para que aparezca en pantalla Utilerías
+                    try {
+                        val alarmId = action.hour * 100 + action.minute
+                        val prefs  = app.getSharedPreferences("doey_alarms_store", 0)
+                        val alarms = org.json.JSONArray(prefs.getString("alarms", "[]") ?: "[]")
+                        // Evitar duplicado de misma hora+minuto
+                        val filtered = org.json.JSONArray()
+                        for (i in 0 until alarms.length()) {
+                            val o = alarms.getJSONObject(i)
+                            if (o.optInt("id") != alarmId) filtered.put(alarms.get(i))
+                        }
+                        filtered.put(org.json.JSONObject().apply {
+                            put("id",        alarmId)
+                            put("title",     label)
+                            put("time",      String.format("%02d:%02d", action.hour, action.minute))
+                            put("enabled",   true)
+                            put("recurring", action.daysOfWeek.isNotEmpty())
+                        })
+                        prefs.edit().putString("alarms", filtered.toString()).apply()
+                    } catch (_: Exception) { }
+                    val h = String.format("%02d", action.hour)
+                    val m = String.format("%02d", action.minute)
+                    "⏰ Alarma puesta para las $h:$m${if (label != "Alarma Doey") " — $label" else ""}"
                 }
 
                 // ── Alarma ────────────────────────────────────────────────────────
@@ -1427,6 +1406,24 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     })
                     "📤 Compartiendo texto"
+                }
+
+                // ── Lista de compras ──────────────────────────────────────────────
+                is LocalIntentProcessor.LocalAction.AddShoppingItem -> {
+                    val prefs = app.getSharedPreferences("doey_shopping_list", 0)
+                    val items = try { org.json.JSONArray(prefs.getString("items", "[]") ?: "[]") } catch (_: Exception) { org.json.JSONArray() }
+                    items.put(org.json.JSONObject().apply {
+                        put("id",   System.currentTimeMillis())
+                        put("name", action.item)
+                        put("done", false)
+                    })
+                    prefs.edit().putString("items", items.toString()).apply()
+                    "🛒 \"${action.item}\" agregado a la lista de compras"
+                }
+
+                is LocalIntentProcessor.LocalAction.ClearShoppingList -> {
+                    app.getSharedPreferences("doey_shopping_list", 0).edit().putString("items", "[]").apply()
+                    "🛒 Lista de compras limpia"
                 }
 
                 else -> "" // Fallback para cualquier acción no manejada explícitamente

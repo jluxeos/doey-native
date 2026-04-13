@@ -135,6 +135,8 @@ object LocalIntentProcessor {
         class OpenClock : LocalAction()
         data class SetRingtoneVolume(val level: Int) : LocalAction()
         data class SetAlarmVolume(val level: Int) : LocalAction()
+        data class AddShoppingItem(val item: String) : LocalAction()
+        class ClearShoppingList : LocalAction()
     }
 
     enum class VolumeStream { MEDIA, RING, ALARM, NOTIFICATION }
@@ -258,6 +260,7 @@ object LocalIntentProcessor {
             ?: matchSettingsShortcuts(lo)
             ?: matchDeviceMaintenance(lo)
             ?: matchQuickApps(lo)
+            ?: matchShopping(lo)
             ?: matchOpenApp(lo)
 
     // ─── Saludos ─────────────────────────────────────────────────────────────
@@ -1101,5 +1104,40 @@ object LocalIntentProcessor {
         subtasks.forEachIndexed { i, t -> sb.append("${i + 1}. $t\n") }
         sb.append("\nEjecútalas secuencialmente y confirma cada una.")
         return sb.toString()
+    }
+
+    // ─── Lista de compras ─────────────────────────────────────────────────────
+
+    private fun matchShopping(lo: String): LocalAction? {
+        // Limpiar lista
+        if (Regex("\\b(limpia|borra|vacía|vacia|borrar|limpiar)\\b.*(lista|compras)").containsMatchIn(lo) ||
+            Regex("\\b(lista|compras)\\b.*(limpia|borrar|vaciar)").containsMatchIn(lo))
+            return LocalAction.ClearShoppingList()
+
+        // Agregar ítem: "agrega leche", "añade pan a la lista", "pon huevos en la lista"
+        val addRegex = Regex(
+            "\\b(agrega|agregame|añade|añademe|pon|ponme|añadir|agregar|poner|" +
+            "incluye|apunta|apuntame|mete|meteme)\\b\\s+(.+?)\\s*(?:\\b(?:a la|en la|en mi|a mi)\\b.*(lista|compras))?$",
+            RegexOption.IGNORE_CASE
+        )
+        addRegex.find(lo)?.let { m ->
+            val raw = m.groupValues[2].trim()
+                .replace(Regex("\\b(a la|en la|en mi|a mi)\\b.*(lista|compras).*$", RegexOption.IGNORE_CASE), "")
+                .replace(Regex("\\b(lista|compras|lista de compras)\\b.*$", RegexOption.IGNORE_CASE), "")
+                .trim()
+            if (raw.isNotBlank() && raw.length < 60) return LocalAction.AddShoppingItem(raw)
+        }
+
+        // Patrón alternativo: "a la lista de compras agrega X"
+        val reverseRegex = Regex(
+            "\\b(?:a la lista|lista de compras|en la lista)\\b.*?\\b(agrega|añade|pon)\\b\\s+(.+)$",
+            RegexOption.IGNORE_CASE
+        )
+        reverseRegex.find(lo)?.let { m ->
+            val raw = m.groupValues[2].trim()
+            if (raw.isNotBlank() && raw.length < 60) return LocalAction.AddShoppingItem(raw)
+        }
+
+        return null
     }
 }
