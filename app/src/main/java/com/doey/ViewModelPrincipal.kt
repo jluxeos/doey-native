@@ -818,7 +818,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                             }
                         }
                         val label = action.label.ifBlank { "Alarma Doey" }
-                        val notifIntent = android.content.Intent(app, com.doey.servicios.comun.ReceptorAlarmas::class.java).apply {
+                        val notifIntent = android.content.Intent(app, com.doey.servicios.comun.AlarmReceiver::class.java).apply {
                             putExtra("alarm_label", label)
                             putExtra("alarm_hour", action.hour)
                             putExtra("alarm_minute", action.minute)
