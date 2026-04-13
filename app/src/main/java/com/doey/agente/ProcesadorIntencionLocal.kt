@@ -31,6 +31,16 @@ object LocalIntentProcessor {
     }
 
     sealed class LocalAction {
+        // ── Respuestas sociales (sin IA, cero tokens) ─────────────────────────
+        data class Greeting(val variant: Int) : LocalAction()
+        data class Farewell(val variant: Int) : LocalAction()
+        data class Gratitude(val variant: Int) : LocalAction()
+        data class Affirmation(val variant: Int) : LocalAction()
+        // ── Consulta de memorias ──────────────────────────────────────────────
+        data class QueryMemory(val raw: String) : LocalAction()
+        // ── Alarma nativa (no abre app de reloj) ──────────────────────────────
+        data class SetAlarmNative(val hour: Int, val minute: Int, val label: String = "", val daysOfWeek: List<Int> = emptyList()) : LocalAction()
+
         data class ToggleFlashlight(val enable: Boolean) : LocalAction()
         data class SetVolume(val level: Int, val stream: VolumeStream = VolumeStream.MEDIA) : LocalAction()
         data class VolumeStep(val up: Boolean, val stream: VolumeStream = VolumeStream.MEDIA) : LocalAction()
@@ -211,7 +221,12 @@ object LocalIntentProcessor {
     // ─────────────────────────────────────────────────────────────────────────
 
     private fun tryLocal(lo: String): LocalAction? =
-        matchFlashlight(lo)
+        matchGreeting(lo)
+            ?: matchFarewell(lo)
+            ?: matchGratitude(lo)
+            ?: matchAffirmation(lo)
+            ?: matchMemoryQuery(lo)
+            ?: matchFlashlight(lo)
             ?: matchVolume(lo)
             ?: matchSilent(lo)
             ?: matchBrightness(lo)
@@ -244,6 +259,121 @@ object LocalIntentProcessor {
             ?: matchDeviceMaintenance(lo)
             ?: matchQuickApps(lo)
             ?: matchOpenApp(lo)
+
+    // ─── Saludos ─────────────────────────────────────────────────────────────
+    // Detecta saludos puros sin instrucción adicional
+
+    private val GREETING_REGEX = Regex(
+        "^(hola|hey|hi|buenas|buenos dias|buenas tardes|buenas noches|buen dia|que tal|" +
+        "como estas|como te encuentras|como andas|que onda|que pedo|que paso|que hay|" +
+        "ey|oye|que onda doey|hola doey|hey doey|hola iris|hey iris|que hubo|quiubo|" +
+        "como estas?|como estas hoy|saludos|ola|alo|que hay de nuevo|que me cuentas)$",
+        RegexOption.IGNORE_CASE
+    )
+
+    private val GREETING_RESPONSES = listOf(
+        "¡Hola! 👋 Aquí estoy, ¿en qué te ayudo?",
+        "¡Hola! Todo bien por acá. ¿Qué necesitas?",
+        "¡Hey! ¿Cómo te puedo ayudar hoy?",
+        "¡Buenas! Listo para lo que necesites 😊",
+        "¡Hola! Dime, ¿qué hacemos hoy?",
+        "¡Aquí estoy! ¿Qué se te ofrece?",
+        "¡Hey! ¿Qué onda? ¿En qué te echó la mano?",
+        "¡Hola hola! Cuéntame, ¿qué necesitas?",
+        "¡Buenas! Listo y a tus órdenes 🤖",
+        "¡Qué tal! Por acá todo bien, ¿y tú?"
+    )
+
+    private fun matchGreeting(lo: String): LocalAction? {
+        if (!GREETING_REGEX.containsMatchIn(lo)) return null
+        // Aseguramos que no lleve instrucción adicional
+        if (lo.split(" ").size > 5) return null
+        return LocalAction.Greeting((System.currentTimeMillis() % GREETING_RESPONSES.size).toInt())
+    }
+
+    // ─── Despedidas ──────────────────────────────────────────────────────────
+
+    private val FAREWELL_REGEX = Regex(
+        "^(adios|hasta luego|nos vemos|chao|chau|bye|hasta pronto|hasta manana|" +
+        "me voy|me despido|cuiate|cuídate|hasta la proxima|nos vidrios|" +
+        "a dormir|buenas noches doey|bye bye|bye doey|adios doey|chao doey)$",
+        RegexOption.IGNORE_CASE
+    )
+
+    private val FAREWELL_RESPONSES = listOf(
+        "¡Hasta luego! 👋 Aquí estaré cuando me necesites.",
+        "¡Cuídate mucho! 😊",
+        "¡Chao! Vuelve cuando quieras.",
+        "¡Hasta pronto! Fue un placer ayudarte.",
+        "¡Que te vaya bien! 👋",
+        "¡Nos vemos! Aquí estaré.",
+        "¡Cuídate! Y si necesitas algo, ya sabes dónde encontrarme."
+    )
+
+    private fun matchFarewell(lo: String): LocalAction? {
+        if (!FAREWELL_REGEX.containsMatchIn(lo)) return null
+        if (lo.split(" ").size > 6) return null
+        return LocalAction.Farewell((System.currentTimeMillis() % FAREWELL_RESPONSES.size).toInt())
+    }
+
+    // ─── Gratitud / Agradecimientos ──────────────────────────────────────────
+
+    private val GRATITUDE_REGEX = Regex(
+        "^(gracias|muchas gracias|grax|grasias|te lo agradezco|muy amable|" +
+        "thanks|thank you|cheers|de lujo|chido|estuvo bien|ok gracias|" +
+        "gracias doey|gracias iris|perfecto gracias|listo gracias|" +
+        "orale gracias|sale gracias|genial gracias|excelente gracias)$",
+        RegexOption.IGNORE_CASE
+    )
+
+    private val GRATITUDE_RESPONSES = listOf(
+        "¡De nada! 😊 Para eso estoy.",
+        "¡Con gusto! ¿Algo más?",
+        "¡A tus órdenes siempre! 🤖",
+        "No hay de qué. ¿Necesitas algo más?",
+        "¡Claro que sí! Aquí para lo que sea.",
+        "¡Para eso estoy! ¿Algo más en lo que te ayude?",
+        "¡Fue un placer! 😄"
+    )
+
+    private fun matchGratitude(lo: String): LocalAction? {
+        if (!GRATITUDE_REGEX.containsMatchIn(lo)) return null
+        return LocalAction.Gratitude((System.currentTimeMillis() % GRATITUDE_RESPONSES.size).toInt())
+    }
+
+    // ─── Afirmaciones cortas (ok, listo, entendido…) ─────────────────────────
+
+    private val AFFIRMATION_REGEX = Regex(
+        "^(ok|okay|okey|listo|entendido|de acuerdo|sale|andale|orale|" +
+        "perfecto|excelente|bien|muy bien|chevere|genial|super|al 100|" +
+        "esta bien|esta ok|ya entendi|ya vi|lo tengo|roger|copy)$",
+        RegexOption.IGNORE_CASE
+    )
+
+    private val AFFIRMATION_RESPONSES = listOf(
+        "👍 ¡Listo!",
+        "¡Perfecto! ¿Algo más?",
+        "👌 Entendido.",
+        "¡Genial! Aquí por si me necesitas.",
+        "😊 ¡De nada!",
+        "¡Sale! Avísame si necesitas algo."
+    )
+
+    private fun matchAffirmation(lo: String): LocalAction? {
+        if (!AFFIRMATION_REGEX.containsMatchIn(lo)) return null
+        return LocalAction.Affirmation((System.currentTimeMillis() % AFFIRMATION_RESPONSES.size).toInt())
+    }
+
+    // ─── Consulta de memorias ─────────────────────────────────────────────────
+    // Si IRIS no puede resolver un contacto, puede buscar en memorias del usuario
+
+    private fun matchMemoryQuery(lo: String): LocalAction? {
+        val m = Regex(
+            "^(?:quien es|quien era|que es|a quien conoce|busca en mis memorias|" +
+            "en mis memorias busca|recuerdas quien es|recuerdas a)\\s+(.{2,40})$"
+        ).find(lo) ?: return null
+        return LocalAction.QueryMemory(m.groupValues[1].trim())
+    }
 
     // ─── Linterna ────────────────────────────────────────────────────────────
 
@@ -340,30 +470,46 @@ object LocalIntentProcessor {
     }
 
     // ─── WiFi ─────────────────────────────────────────────────────────────────
+    // Cubre: wifi, wi-fi, wi fi, internet, red wifi, el internet, los datos wifi
 
     private fun matchWifi(lo: String): LocalAction? {
-        val wifi = "\\b(wifi|wi.?fi|internet inalambrico|red inalambrica|la red)\\b"
+        val wifi = "\\b(wifi|wi.?fi|el internet inalambrico|red inalambrica|la red wifi|internet wifi|el wifi|la wifi|wi fi)\\b"
+        // "enciende el internet" → solo si NO hay "datos moviles" (eso es otra cosa)
+        val internet = "\\b(internet|la red|el internet)\\b"
+        val on  = "\\b(activa|enciende|prende|conecta|turn on|enable|mete|dale|pon|prender|activar|encender|conectar)\\b"
+        val off = "\\b(desactiva|apaga|desconecta|turn off|disable|quita|saca|apagar|desactivar)\\b"
+
+        if (lo.contains("datos moviles") || lo.contains("datos celulares") || lo.contains("datos del celular")) return null
+
         return when {
-            Regex("\\b(activa|enciende|prende|conecta|turn on|enable|mete|dale)\\b.*$wifi").containsMatchIn(lo) ||
-            Regex("$wifi.*\\b(on|activo|activalo|prendelo|encendido)\\b").containsMatchIn(lo)
+            Regex("$on.*($wifi)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("($wifi).*\\b(on|activo|activalo|prendelo|encendido)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            (Regex("$on.*$internet", RegexOption.IGNORE_CASE).containsMatchIn(lo) &&
+             !lo.contains("datos") && !lo.contains("movil") && !lo.contains("4g") && !lo.contains("5g"))
                 -> LocalAction.ToggleWifi(true)
-            Regex("\\b(desactiva|apaga|desconecta|turn off|disable|quita|saca)\\b.*$wifi").containsMatchIn(lo) ||
-            Regex("$wifi.*\\b(off|apagado|apagalo|desactivalo)\\b").containsMatchIn(lo)
+            Regex("$off.*($wifi)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("($wifi).*\\b(off|apagado|apagalo|desactivalo)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
                 -> LocalAction.ToggleWifi(false)
             else -> null
         }
     }
 
     // ─── Bluetooth ───────────────────────────────────────────────────────────
+    // Cubre: bluetooth, bt, b.t., blutus, bluetoth, blue tooth, el blue, bluetooh
 
-    private fun matchBluetooth(lo: String): LocalAction? = when {
-        Regex("\\b(activa|enciende|prende|turn on|enable|mete|dale)\\b.*bluetooth").containsMatchIn(lo) ||
-        Regex("bluetooth.*\\b(on|activo|activalo|prendelo)\\b").containsMatchIn(lo)
-            -> LocalAction.ToggleBluetooth(true)
-        Regex("\\b(desactiva|apaga|turn off|disable|quita|saca)\\b.*bluetooth").containsMatchIn(lo) ||
-        Regex("bluetooth.*\\b(off|apagado|apagalo|desactivalo)\\b").containsMatchIn(lo)
-            -> LocalAction.ToggleBluetooth(false)
-        else -> null
+    private fun matchBluetooth(lo: String): LocalAction? {
+        val bt = "\\b(bluetooth|bt\\b|b\\.t\\.|blutus|bluetoth|blue tooth|el blue|bluetooh|bluetu[st]|bl[uü]etooth)\\b"
+        val on  = "\\b(activa|enciende|prende|turn on|enable|mete|dale|conecta|jala|abre|sube|pon|prender|activar|encender)\\b"
+        val off = "\\b(desactiva|apaga|turn off|disable|quita|saca|corta|desconecta|apagar|desactivar)\\b"
+        return when {
+            Regex("$on.*$bt", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("$bt.*\\b(on|activo|activalo|prendelo|prendido|encendido)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
+                -> LocalAction.ToggleBluetooth(true)
+            Regex("$off.*$bt", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("$bt.*\\b(off|apagado|apagalo|desactivalo|desactivado)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
+                -> LocalAction.ToggleBluetooth(false)
+            else -> null
+        }
     }
 
     // ─── Modo avión ───────────────────────────────────────────────────────────
@@ -554,24 +700,58 @@ object LocalIntentProcessor {
     }
 
     // ─── WhatsApp ─────────────────────────────────────────────────────────────
+    // Cubre: whatsapp, whats, wapp, wa, W.A., guasap, wasa, what sap, wap
 
     private fun matchWhatsApp(lo: String): LocalAction? {
-        if (!lo.contains("whatsapp") && !lo.contains("whats") && !lo.contains("wapp") &&
-            !lo.contains("what sap") && !lo.contains("guasap")) return null
+        val isWA = lo.contains("whatsapp") || lo.contains("whats") || lo.contains("wapp") ||
+                   lo.contains("what sap") || lo.contains("guasap") || lo.contains("wasa") ||
+                   Regex("\\bwa\\b").containsMatchIn(lo) || Regex("\\bw\\.a\\.\\b").containsMatchIn(lo)
+        if (!isWA) return null
 
-        // Enviar mensaje — patrón flexible
-        Regex("^(?:manda|envia|escribe|send|dile|avisa)\\s+(?:un\\s+)?(?:mensaje|whatsapp|wha?ts?|guasap)?\\s*(?:a\\s+)?(.+?)\\s+(?:por\\s+(?:whatsapp|wha?ts?|guasap)\\s+)?(?:diciendo|que diga|que dice|:|con el texto|con mensaje|que le digas|el mensaje)\\s+(.+)$").find(lo)?.let { m ->
-            val c = m.groupValues[1].trim(); val msg = m.groupValues[2].trim()
+        // Patrón 1: "manda/envía [un] [mensaje/whatsapp] a CONTACTO [por wa] diciendo/que diga MENSAJE"
+        Regex(
+            "^(?:manda|envia|escribe|send|dile|avisa|manda un|envia un)\\s+" +
+            "(?:un\\s+)?(?:mensaje|whatsapp|wha?ts?a?p?p?|guasap|wa|wapp|wasa)?\\s*" +
+            "(?:a\\s+)?(.+?)\\s+" +
+            "(?:por\\s+(?:whatsapp|wha?ts?|guasap|wa|wapp)\\s+)?" +
+            "(?:diciendo|que diga|que dice|que le digas|:|con el texto|con mensaje|el mensaje|el texto)\\s+(.+)$"
+        ).find(lo)?.let { m ->
+            val c = m.groupValues[1].trim().removePrefix("a ").trim()
+            val msg = m.groupValues[2].trim()
+            if (c.isNotBlank() && msg.isNotBlank() && c.length < 40) return LocalAction.SendWhatsApp(c, msg)
+        }
+
+        // Patrón 2: "manda por whatsapp a CONTACTO: MENSAJE"
+        Regex(
+            "^(?:manda|envia|send)\\s+(?:por\\s+)?(?:whatsapp|wha?ts?|guasap|wa\\b|wapp)\\s+" +
+            "(?:a\\s+)?(.+?)[: ]+(.+)$"
+        ).find(lo)?.let { m ->
+            val c = m.groupValues[1].trim()
+            val msg = m.groupValues[2].trim()
             if (c.isNotBlank() && msg.isNotBlank()) return LocalAction.SendWhatsApp(c, msg)
         }
-        Regex("^(?:manda|envia|send)\\s+(?:por\\s+)?(?:whatsapp|wha?ts?|guasap)\\s+(?:a\\s+)?(.+?)[: ]+(.+)$").find(lo)?.let { m ->
-            val c = m.groupValues[1].trim(); val msg = m.groupValues[2].trim()
+
+        // Patrón 3: "wa a CONTACTO MENSAJE" (forma ultra-corta)
+        Regex(
+            "^(?:wa|wapp)\\s+a\\s+(.+?)\\s+(?:diciendo|que diga|:|el mensaje|dile)\\s+(.+)$"
+        ).find(lo)?.let { m ->
+            val c = m.groupValues[1].trim()
+            val msg = m.groupValues[2].trim()
             if (c.isNotBlank() && msg.isNotBlank()) return LocalAction.SendWhatsApp(c, msg)
         }
+
         // Solo abrir chat
-        Regex("^(?:abre|abrir|chatea con|chatear con|open|mensaje a|habla con|hablar con)\\s+(?:(?:whatsapp|wha?ts?|guasap)\\s+(?:con|de)\\s+|chat de (?:whatsapp|wha?ts?)\\s+con\\s+)?(.+)$").find(lo)?.let { m ->
-            val c = m.groupValues[1].trim().removePrefix("en whatsapp").removePrefix("por whatsapp").trim()
-            if (c.isNotBlank() && !c.contains("whatsapp")) return LocalAction.OpenWhatsAppChat(c)
+        Regex(
+            "^(?:abre|abrir|chatea con|chatear con|open|mensaje a|habla con|hablar con|" +
+            "abre el chat de|ve al chat de)\\s+" +
+            "(?:(?:whatsapp|wha?ts?|guasap|wa\\b)\\s+(?:con|de)\\s+|" +
+            "chat de (?:whatsapp|wha?ts?)\\s+con\\s+)?(.+)$"
+        ).find(lo)?.let { m ->
+            val c = m.groupValues[1].trim()
+                .removePrefix("en whatsapp").removePrefix("por whatsapp")
+                .removePrefix("en wa").removePrefix("por wa").trim()
+            if (c.isNotBlank() && !c.contains("whatsapp") && !c.contains("\\bwa\\b".toRegex()))
+                return LocalAction.OpenWhatsAppChat(c)
         }
         return null
     }
@@ -868,6 +1048,25 @@ object LocalIntentProcessor {
             if (it.moveToFirst()) it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)) else null
         }
     }
+
+    /**
+     * Intenta encontrar un número de teléfono en el texto de memorias del usuario.
+     * Útil cuando el contacto no está en la agenda pero sí lo anotó el usuario.
+     */
+    fun resolveContactFromMemory(memory: String, nameQuery: String): String? {
+        if (memory.isBlank()) return null
+        val q = nameQuery.lowercase()
+        val phonePat = Regex("\\+?[\\d\\s\\-]{7,}")
+        return memory.lines()
+            .firstOrNull { line -> line.lowercase().contains(q) && phonePat.containsMatchIn(line) }
+            ?.let { phonePat.find(it)?.value?.trim() }
+    }
+
+    // Accesores públicos para respuestas sociales (usados en VM)
+    fun greetingResponse()     = GREETING_RESPONSES[(System.currentTimeMillis() % GREETING_RESPONSES.size).toInt()]
+    fun farewellResponse()     = FAREWELL_RESPONSES[(System.currentTimeMillis() % FAREWELL_RESPONSES.size).toInt()]
+    fun gratitudeResponse()    = GRATITUDE_RESPONSES[(System.currentTimeMillis() % GRATITUDE_RESPONSES.size).toInt()]
+    fun affirmationResponse()  = AFFIRMATION_RESPONSES[(System.currentTimeMillis() % AFFIRMATION_RESPONSES.size).toInt()]
 
     // ─────────────────────────────────────────────────────────────────────────
     // Prompt optimizado para IA con sub-tareas

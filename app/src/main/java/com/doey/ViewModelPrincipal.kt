@@ -662,11 +662,32 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
                 // ── Bluetooth ─────────────────────────────────────────────────────
                 is LocalIntentProcessor.LocalAction.ToggleBluetooth -> {
-                    val ba = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
-                    if (ba != null) {
-                        if (action.enable) ba.enable() else ba.disable()
-                        if (action.enable) "🔷 Bluetooth activado" else "Bluetooth desactivado"
-                    } else "Este dispositivo no tiene Bluetooth"
+                    @Suppress("DEPRECATION")
+                    val adapter = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                        (app.getSystemService(android.content.Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter
+                    } else {
+                        android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+                    }
+                    if (adapter == null) {
+                        "Este dispositivo no tiene Bluetooth"
+                    } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        // Android 13+: no se puede activar programáticamente, abrir ajustes
+                        val intent = android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).apply {
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        app.startActivity(intent)
+                        if (action.enable) "🔵 Te abro los ajustes de Bluetooth para activarlo" 
+                        else "🔵 Te abro los ajustes de Bluetooth para desactivarlo"
+                    } else {
+                        @Suppress("DEPRECATION")
+                        if (action.enable) {
+                            adapter.enable()
+                            "🔷 Bluetooth activando..."
+                        } else {
+                            adapter.disable()
+                            "🔕 Bluetooth desactivado"
+                        }
+                    }
                 }
 
                 // ── Modo avión ────────────────────────────────────────────────────
@@ -709,6 +730,136 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     val dpm = app.getSystemService(android.content.Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
                     dpm.lockNow()
                     "🔒 Pantalla bloqueada"
+                }
+
+                // ── Respuestas sociales (cero tokens, cero red) ───────────────────
+                is LocalIntentProcessor.LocalAction.Greeting -> {
+                    val responses = listOf(
+                        "¡Hola! 👋 Aquí estoy, ¿en qué te ayudo?",
+                        "¡Hola! Todo bien por acá. ¿Qué necesitas?",
+                        "¡Hey! ¿Cómo te puedo ayudar hoy?",
+                        "¡Buenas! Listo para lo que necesites 😊",
+                        "¡Hola! Dime, ¿qué hacemos hoy?",
+                        "¡Aquí estoy! ¿Qué se te ofrece?",
+                        "¡Hey! ¿Qué onda? ¿En qué te echo la mano?",
+                        "¡Hola hola! Cuéntame, ¿qué necesitas?",
+                        "¡Buenas! Listo y a tus órdenes 🤖",
+                        "¡Qué tal! Por acá todo bien, ¿y tú?"
+                    )
+                    responses[(System.currentTimeMillis() % responses.size).toInt()]
+                }
+
+                is LocalIntentProcessor.LocalAction.Farewell -> {
+                    val responses = listOf(
+                        "¡Hasta luego! 👋 Aquí estaré cuando me necesites.",
+                        "¡Cuídate mucho! 😊",
+                        "¡Chao! Vuelve cuando quieras.",
+                        "¡Hasta pronto! Fue un placer ayudarte.",
+                        "¡Que te vaya bien! 👋",
+                        "¡Nos vemos! Aquí estaré.",
+                        "¡Cuídate! Y si necesitas algo, ya sabes dónde encontrarme."
+                    )
+                    responses[(System.currentTimeMillis() % responses.size).toInt()]
+                }
+
+                is LocalIntentProcessor.LocalAction.Gratitude -> {
+                    val responses = listOf(
+                        "¡De nada! 😊 Para eso estoy.",
+                        "¡Con gusto! ¿Algo más?",
+                        "¡A tus órdenes siempre! 🤖",
+                        "No hay de qué. ¿Necesitas algo más?",
+                        "¡Claro que sí! Aquí para lo que sea.",
+                        "¡Para eso estoy! ¿Algo más en lo que te ayude?",
+                        "¡Fue un placer! 😄"
+                    )
+                    responses[(System.currentTimeMillis() % responses.size).toInt()]
+                }
+
+                is LocalIntentProcessor.LocalAction.Affirmation -> {
+                    val responses = listOf(
+                        "👍 ¡Listo!",
+                        "¡Perfecto! ¿Algo más?",
+                        "👌 Entendido.",
+                        "¡Genial! Aquí por si me necesitas.",
+                        "😊 ¡De nada!",
+                        "¡Sale! Avísame si necesitas algo."
+                    )
+                    responses[(System.currentTimeMillis() % responses.size).toInt()]
+                }
+
+                // ── Consulta de memorias ──────────────────────────────────────────
+                is LocalIntentProcessor.LocalAction.QueryMemory -> {
+                    val mem = settings.getPersonalMemory()
+                    if (mem.isBlank()) {
+                        "No tengo memorias guardadas tuyas todavía. Puedes agregarlas en Ajustes → Memorias."
+                    } else {
+                        val query = action.raw.lowercase()
+                        val lines = mem.lines().filter { it.isNotBlank() }
+                        val matches = lines.filter { it.lowercase().contains(query) }
+                        if (matches.isNotEmpty()) {
+                            "📝 Encontré esto en tus memorias:\n${matches.take(5).joinToString("\n")}"
+                        } else {
+                            "📝 No encontré \"${action.raw}\" en tus memorias. Tienes ${lines.size} memorias guardadas."
+                        }
+                    }
+                }
+
+                // ── Alarma nativa (AlarmManager — sin abrir app de reloj) ─────────
+                is LocalIntentProcessor.LocalAction.SetAlarmNative -> {
+                    try {
+                        val am = app.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
+                        val cal = java.util.Calendar.getInstance().apply {
+                            set(java.util.Calendar.HOUR_OF_DAY, action.hour)
+                            set(java.util.Calendar.MINUTE, action.minute)
+                            set(java.util.Calendar.SECOND, 0)
+                            set(java.util.Calendar.MILLISECOND, 0)
+                            if (timeInMillis <= System.currentTimeMillis()) {
+                                add(java.util.Calendar.DAY_OF_YEAR, 1)
+                            }
+                        }
+                        val label = action.label.ifBlank { "Alarma Doey" }
+                        val notifIntent = android.content.Intent(app, com.doey.servicios.comun.ReceptorAlarmas::class.java).apply {
+                            putExtra("alarm_label", label)
+                            putExtra("alarm_hour", action.hour)
+                            putExtra("alarm_minute", action.minute)
+                        }
+                        val requestCode = (action.hour * 100 + action.minute)
+                        val pi = android.app.PendingIntent.getBroadcast(
+                            app, requestCode, notifIntent,
+                            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                        )
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
+                            // Fallback: usar AlarmClock intent si no hay permiso SCHEDULE_EXACT_ALARM
+                            val fallback = android.content.Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
+                                putExtra(android.provider.AlarmClock.EXTRA_HOUR, action.hour)
+                                putExtra(android.provider.AlarmClock.EXTRA_MINUTES, action.minute)
+                                putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, true)
+                                if (label.isNotBlank()) putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, label)
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            app.startActivity(fallback)
+                        } else {
+                            am.setAlarmClock(
+                                android.app.AlarmManager.AlarmClockInfo(cal.timeInMillis, pi),
+                                pi
+                            )
+                        }
+                        val h = String.format("%02d", action.hour)
+                        val m = String.format("%02d", action.minute)
+                        "⏰ Alarma puesta para las $h:$m${if (label != "Alarma Doey") " — $label" else ""}"
+                    } catch (e: Exception) {
+                        // Último fallback: AlarmClock intent
+                        val intent = android.content.Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
+                            putExtra(android.provider.AlarmClock.EXTRA_HOUR, action.hour)
+                            putExtra(android.provider.AlarmClock.EXTRA_MINUTES, action.minute)
+                            putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, true)
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        app.startActivity(intent)
+                        val h = String.format("%02d", action.hour)
+                        val m = String.format("%02d", action.minute)
+                        "⏰ Alarma puesta para las $h:$m"
+                    }
                 }
 
                 // ── Alarma ────────────────────────────────────────────────────────
@@ -807,7 +958,22 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
                 // ── WhatsApp mensaje ──────────────────────────────────────────────
                 is LocalIntentProcessor.LocalAction.SendWhatsApp -> {
-                    val number = LocalIntentProcessor.resolveContactNumber(app, action.contact)
+                    // 1. Intentar resolver el contacto desde la agenda
+                    var number = LocalIntentProcessor.resolveContactNumber(app, action.contact)
+                    // 2. Si no está en la agenda, buscar en las memorias del usuario
+                    if (number == null) {
+                        val mem = settings.getPersonalMemory()
+                        if (mem.isNotBlank()) {
+                            val query = action.contact.lowercase()
+                            val memLine = mem.lines().firstOrNull { line ->
+                                line.lowercase().contains(query) && 
+                                Regex("\\+?[\\d\\s\\-]{7,}").containsMatchIn(line)
+                            }
+                            if (memLine != null) {
+                                number = Regex("\\+?[\\d\\s\\-]{7,}").find(memLine)?.value?.trim()
+                            }
+                        }
+                    }
                     val intent = if (number != null) {
                         val clean = number.replace(Regex("[^\\d+]"), "")
                         android.content.Intent(android.content.Intent.ACTION_VIEW,
@@ -816,13 +982,19 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                             addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                     } else {
+                        // Sin número: abrir WhatsApp con mensaje pre-cargado
                         android.content.Intent(android.content.Intent.ACTION_VIEW,
                             android.net.Uri.parse("https://wa.me/?text=${android.net.Uri.encode(action.message)}")).apply {
                             addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                     }
-                    app.startActivity(intent)
-                    "💚 WhatsApp abierto para ${action.contact}, solo falta enviarlo"
+                    try {
+                        app.startActivity(intent)
+                        if (number != null) "💚 WhatsApp listo para enviarle a ${action.contact} — solo falta presionar enviar"
+                        else "💚 No encontré a \"${action.contact}\" en tu agenda ni en memorias. Te abro WhatsApp con el mensaje listo."
+                    } catch (e: Exception) {
+                        "⚠️ WhatsApp no está instalado o no se pudo abrir"
+                    }
                 }
 
                 // ── Abrir chat de WhatsApp ────────────────────────────────────────
