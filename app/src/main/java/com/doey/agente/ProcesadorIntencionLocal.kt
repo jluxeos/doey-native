@@ -602,35 +602,58 @@ object LocalIntentProcessor {
         if (Regex("\\b(cancela|elimina|borra|quita|cancel|delete|apaga|desactiva)\\b.*(alarma|alarm|despertador)").containsMatchIn(lo))
             return LocalAction.CancelAlarm()
 
-        val hasTrigger = Regex("\\b(pon|pone|ponme|set|crea|activa|programa|despiertame|despertarme|wake me|alarma|alarm|despertador|ponme una|pon una)\\b").containsMatchIn(lo)
+        val hasTrigger = Regex(
+            "\\b(pon|pone|ponme|set|crea|activa|programa|despiertame|despertarme|" +
+            "wake me|alarma|alarm|despertador|ponme una|pon una|quiero despertar|" +
+            "despertame|pon alarma|poner alarma|crear alarma|quiero que me despiertes)\\b"
+        ).containsMatchIn(lo)
         if (!hasTrigger) return null
 
-        // HH:MM con AM/PM opcional
-        Regex("(\\d{1,2}):(\\d{2})\\s*(am|pm|a\\.m|p\\.m)?").find(lo)?.let { m ->
-            var h  = m.groupValues[1].toIntOrNull() ?: return null
-            val mi = m.groupValues[2].toIntOrNull() ?: return null
+        // Patrón 1 — HH:MM (con o sin am/pm, con o sin espacio)
+        // Ej: "6:15", "6:15am", "6:15 am", "6:15 a.m" (el . ya fue reemplazado por espacio en normalize)
+        Regex("(\\d{1,2}):(\\d{2})\\s*(am|pm)?").find(lo)?.let { m ->
+            var h  = m.groupValues[1].toIntOrNull() ?: return@let
+            val mi = m.groupValues[2].toIntOrNull() ?: return@let
             val ap = m.groupValues[3].lowercase()
-            if (ap.startsWith("p") && h < 12) h += 12
-            if (ap.startsWith("a") && h == 12) h = 0
-            return LocalAction.SetAlarm(h, mi, extractLabel(lo))
+            if (ap == "pm" && h < 12) h += 12
+            if (ap == "am" && h == 12) h = 0
+            return LocalAction.SetAlarmNative(h, mi, extractLabel(lo))
         }
 
-        // "a las N am/pm / de la mañana / tarde / noche / en punto"
-        Regex("(?:a las?|at|para las?)\\s*(\\d{1,2})\\s*(am|pm|de la manana|de la mañana|de la tarde|de la noche|en punto|hrs?|h\\b)?").find(lo)?.let { m ->
-            var h   = m.groupValues[1].toIntOrNull() ?: return null
-            val mod = m.groupValues[2].lowercase()
+        // Patrón 2 — "a las N am/pm / de la mañana / tarde / noche"
+        // También captura solo el número: "alarma a las 6", "pon alarma a las 7 am"
+        Regex("(?:a las?|at|para las?)\\s*(\\d{1,2})(?:\\s*:(\\d{2}))?\\s*(am|pm|de la manana|de la tarde|de la noche|en punto)?").find(lo)?.let { m ->
+            var h  = m.groupValues[1].toIntOrNull() ?: return@let
+            val mi = m.groupValues[2].toIntOrNull() ?: 0
+            val mod = m.groupValues[3].lowercase()
             when {
-                mod.contains("pm") || mod.contains("tarde") || mod.contains("noche") -> if (h < 12) h += 12
-                mod.contains("am") || mod.contains("mana") -> if (h == 12) h = 0
+                mod == "pm" || mod.contains("tarde") || mod.contains("noche") -> if (h < 12) h += 12
+                mod == "am" || mod.contains("mana") -> if (h == 12) h = 0
             }
-            return LocalAction.SetAlarm(h, 0, extractLabel(lo))
+            return LocalAction.SetAlarmNative(h, mi, extractLabel(lo))
         }
 
-        // "en N horas"
+        // Patrón 3 — número suelto con am/pm: "alarma 6am", "pon 7pm"
+        Regex("\\b(\\d{1,2})\\s*(am|pm)\\b").find(lo)?.let { m ->
+            var h = m.groupValues[1].toIntOrNull() ?: return@let
+            val ap = m.groupValues[2].lowercase()
+            if (ap == "pm" && h < 12) h += 12
+            if (ap == "am" && h == 12) h = 0
+            return LocalAction.SetAlarmNative(h, 0, extractLabel(lo))
+        }
+
+        // Patrón 4 — "en N horas"
         Regex("en (\\d+) hora").find(lo)?.let { m ->
             val cal = java.util.Calendar.getInstance()
             cal.add(java.util.Calendar.HOUR_OF_DAY, m.groupValues[1].toInt())
-            return LocalAction.SetAlarm(cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
+            return LocalAction.SetAlarmNative(cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
+        }
+
+        // Patrón 5 — "en N minutos" (alarma, no timer)
+        Regex("en (\\d+) minuto").find(lo)?.let { m ->
+            val cal = java.util.Calendar.getInstance()
+            cal.add(java.util.Calendar.MINUTE, m.groupValues[1].toInt())
+            return LocalAction.SetAlarmNative(cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
         }
 
         return null

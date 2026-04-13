@@ -1082,7 +1082,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 // ── Música / Video ────────────────────────────────────────────────
                 is LocalIntentProcessor.LocalAction.PlayMusic -> {
                     when (action.app) {
-                        // YouTube (video) — búsqueda directa en la app o en el navegador
+                        // ── YouTube ───────────────────────────────────────────────────
                         "youtube" -> {
                             val ytPkg = "com.google.android.youtube"
                             val searchIntent = android.content.Intent(android.content.Intent.ACTION_SEARCH).apply {
@@ -1093,7 +1093,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                             try {
                                 app.startActivity(searchIntent)
                             } catch (e: Exception) {
-                                // Si no tiene YouTube instalado → navegador
                                 val webIntent = android.content.Intent(android.content.Intent.ACTION_VIEW,
                                     android.net.Uri.parse("https://www.youtube.com/results?search_query=${android.net.Uri.encode(action.query)}")).apply {
                                     addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1102,17 +1101,73 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                             }
                             if (action.query.isBlank()) "▶️ Abriendo YouTube" else "▶️ Buscando \"${action.query}\" en YouTube"
                         }
-                        else -> {
-                            val pkg = when (action.app) {
-                                "youtube music" -> "com.google.android.apps.youtube.music"
-                                "apple music"   -> "com.apple.android.music"
-                                "deezer"        -> "deezer.android.app"
-                                else            -> "com.spotify.music"
-                            }
-                            val intent = if (action.query.isBlank()) {
-                                app.packageManager.getLaunchIntentForPackage(pkg)?.apply {
+
+                        // ── Spotify ───────────────────────────────────────────────────
+                        // URI nativo: spotify:search:QUERY abre Spotify y reproduce el primer resultado
+                        "spotify" -> {
+                            val pkg = "com.spotify.music"
+                            val handled = if (action.query.isBlank()) {
+                                // Solo abrir Spotify
+                                val launch = app.packageManager.getLaunchIntentForPackage(pkg)
+                                    ?.apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                                launch?.let { app.startActivity(it); true } ?: false
+                            } else {
+                                // URI nativo de Spotify: inicia búsqueda y reproduce
+                                val encoded = android.net.Uri.encode(action.query)
+                                val uriIntent = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse("spotify:search:$encoded")).apply {
+                                    setPackage(pkg)
                                     addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                 }
+                                try {
+                                    app.startActivity(uriIntent); true
+                                } catch (e: Exception) {
+                                    // Spotify no instalado → web
+                                    val web = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse("https://open.spotify.com/search/${android.net.Uri.encode(action.query)}")).apply {
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    try { app.startActivity(web); true } catch (e2: Exception) { false }
+                                }
+                            }
+                            if (handled) {
+                                if (action.query.isBlank()) "🎵 Abriendo Spotify"
+                                else "🎵 Buscando \"${action.query}\" en Spotify"
+                            } else "⚠️ No se pudo abrir Spotify"
+                        }
+
+                        // ── YouTube Music ─────────────────────────────────────────────
+                        "youtube music" -> {
+                            val pkg = "com.google.android.apps.youtube.music"
+                            val encoded = android.net.Uri.encode(action.query)
+                            val uri = if (action.query.isBlank()) null
+                                      else android.net.Uri.parse("https://music.youtube.com/search?q=$encoded")
+                            val intent = if (uri != null) {
+                                android.content.Intent(android.content.Intent.ACTION_VIEW, uri).apply {
+                                    setPackage(pkg)
+                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                            } else {
+                                app.packageManager.getLaunchIntentForPackage(pkg)
+                                    ?.apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                            }
+                            try {
+                                if (intent != null) { app.startActivity(intent); "🎵 Abriendo YouTube Music" }
+                                else "⚠️ YouTube Music no está instalado"
+                            } catch (e: Exception) { "⚠️ No se pudo abrir YouTube Music" }
+                        }
+
+                        // ── Otras plataformas ─────────────────────────────────────────
+                        else -> {
+                            val pkg = when (action.app) {
+                                "apple music" -> "com.apple.android.music"
+                                "deezer"      -> "deezer.android.app"
+                                "soundcloud"  -> "com.soundcloud.android"
+                                else          -> "com.spotify.music"
+                            }
+                            val intent = if (action.query.isBlank()) {
+                                app.packageManager.getLaunchIntentForPackage(pkg)
+                                    ?.apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                             } else {
                                 android.content.Intent(android.content.Intent.ACTION_SEARCH).apply {
                                     setPackage(pkg)
@@ -1120,14 +1175,16 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                                     addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                 }
                             }
-                            if (intent != null) {
-                                try {
+                            try {
+                                if (intent != null) {
                                     app.startActivity(intent)
                                     if (action.query.isBlank()) "🎵 Abriendo ${action.app}"
                                     else "🎵 Poniendo \"${action.query}\" en ${action.app}"
-                                } catch (e: Exception) { "" }
-                            } else ""
+                                } else "⚠️ ${action.app} no está instalado"
+                            } catch (e: Exception) { "" }
                         }
+                    }
+                }
                     }
                 }
 
