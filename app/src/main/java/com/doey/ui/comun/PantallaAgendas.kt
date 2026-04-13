@@ -2,6 +2,7 @@ package com.doey.ui.comun
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -111,21 +112,33 @@ fun SchedulesScreen(vm: MainViewModel) {
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
 
-            // Tabs con scroll horizontal implícito
-            ScrollableTabRow(
-                selectedTabIndex = selectedTab,
-                containerColor   = TauSurface1,
-                contentColor     = TauAccent,
-                edgePadding      = 8.dp
+            // Tabs con scroll horizontal
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .background(TauSurface1)
+                    .horizontalScroll(rememberScrollState())
             ) {
                 tabs.forEachIndexed { i, label ->
-                    Tab(
-                        selected = selectedTab == i,
-                        onClick  = { selectedTab = i },
-                        text     = { Text(label, fontSize = 12.sp) }
-                    )
+                    val selected = selectedTab == i
+                    Column(
+                        Modifier
+                            .clickable { selectedTab = i }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            label,
+                            fontSize   = 12.sp,
+                            color      = if (selected) TauAccent else TauText3,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Box(Modifier.width(40.dp).height(2.dp).background(if (selected) TauAccent else Color.Transparent))
+                    }
                 }
             }
+            HorizontalDivider(color = TauSeparator)
 
             Box(Modifier.weight(1f)) {
                 when (selectedTab) {
@@ -381,19 +394,24 @@ private fun ShoppingList(items: List<JSONObject>, onSave: (List<JSONObject>) -> 
                             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Checkbox(
-                                checked = done,
-                                onCheckedChange = { checked ->
-                                    item.put("done", checked)
-                                    onSave(items.map { if (it.optLong("id") == item.optLong("id")) item else it })
-                                },
-                                colors = CheckboxDefaults.colors(checkedColor = TauAccent)
-                            )
+                            // Check/uncheck con ícono (sin Checkbox de Material3)
+                            IconButton(onClick = {
+                                val newDone = !done
+                                item.put("done", newDone as Any)
+                                onSave(items.map { if (it.optLong("id") == item.optLong("id")) item else it })
+                            }) {
+                                Icon(
+                                    if (done) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                    null,
+                                    tint = if (done) TauAccent else TauText3,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                             Text(
                                 item.optString("name"),
                                 color    = if (done) TauText3 else TauText1,
                                 fontSize = 15.sp,
-                                modifier = Modifier.weight(1f).padding(start = 8.dp),
+                                modifier = Modifier.weight(1f).padding(start = 4.dp),
                                 textDecoration = if (done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
                             )
                             IconButton(onClick = {
