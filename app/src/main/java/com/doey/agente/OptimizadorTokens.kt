@@ -112,13 +112,12 @@ object TokenOptimizer {
     // ── System prompt mínimo para comandos simples ─────────────────────────────
 
     fun buildMinimalSystemPrompt(language: String, soul: String): String {
-        val lang = if (language.startsWith("es")) "Spanish (Español)" else language
+        val lang = if (language.startsWith("es")) "Español" else language
         return buildString {
-            append("You are Doey, a smart Android assistant. ")
-            append("Respond in $lang. ")
-            append("Be concise. Execute actions directly using tools. ")
-            if (soul.isNotBlank()) append("Persona: ${soul.take(200)}. ")
-            append("Never describe planned actions — just execute them.")
+            append("Eres Doey, asistente Android. Idioma: $lang.\n")
+            append("PARSER PURO: acción solicitada = herramienta inmediata. Sin texto antes de actuar.\n")
+            append("Respuesta final: máximo 1 oración. Sin JSON ni tecnicismos.\n")
+            if (soul.isNotBlank()) append("Tono: ${soul.take(120)}\n")
         }
     }
 
@@ -208,32 +207,32 @@ object TokenOptimizer {
         return when (complexity) {
             CommandComplexity.TRIVIAL -> OptimizationStrategy(
                 useMinimalPrompt    = true,
-                maxHistoryMessages  = 2,
-                maxIterations       = 3,
+                maxHistoryMessages  = 0,   // Sin historial para comandos triviales
+                maxIterations       = 2,   // Máximo 2 iteraciones — 1 herramienta + confirmación
                 compressHistory     = false,
                 includeSkills       = false,
                 includeTools        = true
             )
             CommandComplexity.SIMPLE -> OptimizationStrategy(
                 useMinimalPrompt    = true,
-                maxHistoryMessages  = 4,
-                maxIterations       = 5,
+                maxHistoryMessages  = 2,
+                maxIterations       = 4,
                 compressHistory     = false,
                 includeSkills       = false,
                 includeTools        = true
             )
             CommandComplexity.MODERATE -> OptimizationStrategy(
                 useMinimalPrompt    = false,
-                maxHistoryMessages  = 8,
-                maxIterations       = minOf(userMaxIterations, 8),
+                maxHistoryMessages  = 6,
+                maxIterations       = minOf(userMaxIterations, 7),
                 compressHistory     = true,
                 includeSkills       = true,
                 includeTools        = true
             )
             CommandComplexity.COMPLEX -> OptimizationStrategy(
                 useMinimalPrompt    = false,
-                maxHistoryMessages  = 12,
-                maxIterations       = userMaxIterations,
+                maxHistoryMessages  = 10,
+                maxIterations       = minOf(userMaxIterations, 8), // Cap en 8 — más no ayuda, solo gasta tokens
                 compressHistory     = true,
                 includeSkills       = true,
                 includeTools        = true

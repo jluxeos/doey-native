@@ -118,14 +118,29 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         val skillLoader = SkillLoader(app)
         val tools       = buildTools(skillLoader, enabledSkills)
 
+        // ── Crear provider con rotación automática ───────────────────────────
+        // Si el usuario tiene configurados múltiples proveedores, rotamos entre ellos
+        // de forma transparente cuando uno falla o se agota (429/timeout).
+        val primaryProvider = com.doey.llm.LLMProviderFactory.create(
+            provider,
+            settings.getApiKey(provider),
+            model,
+            settings.getCustomModelUrl()
+        )
+        // Proveedor de respaldo: OpenRouter gratuito si el principal no es ya OpenRouter
+        val backupKey = settings.getApiKey("openrouter")
+        val finalProvider = if (backupKey.isNotBlank() && provider != "openrouter") {
+            val backup = com.doey.llm.LLMProviderFactory.create(
+                "openrouter", backupKey, "meta-llama/llama-3.3-70b-instruct:free"
+            )
+            com.doey.llm.RotatingProvider(listOf(primaryProvider, backup))
+        } else {
+            primaryProvider
+        }
+
         val p = ConversationPipeline(
             ctx                      = app,
-            provider                 = com.doey.llm.LLMProviderFactory.create(
-                                           provider,
-                                           settings.getApiKey(provider),
-                                           model,
-                                           settings.getCustomModelUrl()
-                                       ),
+            provider                 = finalProvider,
             tools                    = tools,
             skillLoader              = skillLoader,
             drivingMode              = drivingMode,
@@ -258,12 +273,21 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     // Si falla la ejecución local, delegar a IA
                 }
                 is LocalIntentProcessor.IntentClass.Complex -> {
-                    // Comando complejo: optimizar el prompt antes de enviar a IA
+                    // Comando encadenado: prompt compacto para que la IA solo ejecute herramientas
+                    // sin gastar tokens en texto innecesario
                     val optimizedText = LocalIntentProcessor.buildOptimizedPrompt(intent.subtasks, text)
-                    p.processUtterance(
+                    val aiResponse = p.processUtterance(
                         userText = optimizedText,
                         onSpeak  = if (voiceEnabled) { t, lang -> DoeyTTSEngine.speakAndWait(t, lang) } else null
                     )
+                    // Si la IA no generó texto de respuesta, mostrar confirmación local
+                    if (aiResponse.isBlank()) {
+                        val localConfirm = "✅ Listo."
+                        _uiState.update { s ->
+                            val newList = s.messages + ChatMessage(role = "assistant", text = localConfirm, respondedBy = "Doey")
+                            s.copy(messages = newList.takeLast(50))
+                        }
+                    }
                     if (_uiState.value.isDrivingMode && voiceEnabled) { delay(500); startDrivingListen() }
                     return@launch
                 }

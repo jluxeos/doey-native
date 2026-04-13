@@ -1,6 +1,8 @@
 package com.doey.agente
+
 import android.util.Log
 import com.doey.llm.LLMProvider
+import com.doey.llm.LLMOptions
 import com.doey.llm.Message
 import com.doey.herramientas.comun.ToolRegistry
 import com.doey.herramientas.comun.errorResult
@@ -17,54 +19,54 @@ suspend fun runToolLoop(
     provider:      LLMProvider,
     tools:         ToolRegistry,
     messages:      List<Message>,
-    maxIterations: Int             = 10,
-    shouldExit:    (() -> Boolean)? = null,
-    onIteration:   (() -> Unit)?    = null
+    maxIterations: Int              = 8,
+    options:       LLMOptions       = LLMOptions(),
+    shouldExit:    (() -> Boolean)?  = null,
+    onIteration:   (() -> Unit)?     = null
 ): ToolLoopResult {
-    val newMessages = mutableListOf<Message>()
-    val allMessages = messages.toMutableList()
-    var iterations  = 0
+    val newMessages  = mutableListOf<Message>()
+    val allMessages  = messages.toMutableList()
+    var iterations   = 0
     var finalContent = ""
 
     val toolDefs = tools.definitions()
 
-    // Log del request inicial a la IA
-    val systemLen = messages.firstOrNull { it.role == "system" }?.content?.length ?: 0
     DoeyLogger.aiRequest(
         model           = provider.getCurrentModel(),
         messageCount    = messages.size,
-        systemPromptLen = systemLen
+        systemPromptLen = messages.firstOrNull { it.role == "system" }?.content?.length ?: 0
     )
 
     while (iterations < maxIterations) {
         if (shouldExit?.invoke() == true) break
         iterations++
-        Log.d(TAG, "Iteration $iterations/$maxIterations")
-        DoeyLogger.info("Iteración $iterations de $maxIterations del bucle de herramientas")
+        Log.d(TAG, "Iteración $iterations/$maxIterations")
 
         val response = try {
-            provider.chat(allMessages, toolDefs)
+            provider.chat(allMessages, toolDefs, options)
         } catch (e: Exception) {
             Log.e(TAG, "LLM error: ${e.message}")
             DoeyLogger.error("IA", e.message ?: "Error desconocido")
             throw e
         }
 
-        // Log de la respuesta de la IA
         DoeyLogger.aiResponse(
             content       = response.content,
             toolCallCount = response.toolCalls.size,
             finishReason  = response.finishReason
         )
 
-        // Detectar tool call alucinada en texto plano (modelos gratuitos/limitados)
-        // Ejemplo: TOOLCALL>[{...}]WOLCALL> o similares que el modelo escribe como texto
-        val hallucinatedToolCall = response.finishReason == "stop"
+        // ── Detección de tool calls alucinadas (modelos débiles escriben JSON como texto)
+        val hallucinatedCall = response.finishReason == "stop"
             && response.toolCalls.isEmpty()
-            && (response.content.contains("TOOLCALL>") || (response.content.contains("tool_call") && response.content.contains("""name""")))
-        if (hallucinatedToolCall) {
-            DoeyLogger.info("Tool call alucinada detectada en texto — descartando y pidiendo reintento")
-            val retryMsg = Message(role = "user", content = "Tu respuesta anterior contenía una llamada a herramienta en formato de texto en lugar de usarla correctamente. Por favor, usa la herramienta de forma estructurada.")
+            && (response.content.contains("TOOLCALL>") ||
+                (response.content.contains("tool_call") && response.content.contains(""""name""")))
+        if (hallucinatedCall) {
+            DoeyLogger.info("Tool call alucinada detectada — solicitando reintento estructurado")
+            val retryMsg = Message(
+                role    = "user",
+                content = "Usa la herramienta de forma estructurada, no como texto."
+            )
             allMessages.add(retryMsg)
             newMessages.add(retryMsg)
             onIteration?.invoke()
@@ -80,67 +82,47 @@ suspend fun runToolLoop(
         newMessages.add(assistantMsg)
         finalContent = response.content
 
+        // Sin más herramientas que llamar — fin del bucle
         if (response.finishReason != "tool_calls" || response.toolCalls.isEmpty()) {
-            Log.d(TAG, "No tool calls – ending loop")
-            DoeyLogger.info("Fin del bucle: sin más herramientas que llamar")
             onIteration?.invoke()
             break
         }
 
+        // ── Ejecutar herramientas ─────────────────────────────────────────────
         for (tc in response.toolCalls) {
-            Log.d(TAG, "Calling tool: ${tc.name}")
-
-            // Log de llamada a herramienta
+            Log.d(TAG, "Herramienta: ${tc.name}")
             DoeyLogger.toolCall(tc.name, tc.arguments)
 
-            // Log especial para skills
             if (tc.name == "skill_detail") {
-                val skillName = tc.arguments["skill_name"] as? String ?: "desconocido"
-                DoeyLogger.skillLoad(skillName)
+                DoeyLogger.skillLoad(tc.arguments["skill_name"] as? String ?: "?")
             }
-
-            // Log especial para accesibilidad (envío)
             if (tc.name == "accessibility") {
                 val action = tc.arguments["action"] as? String ?: "?"
-                val nodeId = tc.arguments["node_id"] as? String
-                val text   = tc.arguments["text"] as? String
-                    ?: tc.arguments["package_name"] as? String
-                DoeyLogger.accessibilitySend(action, nodeId, text)
+                DoeyLogger.accessibilitySend(action, tc.arguments["node_id"] as? String,
+                    (tc.arguments["text"] ?: tc.arguments["package_name"]) as? String)
             }
 
             val result = try {
                 tools.execute(tc.name, tc.arguments)
             } catch (e: Exception) {
-                errorResult("${tc.name} threw: ${e.message}")
+                errorResult("${tc.name}: ${e.message}")
             }
 
-            // PUNTO 12: Verificación de éxito para acciones críticas
-            if (tc.name == "intent" || tc.name == "accessibility" || tc.name == "send_sms") {
-                if (result.isError) {
-                    DoeyLogger.info("Acción fallida: ${tc.name}. Intentando recuperación con accesibilidad...")
-                } else {
-                    // Si fue un intent de música o mensaje, verificar con accesibilidad si se completó
-                    val action = tc.arguments["action"] as? String ?: ""
-                    if (action.contains("android.intent.action.SEND") || action.contains("android.intent.action.VIEW")) {
-                         DoeyLogger.info("Verificando estado de la acción en la app externa...")
-                         // El agente LLM decidirá en la siguiente iteración si necesita usar get_tree para confirmar
-                    }
-                }
-            }
-
-            // Log del resultado de la herramienta
             DoeyLogger.toolResult(tc.name, result.forLLM, result.isError)
 
-            // Log especial para accesibilidad (recepción)
             if (tc.name == "accessibility") {
                 val action = tc.arguments["action"] as? String ?: "?"
                 DoeyLogger.accessibilityRecv(action, result.forLLM)
             }
 
-            val toolMsg = Message(role = "tool", content = result.forLLM, toolCallId = tc.id)
+            val toolMsg = Message(
+                role       = "tool",
+                content    = result.forLLM,
+                toolCallId = tc.id
+            )
             allMessages.add(toolMsg)
             newMessages.add(toolMsg)
-            Log.d(TAG, "Tool ${tc.name} → ${result.forLLM.take(150)}")
+            Log.d(TAG, "Tool ${tc.name} → ${result.forLLM.take(100)}")
         }
 
         onIteration?.invoke()

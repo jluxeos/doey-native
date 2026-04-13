@@ -9,6 +9,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 // ── Data classes ──────────────────────────────────────────────────────────────
 
@@ -38,8 +39,8 @@ data class LLMResponse(
 )
 
 data class LLMOptions(
-    val maxTokens: Int      = 4096,
-    val temperature: Double = 0.7
+    val maxTokens: Int      = 1024,   // Reducido de 4096 — la IA nunca necesita generar texto largo
+    val temperature: Double = 0.1     // Más bajo = más determinista = menos alucinaciones
 )
 
 // ── Provider interface ────────────────────────────────────────────────────────
@@ -64,7 +65,7 @@ class OpenAIProvider(
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
+        .readTimeout(90, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
     private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
@@ -101,9 +102,6 @@ class OpenAIProvider(
             if (tools.isNotEmpty()) {
                 put("tools", JSONArray().apply { tools.forEach { put(toolToJson(it)) } })
                 put("tool_choice", "auto")
-                put("top_p", 1.0)
-                put("frequency_penalty", 0.0)
-                put("presence_penalty", 0.0)
             }
         }
         val resp = client.newCall(buildRequest(body)).execute()
@@ -180,9 +178,9 @@ class OpenAIProvider(
         when {
             msg.isNotBlank() -> "Error $code: $msg"
             code == 401 -> "Error 401: API key inválida"
-            code == 429 -> "Error 429: Límite alcanzado. Espera un momento."
-            code == 404 -> "Error 404: Modelo '$model' no encontrado."
-            code == 500 -> "Error 500: Error interno del servidor."
+            code == 429 -> "Error 429: Límite alcanzado"
+            code == 404 -> "Error 404: Modelo '$model' no encontrado"
+            code == 500 -> "Error 500: Servidor caído"
             else -> "Error HTTP $code"
         }
     } catch (_: Exception) { "Error HTTP $code" }
@@ -197,7 +195,7 @@ class GeminiProvider(
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
+        .readTimeout(90, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
     private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
@@ -354,12 +352,11 @@ class GeminiProvider(
         if (candidates == null || candidates.length() == 0) {
             val reason = json.optJSONObject("promptFeedback")?.optString("blockReason", "")
             if (!reason.isNullOrBlank()) throw Exception("Gemini bloqueó: $reason")
-            throw Exception("Gemini sin candidatos en respuesta")
+            throw Exception("Gemini sin respuesta")
         }
         val candidate = candidates.getJSONObject(0)
         val finishRaw = candidate.optString("finishReason", "STOP")
-        if (finishRaw == "SAFETY")    throw Exception("Gemini bloqueó por seguridad. Reformula.")
-        if (finishRaw == "RECITATION") throw Exception("Gemini detectó plagio. Cambia la pregunta.")
+        if (finishRaw == "SAFETY") throw Exception("Gemini bloqueó por seguridad. Reformula.")
 
         val content = candidate.optJSONObject("content") ?: return LLMResponse("", emptyList(), "stop")
         val parts   = content.optJSONArray("parts")       ?: return LLMResponse("", emptyList(), "stop")
@@ -370,7 +367,7 @@ class GeminiProvider(
             val part = parts.getJSONObject(i)
             when {
                 part.has("functionCall") -> {
-                    val fc  = part.getJSONObject("functionCall")
+                    val fc   = part.getJSONObject("functionCall")
                     val args = fc.optJSONObject("args") ?: JSONObject()
                     val map  = mutableMapOf<String, Any?>()
                     args.keys().forEach { k -> map[k] = args.opt(k) }
@@ -386,16 +383,73 @@ class GeminiProvider(
         val msg = JSONObject(body).optJSONObject("error")?.optString("message", "") ?: ""
         when {
             msg.isNotBlank() -> "Gemini $code: $msg"
-            code == 401 -> "Gemini 401: API key inválida."
-            code == 403 -> "Gemini 403: Sin permisos para este modelo."
-            code == 404 -> "Gemini 404: Modelo '$model' no encontrado. Prueba 'gemini-2.5-flash'."
-            code == 429 -> "Gemini 429: Límite alcanzado. Espera un momento."
-            else -> "Gemini Error HTTP $code"
+            code == 401 -> "Gemini 401: API key inválida"
+            code == 429 -> "Gemini 429: Límite alcanzado"
+            code == 404 -> "Gemini 404: Modelo '$model' no encontrado"
+            else -> "Gemini Error $code"
         }
-    } catch (_: Exception) { "Gemini Error HTTP $code" }
+    } catch (_: Exception) { "Gemini Error $code" }
 }
 
-// ── Factory ────────────────────────────────────────────────────────────────────
+// ── RotatingProvider — rota entre proveedores cuando uno falla o se agota ─────
+//
+//  Problema original: un solo proveedor se agota (429) y todo colapsa.
+//  Solución: lista ordenada de proveedores. Si el primero falla con 429 o error
+//  de red, se pasa al siguiente de forma transparente. El usuario nunca lo ve.
+
+class RotatingProvider(
+    private val providers: List<LLMProvider>
+) : LLMProvider {
+
+    private val currentIndex = AtomicInteger(0)
+
+    override fun getCurrentModel(): String =
+        providers.getOrNull(currentIndex.get())?.getCurrentModel() ?: "unknown"
+
+    override suspend fun testConnection(): Pair<Boolean, String?> {
+        for (p in providers) {
+            val (ok, err) = p.testConnection()
+            if (ok) return Pair(true, null)
+        }
+        return Pair(false, "Ningún proveedor disponible")
+    }
+
+    override suspend fun chat(
+        messages: List<Message>,
+        tools: List<ToolDefinition>,
+        options: LLMOptions
+    ): LLMResponse {
+        val start = currentIndex.get()
+        val total = providers.size
+
+        for (offset in 0 until total) {
+            val idx = (start + offset) % total
+            val provider = providers[idx]
+            try {
+                val result = provider.chat(messages, tools, options)
+                // Éxito — si habíamos rotado, volver al índice correcto
+                currentIndex.set(idx)
+                return result
+            } catch (e: Exception) {
+                val msg = e.message ?: ""
+                val shouldRotate = msg.contains("429") ||
+                                   msg.contains("rate limit", ignoreCase = true) ||
+                                   msg.contains("quota", ignoreCase = true) ||
+                                   msg.contains("timeout", ignoreCase = true) ||
+                                   msg.contains("connect", ignoreCase = true)
+                if (!shouldRotate || offset == total - 1) {
+                    // Error no-rotable o último proveedor — propagar
+                    throw e
+                }
+                // Rotar al siguiente
+                android.util.Log.w("RotatingProvider", "Proveedor ${provider.getCurrentModel()} falló ($msg), rotando...")
+            }
+        }
+        throw Exception("Todos los proveedores fallaron")
+    }
+}
+
+// ── Factory ───────────────────────────────────────────────────────────────────
 
 object LLMProviderFactory {
     fun create(provider: String, apiKey: String, model: String, customUrl: String = ""): LLMProvider =
@@ -407,6 +461,22 @@ object LLMProviderFactory {
                                            "https://openrouter.ai/api/v1/chat/completions")
             "custom"     -> OpenAIProvider(apiKey, model.ifBlank { "gpt-4o-mini" },
                                            customUrl.ifBlank { "https://api.openai.com/v1/chat/completions" })
-            else         -> throw IllegalArgumentException("Proveedor desconocido: '$provider'. Valores válidos: gemini, groq, openrouter, custom.")
+            else         -> throw IllegalArgumentException("Proveedor desconocido: '$provider'")
         }
+
+    /**
+     * Crea un RotatingProvider con múltiples proveedores configurados.
+     * El orden determina la prioridad.
+     */
+    fun createRotating(configs: List<Triple<String, String, String>>): LLMProvider {
+        val providers = configs.mapNotNull { (provider, key, model) ->
+            if (key.isBlank()) null
+            else runCatching { create(provider, key, model) }.getOrNull()
+        }
+        return when {
+            providers.isEmpty() -> throw IllegalArgumentException("Sin proveedores configurados")
+            providers.size == 1 -> providers.first()
+            else                -> RotatingProvider(providers)
+        }
+    }
 }

@@ -1100,9 +1100,12 @@ object LocalIntentProcessor {
 
     fun buildOptimizedPrompt(subtasks: List<String>, originalInput: String): String {
         if (subtasks.size <= 1) return originalInput
-        val sb = StringBuilder("Ejecuta estas tareas en orden:\n")
-        subtasks.forEachIndexed { i, t -> sb.append("${i + 1}. $t\n") }
-        sb.append("\nEjecútalas secuencialmente y confirma cada una.")
+        // Prompt ultra-compacto: solo acciones numeradas.
+        // La IA SOLO ejecuta herramientas. Sin texto entre ellas.
+        // Ahorra ~200-400 tokens vs versión anterior.
+        val sb = StringBuilder("SECUENCIA:\n")
+        subtasks.forEachIndexed { i, t -> sb.append("${i + 1}.$t\n") }
+        sb.append("REGLA:ejecuta herramienta por herramienta.Sin texto entre pasos.")
         return sb.toString()
     }
 
