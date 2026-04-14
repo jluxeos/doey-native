@@ -402,6 +402,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                             "⚠️ No se pudo obtener la IP (sin WiFi activo)"
                         }
                     }
+                    else -> "⚠️ Consulta no disponible"
                 }
 
                 // ── Navegación del Sistema ──────────────────────────────────────────
@@ -1483,7 +1484,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 is LocalIntentProcessor.LocalAction.QuickReminder -> {
                     try {
                         val alarmMgr = app.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
-                        val intent = android.content.Intent(app, com.doey.servicios.comun.ReceptorAlarmas::class.java).apply {
+                        val intent = android.content.Intent(app, com.doey.servicios.comun.AlarmReceiver::class.java).apply {
                             putExtra("label", action.text)
                         }
                         val pi = android.app.PendingIntent.getBroadcast(
@@ -1492,7 +1493,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         )
                         alarmMgr.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP,
                             System.currentTimeMillis() + action.inMinutes * 60_000L, pi)
-                        "⏰ Te recuerdo "${action.text}" en ${action.inMinutes} minuto${if (action.inMinutes != 1) "s" else ""}"
+                        "⏰ Te recuerdo \"${action.text}\" en ${action.inMinutes} minuto${if (action.inMinutes != 1) "s" else ""}"
                     } catch (_: Exception) { "" }
                 }
 
