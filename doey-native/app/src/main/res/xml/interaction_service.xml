@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Fix #1: El sessionService debe apuntar a DoeyAssistantService (VoiceInteractionSessionService).
+    El servicio raíz registrado en el Manifest como VoiceInteractionService es DoeyVoiceInteractionService.
+-->
+<voice-interaction-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:sessionService="com.doey.services.DoeyAssistantService"
+    android:supportsAssist="true"
+    android:supportsLaunchVoiceAssistFromKeyguard="true"
+    android:supportsLocalInteraction="true" />

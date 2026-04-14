@@ -38,8 +38,8 @@ data class LLMResponse(
 )
 
 data class LLMOptions(
-    val maxTokens: Int      = 512,
-    val temperature: Double = 0.1
+    val maxTokens: Int      = 512,   // Bajo: la IA solo genera 1 oración + herramientas
+    val temperature: Double = 0.1   // Determinista: menos alucinaciones
 )
 
 // ── Interfaz ──────────────────────────────────────────────────────────────────
@@ -54,7 +54,14 @@ interface LLMProvider {
     suspend fun testConnection(): Pair<Boolean, String?>
 }
 
-// ── Gemini ────────────────────────────────────────────────────────────────────
+// ── Gemini — único proveedor soportado ───────────────────────────────────────
+//
+// Gemini 2.5 Flash es el mejor modelo gratuito para este caso de uso:
+//  • 1,500 requests/día gratis (vs 14,400 de Groq pero con límite de tokens/hora)
+//  • 1,000,000 tokens contexto
+//  • Tool calling nativo y confiable
+//  • Sin límite de tokens/día (solo req/min: 15)
+//  • Modelos menores disponibles si se necesita más volumen: gemini-2.0-flash-lite
 
 class GeminiProvider(
     private val apiKey: String,
@@ -259,261 +266,23 @@ class GeminiProvider(
             else -> "Error $code"
         }
     } catch (_: Exception) { "Error $code" }
-
-    /** Devuelve true si el error es recuperable y merece fallback a Groq */
-    fun isTransientError(msg: String): Boolean {
-        val lower = msg.lowercase()
-        return lower.contains("high demand") ||
-               lower.contains("overloaded") ||
-               lower.contains("503") ||
-               lower.contains("502") ||
-               lower.contains("temporarily") ||
-               lower.contains("try again") ||
-               lower.contains("currently unavailable") ||
-               lower.contains("quota") ||
-               lower.contains("rate limit") ||
-               lower.contains("429")
-    }
 }
 
-// ── Groq ──────────────────────────────────────────────────────────────────────
-// Fallback gratuito cuando Gemini está saturado.
-// Modelos recomendados: llama-3.3-70b-versatile, llama3-8b-8192 (más rápido)
-
-class GroqProvider(
-    private val apiKey: String,
-    private val model: String = "llama-3.3-70b-versatile"
-) : LLMProvider {
-
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(90, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
-    private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
-    private val BASE_URL   = "https://api.groq.com/openai/v1/chat/completions"
-
-    override fun getCurrentModel() = model
-
-    override suspend fun testConnection(): Pair<Boolean, String?> = withContext(Dispatchers.IO) {
-        try {
-            val body = JSONObject().apply {
-                put("model", model)
-                put("max_tokens", 5)
-                put("messages", JSONArray().put(JSONObject().apply {
-                    put("role", "user"); put("content", "hola")
-                }))
-            }
-            val resp = client.newCall(buildRequest(body)).execute()
-            val ok   = resp.isSuccessful
-            val err  = if (!ok) parseError(resp.code, resp.body?.string() ?: "") else null
-            resp.close()
-            Pair(ok, err)
-        } catch (e: Exception) { Pair(false, e.message) }
-    }
-
-    override suspend fun chat(
-        messages: List<Message>,
-        tools: List<ToolDefinition>,
-        options: LLMOptions
-    ): LLMResponse = withContext(Dispatchers.IO) {
-        val msgs = JSONArray().apply {
-            messages.forEach { msg ->
-                when (msg.role) {
-                    "system", "user" -> put(JSONObject().apply {
-                        put("role", msg.role)
-                        put("content", msg.content)
-                    })
-                    "assistant" -> {
-                        if (!msg.toolCalls.isNullOrEmpty()) {
-                            put(JSONObject().apply {
-                                put("role", "assistant")
-                                put("content", JSONObject.NULL)
-                                put("tool_calls", JSONArray().apply {
-                                    msg.toolCalls.forEach { tc ->
-                                        put(JSONObject().apply {
-                                            put("id", tc.id)
-                                            put("type", "function")
-                                            put("function", JSONObject().apply {
-                                                put("name", tc.name)
-                                                put("arguments", JSONObject(tc.arguments).toString())
-                                            })
-                                        })
-                                    }
-                                })
-                            })
-                        } else {
-                            put(JSONObject().apply {
-                                put("role", "assistant")
-                                put("content", msg.content)
-                            })
-                        }
-                    }
-                    "tool" -> put(JSONObject().apply {
-                        put("role", "tool")
-                        put("tool_call_id", msg.toolCallId ?: "")
-                        put("content", msg.content)
-                    })
-                }
-            }
-        }
-
-        val body = JSONObject().apply {
-            put("model", model)
-            put("max_tokens", options.maxTokens)
-            put("temperature", options.temperature)
-            put("messages", msgs)
-            if (tools.isNotEmpty()) {
-                put("tools", JSONArray().apply {
-                    tools.forEach { t ->
-                        put(JSONObject().apply {
-                            put("type", "function")
-                            put("function", JSONObject().apply {
-                                put("name", t.name)
-                                put("description", t.description)
-                                put("parameters", JSONObject(t.parameters))
-                            })
-                        })
-                    }
-                })
-                put("tool_choice", "auto")
-            }
-        }
-
-        val resp = client.newCall(buildRequest(body)).execute()
-        val rb   = resp.body?.string() ?: throw Exception("Sin respuesta de Groq")
-        if (!resp.isSuccessful) throw Exception(parseError(resp.code, rb))
-        parseResponse(JSONObject(rb))
-    }
-
-    private fun buildRequest(body: JSONObject) =
-        Request.Builder()
-            .url(BASE_URL)
-            .addHeader("Content-Type", "application/json")
-            .addHeader("Authorization", "Bearer $apiKey")
-            .post(body.toString().toRequestBody(JSON_MEDIA))
-            .build()
-
-    private fun parseResponse(json: JSONObject): LLMResponse {
-        if (json.has("error")) {
-            val e = json.getJSONObject("error")
-            throw Exception(e.optString("message", "Error desconocido de Groq"))
-        }
-        val choices = json.optJSONArray("choices") ?: throw Exception("Sin respuesta de Groq")
-        if (choices.length() == 0) throw Exception("Sin respuesta de Groq")
-        val choice  = choices.getJSONObject(0)
-        val message = choice.optJSONObject("message") ?: return LLMResponse("", emptyList(), "stop")
-
-        val toolCallsJson = message.optJSONArray("tool_calls")
-        val calls = mutableListOf<ToolCall>()
-        if (toolCallsJson != null) {
-            for (i in 0 until toolCallsJson.length()) {
-                val tc   = toolCallsJson.getJSONObject(i)
-                val fn   = tc.getJSONObject("function")
-                val args = try { JSONObject(fn.getString("arguments")) } catch (_: Exception) { JSONObject() }
-                val map  = mutableMapOf<String, Any?>()
-                args.keys().forEach { k -> map[k] = args.opt(k) }
-                calls.add(ToolCall(tc.optString("id", "groq_$i"), fn.getString("name"), map))
-            }
-        }
-        val text = message.optString("content", "")
-        return LLMResponse(text, calls, if (calls.isNotEmpty()) "tool_calls" else "stop")
-    }
-
-    private fun parseError(code: Int, body: String): String = try {
-        val msg = JSONObject(body).optJSONObject("error")?.optString("message", "") ?: ""
-        when {
-            msg.isNotBlank() -> msg
-            code == 401 -> "API key de Groq inválida o expirada"
-            code == 429 -> "Límite de Groq alcanzado. Espera un momento"
-            code == 503 -> "Groq no disponible temporalmente"
-            else -> "Error Groq $code"
-        }
-    } catch (_: Exception) { "Error Groq $code" }
-}
-
-// ── FallbackProvider — Gemini primero, Groq si Gemini falla ──────────────────
-//
-// Lógica:
-//  1. Intenta con Gemini (primary)
-//  2. Si el error es transitorio (alta demanda, 429, 503…) intenta con Groq
-//  3. Si Groq también falla, relanza el error original de Gemini
-//  4. getCurrentModel() muestra cuál respondió en último turno
-
-class FallbackProvider(
-    private val primary: GeminiProvider,
-    private val fallback: GroqProvider?          // null si no hay API key de Groq
-) : LLMProvider {
-
-    @Volatile private var lastUsed: LLMProvider = primary
-
-    override fun getCurrentModel() = lastUsed.getCurrentModel()
-
-    override suspend fun testConnection() = primary.testConnection()
-
-    override suspend fun chat(
-        messages: List<Message>,
-        tools: List<ToolDefinition>,
-        options: LLMOptions
-    ): LLMResponse {
-        return try {
-            val result = primary.chat(messages, tools, options)
-            lastUsed = primary
-            result
-        } catch (primaryError: Exception) {
-            val shouldFallback = fallback != null && primary.isTransientError(primaryError.message ?: "")
-            if (shouldFallback) {
-                try {
-                    android.util.Log.w("FallbackProvider",
-                        "Gemini no disponible (${primaryError.message}), usando Groq como fallback")
-                    val result = fallback!!.chat(messages, tools, options)
-                    lastUsed = fallback
-                    result
-                } catch (fallbackError: Exception) {
-                    lastUsed = primary
-                    android.util.Log.e("FallbackProvider",
-                        "Groq también falló: ${fallbackError.message}")
-                    throw primaryError  // relanzar el error original
-                }
-            } else {
-                lastUsed = primary
-                throw primaryError
-            }
-        }
-    }
-}
-
-// ── Factory ───────────────────────────────────────────────────────────────────
+// ── Factory simplificado — solo Gemini ───────────────────────────────────────
 
 object LLMProviderFactory {
     fun create(
         provider: String = "gemini",
         apiKey: String,
         model: String = "",
-        customUrl: String = "",
-        groqApiKey: String = ""                  // opcional: activa el fallback
-    ): LLMProvider {
-        return when (provider) {
-            "groq" -> GroqProvider(
-                apiKey = apiKey,
-                model  = model.ifBlank { "llama-3.3-70b-versatile" }
-            )
-            else -> {
-                // Gemini con fallback automático a Groq si hay API key
-                val gemini = GeminiProvider(
-                    apiKey = apiKey,
-                    model  = model.ifBlank { "gemini-2.5-flash" }
-                )
-                val groq = if (groqApiKey.isNotBlank()) {
-                    GroqProvider(apiKey = groqApiKey)
-                } else null
-                FallbackProvider(primary = gemini, fallback = groq)
-            }
-        }
-    }
+        customUrl: String = ""
+    ): LLMProvider = GeminiProvider(
+        apiKey = apiKey,
+        model  = model.ifBlank { "gemini-2.5-flash" }
+    )
 }
 
-// ── RotatingProvider — mantenido por compatibilidad ───────────────────────────
+// ── RotatingProvider — mantenido como no-op por compatibilidad ────────────────
 class RotatingProvider(private val providers: List<LLMProvider>) : LLMProvider {
     override fun getCurrentModel() = providers.firstOrNull()?.getCurrentModel() ?: "gemini-2.5-flash"
     override suspend fun testConnection() = providers.firstOrNull()?.testConnection() ?: Pair(false, "Sin proveedor")

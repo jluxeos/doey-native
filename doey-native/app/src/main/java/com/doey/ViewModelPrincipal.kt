@@ -121,18 +121,15 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         val skillLoader = SkillLoader(app)
         val tools       = buildTools(skillLoader, enabledSkills)
 
-        // Proveedor activo — usa el factory para respetar provider/model guardados
-        // y activa fallback automático a Groq si hay API key configurada
-        val activeProvider = com.doey.llm.LLMProviderFactory.create(
-            provider   = provider,
-            apiKey     = settings.getApiKey(provider),
-            model      = model,
-            groqApiKey = settings.getApiKey("groq")
+        // Gemini — único proveedor en v4
+        val geminiProvider = com.doey.llm.GeminiProvider(
+            apiKey = settings.getApiKey("gemini"),
+            model  = model.ifBlank { "gemini-2.5-flash" }
         )
 
         val p = ConversationPipeline(
             ctx                      = app,
-            provider                 = activeProvider,
+            provider                 = geminiProvider,
             tools                    = tools,
             skillLoader              = skillLoader,
             drivingMode              = drivingMode,
