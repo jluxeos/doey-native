@@ -182,6 +182,11 @@ object LocalIntentProcessor {
         class OpenDreamSettings : LocalAction()
         class OpenCaptioningSettings : LocalAction()
         class OpenSearchSettings : LocalAction()
+        // ── Navegación del sistema ───────────────────────────────────────────
+        class GoHome             : LocalAction()
+        class BackButton         : LocalAction()
+        class ShowRecentApps     : LocalAction()
+        class ClearNotifications : LocalAction()
     }
 
     enum class VolumeStream  { MEDIA, RING, ALARM, NOTIFICATION }
@@ -382,6 +387,15 @@ object LocalIntentProcessor {
     private fun matchAffirmation(lo: String): LocalAction? {
         if (!AFFIRMATION_REGEX.containsMatchIn(lo)) return null
         return LocalAction.Affirmation((System.currentTimeMillis() % AFFIRMATION_RESPONSES.size).toInt())
+    }
+
+    private fun matchMemoryQuery(lo: String): LocalAction? {
+        val trigger = Regex(
+            """\b(recuerdas|sabes algo de|te dije|me dijiste|te acuerdas|dijiste|acuerdas|lo que te conte|lo que te dije)\b""",
+            RegexOption.IGNORE_CASE
+        )
+        if (!trigger.containsMatchIn(lo)) return null
+        return LocalAction.QueryMemory(lo)
     }
 
     // ═════════════════════════════════════════════════════════════════════════

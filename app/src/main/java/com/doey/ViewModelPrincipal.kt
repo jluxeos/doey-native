@@ -1469,16 +1469,14 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     val existing = prefs.getString("notes", "") ?: ""
                     val ts = java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
                     val newNote = "[$ts] ${action.content}"
-                    prefs.edit().putString("notes", if (existing.isBlank()) newNote else "$existing
-$newNote").apply()
+                    prefs.edit().putString("notes", if (existing.isBlank()) newNote else "$existing\n$newNote").apply()
                     "📝 Anotado: ${action.content}"
                 }
 
                 is LocalIntentProcessor.LocalAction.ReadNotes -> {
                     val prefs = app.getSharedPreferences("doey_iris_notes", android.content.Context.MODE_PRIVATE)
                     val notes = prefs.getString("notes", "") ?: ""
-                    if (notes.isBlank()) "📝 No tienes notas guardadas aún." else "📝 Tus notas:
-$notes"
+                    if (notes.isBlank()) "📝 No tienes notas guardadas aún." else "📝 Tus notas:\n$notes"
                 }
 
                 // ── Recordatorio rápido offline ───────────────────────────────────
@@ -1732,23 +1730,15 @@ $notes"
         // Evaluador simple: solo operaciones básicas sin dependencias externas
         val clean = expr.replace(" ", "").replace(",", ".")
         // Parsear potencias primero
-        val withPow = Regex("(\d+(?:\.\d+)?)\^(\d+(?:\.\d+)?)").replace(clean) { m ->
+        val withPow = Regex("""(\d+(?:\.\d+)?)\^(\d+(?:\.\d+)?)""").replace(clean) { m ->
             Math.pow(m.groupValues[1].toDouble(), m.groupValues[2].toDouble()).toString()
         }
-        // Usar ScriptEngine si disponible, sino parsear manualmente
-        return try {
-            val result = javax.script.ScriptEngineManager().getEngineByName("rhino")
-                ?.eval(withPow) as? Number ?: return evalManual(withPow)
-            val d = result.toDouble()
-            if (d == d.toLong().toDouble()) d.toLong().toString() else "%.4f".format(d).trimEnd('0').trimEnd('.')
-        } catch (e: Exception) {
-            evalManual(withPow)
-        }
+        return evalManual(withPow)
     }
 
     private fun evalManual(expr: String): String {
         // Parsear expresiones simples: A op B
-        Regex("^(-?\d+(?:\.\d+)?)([+\-*/])(-?\d+(?:\.\d+)?)$").find(expr.trim())?.let { m ->
+        Regex("""^(-?\d+(?:\.\d+)?)([+\-*/])(-?\d+(?:\.\d+)?)$""").find(expr.trim())?.let { m ->
             val a = m.groupValues[1].toDouble()
             val op = m.groupValues[2]
             val b = m.groupValues[3].toDouble()
@@ -1810,14 +1800,14 @@ $notes"
     private fun evalSimple(expr: String): String {
         val clean = expr.replace(" ", "").replace(",", ".")
         // Soporta: A+B, A-B, A*B, A/B, A^B, y %
-        val withPow = Regex("(\d+(?:\.\d+)?)\^(\d+(?:\.\d+)?)").replace(clean) { m ->
+        val withPow = Regex("""(\d+(?:\.\d+)?)\^(\d+(?:\.\d+)?)""").replace(clean) { m ->
             Math.pow(m.groupValues[1].toDouble(), m.groupValues[2].toDouble()).toString()
         }
-        val withPct = Regex("\((\d+\.?\d*)/100\)\*(\d+\.?\d*)").replace(withPow) { m ->
+        val withPct = Regex("""\((\d+\.?\d*)/100\)\*(\d+\.?\d*)""").replace(withPow) { m ->
             (m.groupValues[1].toDouble() / 100.0 * m.groupValues[2].toDouble()).toString()
         }
         // Parsear expresión simple A op B
-        val rx = Regex("^(-?\d+(?:\.\d+)?)([+\-*/])(-?\d+(?:\.\d+)?)$")
+        val rx = Regex("""^(-?\d+(?:\.\d+)?)([+\-*/])(-?\d+(?:\.\d+)?)$""")
         val m = rx.find(withPct.trim()) ?: throw Exception("Expresión no soportada")
         val a = m.groupValues[1].toDouble(); val b = m.groupValues[3].toDouble()
         val r = when(m.groupValues[2]) {
@@ -1826,38 +1816,6 @@ $notes"
             else -> throw Exception("Operador desconocido")
         }
         return if (r == r.toLong().toDouble()) r.toLong().toString() else "%.4f".format(r).trimEnd('0').trimEnd('.')
-    }
-
-    private fun convertUnits(value: Double, from: String, to: String): String? {
-        val key = "$from→$to"
-        val result: Double = when (key) {
-            "km→mi" -> value*0.621371; "mi→km" -> value*1.60934
-            "m→ft"  -> value*3.28084;  "ft→m"  -> value*0.3048
-            "m→cm"  -> value*100.0;    "cm→m"  -> value/100.0
-            "km→m"  -> value*1000.0;   "m→km"  -> value/1000.0
-            "in→cm" -> value*2.54;     "cm→in" -> value/2.54
-            "ft→in" -> value*12.0;     "in→ft" -> value/12.0
-            "kg→lb" -> value*2.20462;  "lb→kg" -> value/2.20462
-            "g→oz"  -> value*0.035274; "oz→g"  -> value/0.035274
-            "kg→g"  -> value*1000.0;   "g→kg"  -> value/1000.0
-            "c→f"   -> value*9.0/5.0+32
-            "f→c"   -> (value-32)*5.0/9.0
-            "c→k"   -> value+273.15;   "k→c"   -> value-273.15
-            "l→ml"  -> value*1000.0;   "ml→l"  -> value/1000.0
-            "l→gal" -> value*0.264172; "gal→l" -> value*3.78541
-            "usd→mxn" -> value*17.5;   "mxn→usd" -> value/17.5
-            "eur→mxn" -> value*19.0;   "mxn→eur" -> value/19.0
-            "usd→eur" -> value*0.92;   "eur→usd" -> value/0.92
-            else -> return null
-        }
-        val toLabel = mapOf("km" to "km","mi" to "millas","m" to "metros","cm" to "cm","ft" to "pies",
-            "in" to "pulgadas","kg" to "kg","lb" to "libras","g" to "gramos","oz" to "oz",
-            "c" to "°C","f" to "°F","k" to "K","l" to "litros","ml" to "ml","gal" to "galones",
-            "usd" to "USD","mxn" to "MXN","eur" to "EUR")
-        val fStr = if (result == result.toLong().toDouble()) result.toLong().toString()
-                   else "%.4f".format(result).trimEnd('0').trimEnd('.')
-        val note = if (from in listOf("usd","mxn","eur")) " *(tasa aprox.)*" else ""
-        return "🔄 $value ${toLabel[from]?:from} = $fStr ${toLabel[to]?:to}$note"
     }
 
     private fun resolveLanguage(lang: String): String {
