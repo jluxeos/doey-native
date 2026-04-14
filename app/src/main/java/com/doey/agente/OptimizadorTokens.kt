@@ -80,14 +80,28 @@ object TokenOptimizer {
         COMPLEX
     }
 
+    // Patrones que siempre usan prompt NANO — no necesitan contexto ni historial.
+    // Incluye preguntas de recomendación/info simple que la IA responde en 1 oración.
     private val TRIVIAL_PATTERNS = listOf(
+        // Consultas del sistema
         Regex("""(?:qué hora|hora actual|what time)""", RegexOption.IGNORE_CASE),
-        Regex("""(?:qué día|fecha actual|what day)""", RegexOption.IGNORE_CASE),
-        Regex("""(?:batería|battery level)""", RegexOption.IGNORE_CASE),
-        Regex("""(?:abre?|open|launch)\s+\w+""", RegexOption.IGNORE_CASE),
-        Regex("""(?:llama a|call)\s+\w+""", RegexOption.IGNORE_CASE),
+        Regex("""(?:qué día|qué fecha|fecha actual|what day|what date)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:cuánta batería|batería|battery level|carga del tel)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:cuánto espacio|cuánta ram|velocidad de internet|mi ip|tiempo encendido)""", RegexOption.IGNORE_CASE),
+        // Acciones directas simples
+        Regex("""(?:abre?|open|launch|pon|inicia)\s+\w+""", RegexOption.IGNORE_CASE),
+        Regex("""(?:llama a|llámale a|call)\s+\w+""", RegexOption.IGNORE_CASE),
         Regex("""(?:pon|sube|baja)\s+(?:el\s+)?volumen""", RegexOption.IGNORE_CASE),
-        Regex("""(?:activa|apaga|enciende)\s+(?:wifi|bluetooth|linterna|flashlight)""", RegexOption.IGNORE_CASE)
+        Regex("""(?:activa|apaga|enciende|prende)\s+(?:wifi|bluetooth|linterna|flashlight|nfc|hotspot)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:toma|haz una?)\s+(?:captura|foto|screenshot)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:bloquea|lock)\s+(?:el\s+)?(?:tel|cel|pantalla|screen)""", RegexOption.IGNORE_CASE),
+        // Recomendaciones / preguntas de info simple — respuesta 1 oración
+        Regex("""(?:recomienda|sugiere|recomiéndame|sugiéreme|suggest)\s+\w+""", RegexOption.IGNORE_CASE),
+        Regex("""(?:qué (?:canción|música|película|serie|libro|app|juego)|what (?:song|movie|show|book|game|app))""", RegexOption.IGNORE_CASE),
+        Regex("""(?:cuál es (?:la mejor|el mejor|una buena|un buen)|which is the best)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:dime una?|tell me a?)\s+(?:canción|chiste|dato|fact|song)""", RegexOption.IGNORE_CASE),
+        // Saludos/despedidas/confirmaciones ya van por IRIS, pero por si acaso
+        Regex("""^(?:hola|hey|hi|gracias|ok|listo|adios|bye)\b""", RegexOption.IGNORE_CASE)
     )
 
     private val COMPLEX_INDICATORS = listOf(
@@ -98,13 +112,15 @@ object TokenOptimizer {
     fun classifyComplexity(input: String): CommandComplexity {
         val lower = input.lowercase()
 
-        if (TRIVIAL_PATTERNS.any { it.containsMatchIn(input) } && input.length < 50)
+        // TRIVIAL: coincide con patrón Y no tiene encadenamiento
+        val hasChain = COMPLEX_INDICATORS.any { lower.contains(it) }
+        if (!hasChain && TRIVIAL_PATTERNS.any { it.containsMatchIn(input) } && input.length < 100)
             return CommandComplexity.TRIVIAL
 
         val complexCount = COMPLEX_INDICATORS.count { lower.contains(it) }
         return when {
-            complexCount >= 2 || input.length > 150 -> CommandComplexity.COMPLEX
-            complexCount == 1 || input.length > 80  -> CommandComplexity.MODERATE
+            complexCount >= 2 || input.length > 200 -> CommandComplexity.COMPLEX
+            complexCount == 1 || input.length > 100 -> CommandComplexity.MODERATE
             else                                     -> CommandComplexity.SIMPLE
         }
     }

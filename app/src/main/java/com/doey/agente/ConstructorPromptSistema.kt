@@ -66,17 +66,12 @@ object SystemPromptBuilder {
                 append("Memoria usuario:\n${personalMemory.take(400)}\n")
             }
 
-            // Herramientas — solo nombres y descripción en 1 línea
-            val summaries = toolRegistry.getSummaries()
-            if (summaries.isNotEmpty()) {
-                append("Herramientas disponibles:\n")
-                append(summaries.joinToString("\n"))
-                append("\n")
-            }
+            // Las herramientas se envían como parámetro tools[] de la API.
+            // No es necesario listarlas aquí — reduce ~2000 chars del system prompt.
         }
     }
 
-    // ── Alias para buildMini — MotorConversacion lo llama así ────────────────
+    // Alias — toolSummaries ignorado: las tools van en el parámetro tools[] de la API
     fun buildMinimal(language: String, soul: String, toolSummaries: List<String>): String =
         buildMini(language, soul)
 
