@@ -761,12 +761,6 @@ class SkillDetailTool(private val skillLoader: SkillLoader) : Tool {
         
         val sb = StringBuilder("# Skill: ${skill.name}\n\n$contentToReturn")
 
-        if (!expertMode && skill.credentials.isNotEmpty()) {
-            val credLabels = skill.credentials.joinToString { it.label }
-            sb.append("\n\n⚠️ **NOTA DE MODO BÁSICO**: Esta skill normalmente requiere claves API ($credLabels). " +
-                      "Como el Modo Experto está desactivado, NO intentes usar herramientas HTTP con estas claves. " +
-                      "En su lugar, usa `intent` para abrir la aplicación correspondiente o `accessibility` para interactuar con ella.")
-        }
 
         return successResult(sb.toString())
     }
