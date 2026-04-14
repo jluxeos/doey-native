@@ -125,12 +125,19 @@ class ConversationPipeline(
             // ── maxTokens según complejidad ───────────────────────────────────
             val llmOptions = LLMOptions(
                 maxTokens   = when (complexity) {
-                    TokenOptimizer.CommandComplexity.TRIVIAL  -> 128
+                    TokenOptimizer.CommandComplexity.TRIVIAL  -> 256
                     TokenOptimizer.CommandComplexity.SIMPLE   -> 256
                     TokenOptimizer.CommandComplexity.MODERATE -> 512
                     TokenOptimizer.CommandComplexity.COMPLEX  -> 768
                 },
-                temperature = 0.1
+                // Acciones (SIMPLE/MODERATE/COMPLEX): temperatura baja = determinista, menos alucinaciones
+                // Conocimiento/recomendaciones (TRIVIAL sin herramienta): temperatura media = más honesto
+                temperature = when (complexity) {
+                    TokenOptimizer.CommandComplexity.TRIVIAL  -> 0.7  // preguntas/recomendaciones
+                    TokenOptimizer.CommandComplexity.SIMPLE   -> 0.2  // 1 acción directa
+                    TokenOptimizer.CommandComplexity.MODERATE -> 0.1  // acción con contexto
+                    TokenOptimizer.CommandComplexity.COMPLEX  -> 0.1  // encadenado — máximo determinismo
+                }
             )
 
             val result = runToolLoop(

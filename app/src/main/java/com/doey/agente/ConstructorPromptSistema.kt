@@ -11,7 +11,9 @@ object SystemPromptBuilder {
     // La IA literalmente solo necesita saber que es un parser de acciones.
     fun buildNano(language: String): String {
         val lang = if (language.startsWith("es")) "es" else language.take(2)
-        return "Asistente Android. Idioma:$lang. Petición→herramienta inmediata. Respuesta:máx 1 oración."
+        return "Asistente Android. Idioma:$lang. Petición de acción→herramienta inmediata. " +
+               "Pregunta de conocimiento→responde solo si estás seguro; si no, di que no sabes con certeza. " +
+               "Respuesta:máx 1-2 oraciones. Sin inventar datos."
     }
 
     // ── Prompt MINI (~80 tokens) — para comandos simples con 1 acción ───────────
