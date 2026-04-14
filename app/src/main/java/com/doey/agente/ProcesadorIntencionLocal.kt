@@ -6,23 +6,55 @@ import android.net.Uri
 import android.provider.ContactsContract
 
 /**
- * IRIS — Intent Recognition & Interpretation System
- * Doey · versión mejorada v3
+ * IRIS v5 — Intent Recognition & Interpretation System
  *
- * Principios de diseño:
- *  1. SOLO actúa si el comando es una instrucción directa sin ambigüedad.
- *  2. Si la frase contiene contexto narrativo, condicional o explicativo → Delegate.
- *  3. Orden de palabras flexible: verbo antes o después del objeto.
- *  4. Si el objeto mencionado es externo al dispositivo (carro, casa, TV) → Delegate.
+ * PRINCIPIOS DE DISEÑO:
+ *  1. Verbos centrales definidos UNA VEZ — todos los matchers los usan.
+ *  2. Solo actúa si la instrucción es directa y sin ambigüedad.
+ *  3. Frase con contexto narrativo, condicional o explicativo → Delegate.
+ *  4. Objeto externo al dispositivo (carro, TV, casa) → Delegate.
  *  5. Solo ejecuta acciones que Android puede realizar directamente.
- *  6. Tolerancia a variantes fonéticas comunes de voz-a-texto.
- *  7. Aliases coloquiales MX soportados.
+ *  6. Tolerancia total a variantes fonéticas, voz-a-texto y slang MX.
+ *  7. Comandos complejos (Y LUEGO / Y TAMBIÉN / etc.) → Complex(subtasks).
+ *  8. Sin duplicar sinónimos — cada verbo o concepto vive en UN solo lugar.
  */
 object LocalIntentProcessor {
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Tipos de resultado
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // VOCABULARIO CENTRAL — se define UNA vez, se reutiliza en todos los matchers
+    // ═════════════════════════════════════════════════════════════════════════
+
+    /** Verbos de apertura/lanzamiento */
+    private const val V_OPEN  = "abre?|lanza|inicia|entra a|ve a|open|launch|start|dale a|pon|jala|carga"
+    /** Verbos de activación */
+    private const val V_ON    = "activa|enciende|prende|turn on|enable|mete|conecta|pon|prender|activar|encender|dale"
+    /** Verbos de desactivación */
+    private const val V_OFF   = "desactiva|apaga|turn off|disable|quita|saca|corta|desconecta|apagar|desactivar"
+    /** Verbos de envío de mensajes */
+    private const val V_SEND  = "manda|envia|escribe|send|dile|avisa|manda un|envia un|mandame|enviame|escribele"
+    /** Verbos de reproducción de música */
+    private const val V_PLAY  = "pon|reproduce|play|toca|escucha|quiero escuchar|ponme|dale play a|quiero oir|oye"
+    /** Verbos de subir */
+    private const val V_UP    = "sube|aumenta|incrementa|mas|raise|up"
+    /** Verbos de bajar */
+    private const val V_DOWN  = "baja|reduce|disminuye|menos|lower|down"
+    /** Verbos de búsqueda */
+    private const val V_SEARCH = "busca|encuentra|search|encuentra|halla|muestrame|dime|googlea"
+    /** Conector "al" / "en" / "de" */
+    private const val P_IN    = "(?:en|al|a|de|en el|en la|dentro de|para)?"
+
+    // Precompilados reutilizables
+    private val RX_OPEN   = Regex("\\b($V_OPEN)\\b", RegexOption.IGNORE_CASE)
+    private val RX_ON     = Regex("\\b($V_ON)\\b",   RegexOption.IGNORE_CASE)
+    private val RX_OFF    = Regex("\\b($V_OFF)\\b",  RegexOption.IGNORE_CASE)
+    private val RX_SEND   = Regex("\\b($V_SEND)\\b", RegexOption.IGNORE_CASE)
+    private val RX_UP     = Regex("\\b($V_UP)\\b",   RegexOption.IGNORE_CASE)
+    private val RX_DOWN   = Regex("\\b($V_DOWN)\\b", RegexOption.IGNORE_CASE)
+    private val RX_SEARCH = Regex("\\b($V_SEARCH)\\b", RegexOption.IGNORE_CASE)
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // TIPOS DE RESULTADO
+    // ═════════════════════════════════════════════════════════════════════════
 
     sealed class IntentClass {
         data class Local(val action: LocalAction) : IntentClass()
@@ -31,63 +63,92 @@ object LocalIntentProcessor {
     }
 
     sealed class LocalAction {
-        // ── Respuestas sociales (sin IA, cero tokens) ─────────────────────────
-        data class Greeting(val variant: Int) : LocalAction()
-        data class Farewell(val variant: Int) : LocalAction()
-        data class Gratitude(val variant: Int) : LocalAction()
+        // ── Respuestas sociales (cero tokens) ────────────────────────────────
+        data class Greeting(val variant: Int)    : LocalAction()
+        data class Farewell(val variant: Int)    : LocalAction()
+        data class Gratitude(val variant: Int)   : LocalAction()
         data class Affirmation(val variant: Int) : LocalAction()
-        // ── Consulta de memorias ──────────────────────────────────────────────
-        data class QueryMemory(val raw: String) : LocalAction()
-        // ── Alarma nativa (no abre app de reloj) ──────────────────────────────
-        data class SetAlarmNative(val hour: Int, val minute: Int, val label: String = "", val daysOfWeek: List<Int> = emptyList()) : LocalAction()
-
-        data class ToggleFlashlight(val enable: Boolean) : LocalAction()
+        // ── Memoria ──────────────────────────────────────────────────────────
+        data class QueryMemory(val raw: String)  : LocalAction()
+        // ── Dispositivo ──────────────────────────────────────────────────────
+        data class ToggleFlashlight(val enable: Boolean)                                 : LocalAction()
         data class SetVolume(val level: Int, val stream: VolumeStream = VolumeStream.MEDIA) : LocalAction()
         data class VolumeStep(val up: Boolean, val stream: VolumeStream = VolumeStream.MEDIA) : LocalAction()
-        data class SetSilentMode(val mode: SilentMode) : LocalAction()
-        data class ToggleWifi(val enable: Boolean) : LocalAction()
+        data class SetSilentMode(val mode: SilentMode)  : LocalAction()
+        data class ToggleWifi(val enable: Boolean)      : LocalAction()
         data class ToggleBluetooth(val enable: Boolean) : LocalAction()
-        data class ToggleAirplane(val enable: Boolean) : LocalAction()
+        data class ToggleAirplane(val enable: Boolean)  : LocalAction()
         data class ToggleDoNotDisturb(val enable: Boolean) : LocalAction()
-        data class ToggleNfc(val enable: Boolean) : LocalAction()
-        data class ToggleDarkMode(val enable: Boolean) : LocalAction()
-        data class ToggleHotspot(val enable: Boolean) : LocalAction()
-        data class SetBrightness(val level: Int) : LocalAction()
-        data class BrightnessStep(val up: Boolean) : LocalAction()
+        data class ToggleNfc(val enable: Boolean)       : LocalAction()
+        data class ToggleDarkMode(val enable: Boolean)  : LocalAction()
+        data class ToggleHotspot(val enable: Boolean)   : LocalAction()
+        data class SetBrightness(val level: Int)        : LocalAction()
+        data class BrightnessStep(val up: Boolean)      : LocalAction()
         data class ToggleAutoBrightness(val enable: Boolean) : LocalAction()
+        data class SetRingtoneVolume(val level: Int)    : LocalAction()
+        data class SetAlarmVolume(val level: Int)       : LocalAction()
+        data class SetScreenTimeout(val seconds: Int)   : LocalAction()
         class TakeScreenshot : LocalAction()
-        class LockScreen : LocalAction()
+        class LockScreen     : LocalAction()
+        class TogglePowerSave : LocalAction()
+        // ── Alarmas y tiempo ─────────────────────────────────────────────────
         data class SetAlarm(val hour: Int, val minute: Int, val label: String = "", val daysOfWeek: List<Int> = emptyList()) : LocalAction()
-        class CancelAlarm : LocalAction()
+        data class SetAlarmNative(val hour: Int, val minute: Int, val label: String = "", val daysOfWeek: List<Int> = emptyList()) : LocalAction()
+        class CancelAlarm    : LocalAction()
         data class SetTimer(val seconds: Long, val label: String = "") : LocalAction()
-        class CancelTimer : LocalAction()
-        class StopStopwatch : LocalAction()
+        class CancelTimer    : LocalAction()
         class StartStopwatch : LocalAction()
-        data class Call(val contact: String) : LocalAction()
-        data class CallEmergency(val number: String) : LocalAction()
+        class StopStopwatch  : LocalAction()
+        // ── Comunicación ─────────────────────────────────────────────────────
+        data class Call(val contact: String)              : LocalAction()
+        data class CallEmergency(val number: String)      : LocalAction()
         data class SendSms(val contact: String, val message: String) : LocalAction()
         data class SendWhatsApp(val contact: String, val message: String) : LocalAction()
         data class SendTelegram(val contact: String, val message: String) : LocalAction()
-        data class OpenWhatsAppChat(val contact: String) : LocalAction()
-        data class OpenApp(val query: String) : LocalAction()
-        data class Navigate(val destination: String) : LocalAction()
-        data class SearchWeb(val query: String) : LocalAction()
-        data class SearchMaps(val query: String) : LocalAction()
-        data class OpenUrl(val url: String) : LocalAction()
+        data class OpenWhatsAppChat(val contact: String)  : LocalAction()
+        // ── Apps y navegación ─────────────────────────────────────────────────
+        data class OpenApp(val query: String)             : LocalAction()
+        data class Navigate(val destination: String)      : LocalAction()
+        data class SearchWeb(val query: String)           : LocalAction()
+        data class SearchMaps(val query: String)          : LocalAction()
+        data class OpenUrl(val url: String)               : LocalAction()
+        // ── Música ───────────────────────────────────────────────────────────
         data class PlayMusic(val query: String, val app: String = "spotify") : LocalAction()
-        class PauseMusic : LocalAction()
-        class ResumeMusic : LocalAction()
-        class NextTrack : LocalAction()
-        class PrevTrack : LocalAction()
+        data class SearchAndPlaySpotify(val query: String) : LocalAction()  // abre+busca+selecciona primera
+        class PauseMusic   : LocalAction()
+        class ResumeMusic  : LocalAction()
+        class NextTrack    : LocalAction()
+        class PrevTrack    : LocalAction()
         class ShuffleMusic : LocalAction()
         class RepeatToggle : LocalAction()
+        // ── Compartir ────────────────────────────────────────────────────────
+        data class ShareText(val text: String) : LocalAction()
+        // ── Apps rápidas ─────────────────────────────────────────────────────
+        class OpenCamera    : LocalAction()
+        class OpenGallery   : LocalAction()
+        class OpenContacts  : LocalAction()
+        class OpenDialer    : LocalAction()
+        class OpenCalculator : LocalAction()
+        class OpenCalendar  : LocalAction()
+        class OpenMaps      : LocalAction()
+        class OpenBrowser   : LocalAction()
+        class OpenFiles     : LocalAction()
+        class OpenClock     : LocalAction()
+        // ── Info del sistema ─────────────────────────────────────────────────
         data class QueryInfo(val type: InfoType) : LocalAction()
-        class ClearNotifications : LocalAction()
-        class ShowRecentApps : LocalAction()
-        class GoHome : LocalAction()
-        class BackButton : LocalAction()
-        data class SetScreenTimeout(val seconds: Int) : LocalAction()
-        class TogglePowerSave : LocalAction()
+        // ── Listas de compras ─────────────────────────────────────────────────
+        data class AddShoppingItem(val item: String)  : LocalAction()
+        class ClearShoppingList : LocalAction()
+        // ── Notas rápidas offline ─────────────────────────────────────────────
+        data class QuickNote(val content: String)      : LocalAction()
+        data class ReadNotes(val tag: String = "")     : LocalAction()
+        // ── Calculadora offline ───────────────────────────────────────────────
+        data class Calculate(val expression: String)  : LocalAction()
+        // ── Conversión de unidades offline ────────────────────────────────────
+        data class Convert(val value: Double, val from: String, val to: String) : LocalAction()
+        // ── Recordatorio rápido offline ───────────────────────────────────────
+        data class QuickReminder(val text: String, val inMinutes: Int) : LocalAction()
+        // ── Ajustes ──────────────────────────────────────────────────────────
         class OpenSettings : LocalAction()
         class OpenBatterySettings : LocalAction()
         class OpenWifiSettings : LocalAction()
@@ -105,47 +166,32 @@ object LocalIntentProcessor {
         class OpenAccountSettings : LocalAction()
         class OpenPrivacySettings : LocalAction()
         class OpenNotificationSettings : LocalAction()
-        class OpenSearchSettings : LocalAction()
-        class OpenPrintSettings : LocalAction()
-        class OpenCastSettings : LocalAction()
         class OpenNfcSettings : LocalAction()
         class OpenDataUsageSettings : LocalAction()
         class OpenVpnSettings : LocalAction()
-        class OpenApnSettings : LocalAction()
-        class OpenUserDictionarySettings : LocalAction()
         class OpenSyncSettings : LocalAction()
         class OpenInputMethodSettings : LocalAction()
-        class OpenCaptioningSettings : LocalAction()
-        class OpenDreamSettings : LocalAction()
-        class OpenZenModeSettings : LocalAction()
-        class OpenUsageAccessSettings : LocalAction()
+        class OpenCastSettings : LocalAction()
         class OpenOverlaySettings : LocalAction()
         class OpenWriteSettings : LocalAction()
-        // Nuevas acciones
-        data class ShareText(val text: String) : LocalAction()
-        class OpenCamera : LocalAction()
-        class OpenGallery : LocalAction()
-        class OpenContacts : LocalAction()
-        class OpenDialer : LocalAction()
-        class OpenCalculator : LocalAction()
-        class OpenCalendar : LocalAction()
-        class OpenMaps : LocalAction()
-        class OpenBrowser : LocalAction()
-        class OpenFiles : LocalAction()
-        class OpenClock : LocalAction()
-        data class SetRingtoneVolume(val level: Int) : LocalAction()
-        data class SetAlarmVolume(val level: Int) : LocalAction()
-        data class AddShoppingItem(val item: String) : LocalAction()
-        class ClearShoppingList : LocalAction()
+        class OpenUsageAccessSettings : LocalAction()
+        class OpenZenModeSettings : LocalAction()
+        class OpenPrintSettings : LocalAction()
+        class OpenApnSettings : LocalAction()
+        class OpenUserDictionarySettings : LocalAction()
+        class OpenDreamSettings : LocalAction()
+        class OpenCaptioningSettings : LocalAction()
+        class OpenSearchSettings : LocalAction()
     }
 
-    enum class VolumeStream { MEDIA, RING, ALARM, NOTIFICATION }
-    enum class SilentMode { SILENT, VIBRATE, NORMAL }
-    enum class InfoType { TIME, DATE, BATTERY, STORAGE, WIFI_STATUS, BT_STATUS, RAM_USAGE, CPU_TEMP, UPTIME, NETWORK_SPEED, IP_ADDRESS }
+    enum class VolumeStream  { MEDIA, RING, ALARM, NOTIFICATION }
+    enum class SilentMode    { SILENT, VIBRATE, NORMAL }
+    enum class InfoType      { TIME, DATE, BATTERY, STORAGE, WIFI_STATUS, BT_STATUS,
+                               RAM_USAGE, CPU_TEMP, UPTIME, NETWORK_SPEED, IP_ADDRESS }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Guardas: estas condiciones hacen Delegate inmediato
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // GUARDAS — disparan Delegate inmediatamente
+    // ═════════════════════════════════════════════════════════════════════════
 
     private val QUESTION_PREFIXES = Regex(
         "^(como|como se|como puedo|como hago|como funciona|como se usa|como activo|" +
@@ -153,7 +199,6 @@ object LocalIntentProcessor {
         "por que|para que|sabes|puedes decirme|podrias decirme|dime como|" +
         "explica|explicame|necesito saber|quiero saber|me puedes|es posible|" +
         "hay alguna|existe|what|how|why|when|where|is there|can you|tell me how|" +
-        // Variantes voz-a-texto comunes
         "como ke|ke es|komo|kiero saber)",
         RegexOption.IGNORE_CASE
     )
@@ -168,14 +213,15 @@ object LocalIntentProcessor {
     )
 
     private val MULTI_TASK = Regex(
-        "\\b(y luego|y despues|y tambien|y ademas|after that|and then|al mismo tiempo|mientras tanto|" +
-        "y enseguida|despues de eso|a continuacion)",
+        "\\b(y luego|y despues|y tambien|y ademas|after that|and then|al mismo tiempo|" +
+        "mientras tanto|y enseguida|despues de eso|a continuacion|luego|despues busca|" +
+        "y busca|y pon|y abre|y manda|y llama|y reproduce|y escribe)",
         RegexOption.IGNORE_CASE
     )
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Normalización: quita tildes, signos, espacios, slang voz-a-texto
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // NORMALIZACIÓN — quita tildes, signos, wake words, slang voz-a-texto
+    // ═════════════════════════════════════════════════════════════════════════
 
     private fun normalize(text: String): String = text.trim()
         .replace(Regex("[¿¡.,;!?]+"), " ")
@@ -183,30 +229,35 @@ object LocalIntentProcessor {
         .replace('ó','o').replace('ú','u').replace('ü','u')
         .replace('Á','A').replace('É','E').replace('Í','I')
         .replace('Ó','O').replace('Ú','U')
-        // Variantes voz-a-texto fonéticas frecuentes
+        // slang y fonética
         .replace(Regex("\\bk\\b"), "que")
         .replace(Regex("\\bq\\b"), "que")
-        .replace(Regex("\\bxfa\\b"), "por favor")
-        .replace(Regex("\\bplis\\b"), "")
-        .replace(Regex("\\bpliss\\b"), "")
-        .replace(Regex("\\bporfa\\b"), "por favor")
-        .replace(Regex("oye,?\\s*"), "")           // "oye pon..." → "pon..."
-        .replace(Regex("hey,?\\s*"), "")            // "hey sube..." → "sube..."
-        .replace(Regex("iris,?\\s*"), "")           // "iris pon..." → "pon..."
-        .replace(Regex("doey,?\\s*"), "")           // "doey abre..." → "abre..."
-        .replace(Regex("por favor\\.?$"), "")       // quitar "por favor" al final
+        .replace(Regex("\\bxfa\\b"), "")
+        .replace(Regex("\\b(plis|pliss|porfa|por fis)\\b"), "")
+        .replace(Regex("\\bguasap\\b"), "whatsapp")
+        .replace(Regex("\\bwasa\\b"),   "whatsapp")
+        .replace(Regex("\\bwapp\\b"),   "whatsapp")
+        .replace(Regex("\\bflas\\b"),   "linterna")
+        .replace(Regex("\\bflash\\b"),  "linterna")
+        .replace(Regex("\\bspoti\\b"),  "spotify")
+        .replace(Regex("\\byt\\b"),     "youtube")
+        .replace(Regex("\\btele\\b"),   "telefono")
+        .replace(Regex("\\bcel\\b"),    "telefono")
+        // wake words
+        .replace(Regex("^(oye|hey|eh|ey|iris|doey|asistente|ok|okay|oiga),?\\s+"), "")
+        .replace(Regex("\\s+(por favor|porfa|plis|gracias)\\.?$"), "")
         .replace(Regex("\\s+"), " ")
         .trim()
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Clasificador principal
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // CLASIFICADOR PRINCIPAL
+    // ═════════════════════════════════════════════════════════════════════════
 
     fun classify(input: String): IntentClass {
         val lo = normalize(input).lowercase()
 
         if (QUESTION_PREFIXES.containsMatchIn(lo)) return IntentClass.Delegate
-        if (EXTERNAL_CONTEXT.containsMatchIn(lo)) return IntentClass.Delegate
+        if (EXTERNAL_CONTEXT.containsMatchIn(lo))  return IntentClass.Delegate
 
         if (MULTI_TASK.containsMatchIn(lo)) {
             val parts = splitSubtasks(input)
@@ -214,855 +265,838 @@ object LocalIntentProcessor {
         }
 
         tryLocal(lo)?.let { return IntentClass.Local(it) }
-
         return IntentClass.Delegate
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Motor de matching — orden importa (más específico primero)
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // CADENA DE MATCHING — orden importa (más específico primero)
+    // ═════════════════════════════════════════════════════════════════════════
 
     private fun tryLocal(lo: String): LocalAction? =
         matchGreeting(lo)
-            ?: matchFarewell(lo)
-            ?: matchGratitude(lo)
-            ?: matchAffirmation(lo)
-            ?: matchMemoryQuery(lo)
-            ?: matchFlashlight(lo)
-            ?: matchVolume(lo)
-            ?: matchSilent(lo)
-            ?: matchBrightness(lo)
-            ?: matchWifi(lo)
-            ?: matchBluetooth(lo)
-            ?: matchAirplane(lo)
-            ?: matchDoNotDisturb(lo)
-            ?: matchNfc(lo)
-            ?: matchDarkMode(lo)
-            ?: matchHotspot(lo)
-            ?: matchScreenshot(lo)
-            ?: matchLock(lo)
-            ?: matchAlarm(lo)
-            ?: matchTimer(lo)
-            ?: matchStopwatch(lo)
-            ?: matchEmergencyCall(lo)
-            ?: matchCall(lo)
-            ?: matchWhatsApp(lo)
-            ?: matchTelegram(lo)
-            ?: matchSms(lo)
-            ?: matchNavigation(lo)
-            ?: matchWebSearch(lo)
-            ?: matchMapsSearch(lo)
-            ?: matchMediaControl(lo)
-            ?: matchMusic(lo)
-            ?: matchUrl(lo)
-            ?: matchSystemQuery(lo)
-            ?: matchNavigationActions(lo)
-            ?: matchSettingsShortcuts(lo)
-            ?: matchDeviceMaintenance(lo)
-            ?: matchQuickApps(lo)
-            ?: matchShopping(lo)
-            ?: matchShare(lo)
-            ?: matchRingtoneVolume(lo)
-            ?: matchAlarmVolume(lo)
-            ?: matchOpenApp(lo)
+        ?: matchFarewell(lo)
+        ?: matchGratitude(lo)
+        ?: matchAffirmation(lo)
+        ?: matchMemoryQuery(lo)
+        ?: matchCalculate(lo)        // antes que matchOpenApp — "calcula 5+5" no es "abrir calc"
+        ?: matchConvert(lo)          // conversiones de unidades offline
+        ?: matchQuickNote(lo)        // notas rápidas offline
+        ?: matchQuickReminder(lo)    // recordatorio rápido
+        ?: matchFlashlight(lo)
+        ?: matchVolume(lo)
+        ?: matchSilent(lo)
+        ?: matchBrightness(lo)
+        ?: matchWifi(lo)
+        ?: matchBluetooth(lo)
+        ?: matchAirplane(lo)
+        ?: matchDoNotDisturb(lo)
+        ?: matchNfc(lo)
+        ?: matchDarkMode(lo)
+        ?: matchHotspot(lo)
+        ?: matchScreenshot(lo)
+        ?: matchLock(lo)
+        ?: matchAlarm(lo)
+        ?: matchTimer(lo)
+        ?: matchStopwatch(lo)
+        ?: matchEmergencyCall(lo)
+        ?: matchCall(lo)
+        ?: matchWhatsApp(lo)
+        ?: matchTelegram(lo)
+        ?: matchSms(lo)
+        ?: matchNavigation(lo)
+        ?: matchWebSearch(lo)
+        ?: matchMapsSearch(lo)
+        ?: matchMediaControl(lo)
+        ?: matchSearchAndPlaySpotify(lo)   // ANTES que matchMusic — "abre Spotify y busca X"
+        ?: matchMusic(lo)
+        ?: matchUrl(lo)
+        ?: matchSystemQuery(lo)
+        ?: matchNavigationActions(lo)
+        ?: matchSettingsShortcuts(lo)
+        ?: matchDeviceMaintenance(lo)
+        ?: matchShopping(lo)
+        ?: matchShare(lo)
+        ?: matchQuickApps(lo)
+        ?: matchOpenApp(lo)              // siempre al final — captura genérica
 
-    // ─── Saludos ─────────────────────────────────────────────────────────────
-    // Detecta saludos puros sin instrucción adicional
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── RESPUESTAS SOCIALES ───────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
 
     private val GREETING_REGEX = Regex(
         "^(hola|hey|hi|buenas|buenos dias|buenas tardes|buenas noches|buen dia|que tal|" +
-        "como estas|como te encuentras|como andas|que onda|que pedo|que paso|que hay|" +
-        "ey|oye|que onda doey|hola doey|hey doey|hola iris|hey iris|que hubo|quiubo|" +
-        "como estas?|como estas hoy|saludos|ola|alo|que hay de nuevo|que me cuentas)$",
+        "como estas|como andas|que onda|que pedo|que paso|que hay|ey|" +
+        "que hubo|quiubo|saludos|ola|alo|que hay de nuevo|que me cuentas)$",
         RegexOption.IGNORE_CASE
     )
-
     private val GREETING_RESPONSES = listOf(
-        "¡Hola! 👋 Aquí estoy, ¿en qué te ayudo?",
-        "¡Hola! Todo bien por acá. ¿Qué necesitas?",
-        "¡Hey! ¿Cómo te puedo ayudar hoy?",
-        "¡Buenas! Listo para lo que necesites 😊",
-        "¡Hola! Dime, ¿qué hacemos hoy?",
-        "¡Aquí estoy! ¿Qué se te ofrece?",
-        "¡Hey! ¿Qué onda? ¿En qué te echó la mano?",
-        "¡Hola hola! Cuéntame, ¿qué necesitas?",
-        "¡Buenas! Listo y a tus órdenes 🤖",
-        "¡Qué tal! Por acá todo bien, ¿y tú?"
+        "¡Hola! 👋 ¿En qué te ayudo?", "¡Hey! ¿Qué necesitas?",
+        "¡Buenas! Listo para lo que necesites 😊", "¡Hola! Dime, ¿qué hacemos?",
+        "¡Aquí estoy! ¿Qué se te ofrece?", "¡Hey! ¿Qué onda? ¿En qué te echo la mano?",
+        "¡Hola hola! Cuéntame. 🤖", "¡Qué tal! ¿Y tú?"
     )
-
     private fun matchGreeting(lo: String): LocalAction? {
-        if (!GREETING_REGEX.containsMatchIn(lo)) return null
-        // Aseguramos que no lleve instrucción adicional
-        if (lo.split(" ").size > 5) return null
+        if (!GREETING_REGEX.containsMatchIn(lo) || lo.split(" ").size > 5) return null
         return LocalAction.Greeting((System.currentTimeMillis() % GREETING_RESPONSES.size).toInt())
     }
 
-    // ─── Despedidas ──────────────────────────────────────────────────────────
-
     private val FAREWELL_REGEX = Regex(
-        "^(adios|hasta luego|nos vemos|chao|chau|bye|hasta pronto|hasta manana|" +
-        "me voy|me despido|cuiate|cuídate|hasta la proxima|nos vidrios|" +
-        "a dormir|buenas noches doey|bye bye|bye doey|adios doey|chao doey)$",
+        "^(adios|hasta luego|nos vemos|chao|chau|bye|hasta pronto|me voy|" +
+        "me despido|hasta la proxima|nos vidrios|a dormir|bye bye)$",
         RegexOption.IGNORE_CASE
     )
-
     private val FAREWELL_RESPONSES = listOf(
-        "¡Hasta luego! 👋 Aquí estaré cuando me necesites.",
-        "¡Cuídate mucho! 😊",
-        "¡Chao! Vuelve cuando quieras.",
-        "¡Hasta pronto! Fue un placer ayudarte.",
-        "¡Que te vaya bien! 👋",
-        "¡Nos vemos! Aquí estaré.",
-        "¡Cuídate! Y si necesitas algo, ya sabes dónde encontrarme."
+        "¡Hasta luego! 👋", "¡Cuídate mucho! 😊", "¡Chao! Vuelve cuando quieras.",
+        "¡Hasta pronto!", "¡Que te vaya bien! 👋", "¡Nos vemos!"
     )
-
     private fun matchFarewell(lo: String): LocalAction? {
-        if (!FAREWELL_REGEX.containsMatchIn(lo)) return null
-        if (lo.split(" ").size > 6) return null
+        if (!FAREWELL_REGEX.containsMatchIn(lo) || lo.split(" ").size > 6) return null
         return LocalAction.Farewell((System.currentTimeMillis() % FAREWELL_RESPONSES.size).toInt())
     }
 
-    // ─── Gratitud / Agradecimientos ──────────────────────────────────────────
-
     private val GRATITUDE_REGEX = Regex(
         "^(gracias|muchas gracias|grax|grasias|te lo agradezco|muy amable|" +
-        "thanks|thank you|cheers|de lujo|chido|estuvo bien|ok gracias|" +
-        "gracias doey|gracias iris|perfecto gracias|listo gracias|" +
-        "orale gracias|sale gracias|genial gracias|excelente gracias)$",
+        "thanks|thank you|de lujo|chido|estuvo bien|" +
+        "(ok |sale |genial |perfecto |listo |orale |andale )?gracias)$",
         RegexOption.IGNORE_CASE
     )
-
     private val GRATITUDE_RESPONSES = listOf(
-        "¡De nada! 😊 Para eso estoy.",
-        "¡Con gusto! ¿Algo más?",
-        "¡A tus órdenes siempre! 🤖",
-        "No hay de qué. ¿Necesitas algo más?",
-        "¡Claro que sí! Aquí para lo que sea.",
-        "¡Para eso estoy! ¿Algo más en lo que te ayude?",
+        "¡De nada! 😊 Para eso estoy.", "¡Con gusto! ¿Algo más?",
+        "¡A tus órdenes siempre! 🤖", "No hay de qué. ¿Algo más?",
         "¡Fue un placer! 😄"
     )
-
     private fun matchGratitude(lo: String): LocalAction? {
         if (!GRATITUDE_REGEX.containsMatchIn(lo)) return null
         return LocalAction.Gratitude((System.currentTimeMillis() % GRATITUDE_RESPONSES.size).toInt())
     }
 
-    // ─── Afirmaciones cortas (ok, listo, entendido…) ─────────────────────────
-
     private val AFFIRMATION_REGEX = Regex(
         "^(ok|okay|okey|listo|entendido|de acuerdo|sale|andale|orale|" +
-        "perfecto|excelente|bien|muy bien|chevere|genial|super|al 100|" +
-        "esta bien|esta ok|ya entendi|ya vi|lo tengo|roger|copy)$",
+        "claro|por supuesto|si|yes|yep|yup|va|dale|adelante|perfecto|excelente|" +
+        "esta bien|de una|con todo|ten|ahi esta|eso|correcto)$",
         RegexOption.IGNORE_CASE
     )
-
     private val AFFIRMATION_RESPONSES = listOf(
-        "👍 ¡Listo!",
-        "¡Perfecto! ¿Algo más?",
-        "👌 Entendido.",
-        "¡Genial! Aquí por si me necesitas.",
-        "😊 ¡De nada!",
-        "¡Sale! Avísame si necesitas algo."
+        "👍", "¡Perfecto!", "¡Entendido!", "¡Claro!", "¡Listo!"
     )
-
     private fun matchAffirmation(lo: String): LocalAction? {
         if (!AFFIRMATION_REGEX.containsMatchIn(lo)) return null
         return LocalAction.Affirmation((System.currentTimeMillis() % AFFIRMATION_RESPONSES.size).toInt())
     }
 
-    // ─── Consulta de memorias ─────────────────────────────────────────────────
-    // Si IRIS no puede resolver un contacto, puede buscar en memorias del usuario
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── CALCULADORA OFFLINE ───────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // Resuelve expresiones matemáticas sin IA ni internet.
+    // "cuanto es 15% de 230", "calcula 450/3", "cuanto es 2 elevado a 8"
 
-    private fun matchMemoryQuery(lo: String): LocalAction? {
-        val m = Regex(
-            "^(?:quien es|quien era|que es|a quien conoce|busca en mis memorias|" +
-            "en mis memorias busca|recuerdas quien es|recuerdas a)\\s+(.{2,40})$"
-        ).find(lo) ?: return null
-        return LocalAction.QueryMemory(m.groupValues[1].trim())
+    private fun matchCalculate(lo: String): LocalAction? {
+        // Trigger: calcula / cuánto es / cuántos son / resultado de / quanto es
+        val trigger = Regex("\\b(calcula|calculo|cuanto es|cuantos son|resultado de|cuanto da|quanto es|cuanto queda|cuanto seria|cuanto serian)\\b", RegexOption.IGNORE_CASE)
+        if (!trigger.containsMatchIn(lo)) return null
+
+        // Extraer la expresión matemática
+        val expr = trigger.replace(lo, "").trim()
+            .replace("por",   "*").replace("x",       "*")
+            .replace("entre", "/").replace("dividido","  /")
+            .replace("mas",   "+").replace("\\+".toRegex(), "+")
+            .replace("menos", "-")
+            .replace("al cuadrado", "^2").replace("al cubo","^3")
+            .replace(Regex("elevado a (\\d+)"), "^$1")
+            .replace(Regex("(\\d+)\\s*%\\s*de\\s*(\\d+)")) { m ->
+                "(${m.groupValues[1]}/100)*${m.groupValues[2]}"
+            }
+            .trim()
+
+        if (expr.isBlank()) return null
+        return LocalAction.Calculate(expr)
     }
 
-    // ─── Linterna ────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── CONVERSIÓN DE UNIDADES OFFLINE ───────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // "convierte 100 dolares a pesos", "cuanto son 5 km en millas",
+    // "convierte 37 celsius a fahrenheit", "cuanto es 1 libra en kilos"
 
-    private fun matchFlashlight(lo: String): LocalAction? {
-        val TORCH = "(linterna|flash\\b|torch|luz trasera|flas)"  // "flas" = voz-a-texto
-        val ON  = Regex("\\b(enciende|prende|activa|turn on|on|dale|mete)\\b.*$TORCH")
-        val OFF = Regex("\\b(apaga|desactiva|apagar|turn off|off|quita)\\b.*$TORCH")
-        // Orden inverso: "la linterna prende"
-        val ON2  = Regex("$TORCH.*\\b(on|activa|prende|enciende)\\b")
-        val OFF2 = Regex("$TORCH.*\\b(off|apaga|desactiva)\\b")
-        val SOLO = Regex("^linterna$")
-        return when {
-            ON.containsMatchIn(lo) || ON2.containsMatchIn(lo)   -> LocalAction.ToggleFlashlight(true)
-            OFF.containsMatchIn(lo) || OFF2.containsMatchIn(lo) -> LocalAction.ToggleFlashlight(false)
-            SOLO.matches(lo)                                     -> LocalAction.ToggleFlashlight(true)
-            else                                                 -> null
-        }
+    private val UNIT_ALIASES = mapOf(
+        "km" to "km", "kilometros" to "km", "kilómetros" to "km",
+        "mi" to "mi", "millas" to "mi", "milla" to "mi",
+        "m" to "m",  "metros" to "m", "metro" to "m",
+        "cm" to "cm","centimetros" to "cm","centímetros" to "cm",
+        "ft" to "ft","pies" to "ft","pie" to "ft","feet" to "ft",
+        "in" to "in","pulgadas" to "in","pulgada" to "in","inches" to "in",
+        "kg" to "kg","kilos" to "kg","kilo" to "kg","kilogramos" to "kg",
+        "lb" to "lb","libras" to "lb","libra" to "lb","pounds" to "lb",
+        "g"  to "g", "gramos" to "g","gramo" to "g",
+        "oz" to "oz","onzas" to "oz","onza" to "oz",
+        "c"  to "c", "celsius" to "c","centigrados" to "c","centígrados" to "c",
+        "f"  to "f", "fahrenheit" to "f",
+        "k"  to "k", "kelvin" to "k",
+        "usd" to "usd","dolares" to "usd","dólares" to "usd","dolar" to "usd","dollar" to "usd",
+        "mxn" to "mxn","pesos" to "mxn","peso mexicano" to "mxn",
+        "eur" to "eur","euros" to "eur","euro" to "eur",
+        "l"   to "l", "litros" to "l","litro" to "l",
+        "ml"  to "ml","mililitros" to "ml",
+        "gal" to "gal","galones" to "gal","galon" to "gal","gallon" to "gal"
+    )
+
+    private fun matchConvert(lo: String): LocalAction? {
+        val rx = Regex("(?:convierte|cuanto son|cuanto es|pasar|convertir|a cuanto equivale|equivale)\\s+([\\d.,]+)\\s+(.+?)\\s+(?:en|a|to)\\s+(.+?)\\s*$", RegexOption.IGNORE_CASE)
+        val m  = rx.find(lo) ?: return null
+        val value = m.groupValues[1].replace(",",".").toDoubleOrNull() ?: return null
+        val from  = UNIT_ALIASES[m.groupValues[2].trim().lowercase()] ?: m.groupValues[2].trim().lowercase()
+        val to    = UNIT_ALIASES[m.groupValues[3].trim().lowercase()] ?: m.groupValues[3].trim().lowercase()
+        if (from.isBlank() || to.isBlank()) return null
+        return LocalAction.Convert(value, from, to)
     }
 
-    // ─── Volumen ─────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── NOTAS RÁPIDAS OFFLINE ─────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // "anota: llamar al doctor", "guarda nota: contraseña wifi es 1234",
+    // "recuerda que tengo cita el jueves", "qué tengo anotado", "mis notas"
 
-    private fun matchVolume(lo: String): LocalAction? {
-        val UP   = Regex("\\b(sube|aumenta|incrementa|raise|turn up|volume up|mas volumen|subele|subelo|jalale|mas alto)\\b.*(volumen|volume|sonido|audio)?")
-        val DOWN = Regex("\\b(baja|reduce|disminuye|lower|turn down|volume down|menos volumen|bajale|bajalo|menos alto)\\b.*(volumen|volume|sonido|audio)?")
-
-        // Stream de timbre / ringtone
-        val RING_UP   = Regex("\\b(sube|aumenta|mas)\\b.*(timbre|ringtone|tono de llamada)")
-        val RING_DOWN = Regex("\\b(baja|reduce|menos)\\b.*(timbre|ringtone|tono de llamada)")
-        // Stream de alarma
-        val ALARM_UP   = Regex("\\b(sube|aumenta|mas)\\b.*(volumen.*(de|del).*alarma|alarma.*volumen)")
-        val ALARM_DOWN = Regex("\\b(baja|reduce|menos)\\b.*(volumen.*(de|del).*alarma|alarma.*volumen)")
-
-        if (RING_UP.containsMatchIn(lo))   return LocalAction.VolumeStep(up = true,  stream = VolumeStream.RING)
-        if (RING_DOWN.containsMatchIn(lo)) return LocalAction.VolumeStep(up = false, stream = VolumeStream.RING)
-        if (ALARM_UP.containsMatchIn(lo))   return LocalAction.VolumeStep(up = true,  stream = VolumeStream.ALARM)
-        if (ALARM_DOWN.containsMatchIn(lo)) return LocalAction.VolumeStep(up = false, stream = VolumeStream.ALARM)
-
-        if (UP.containsMatchIn(lo) && !lo.contains("tele") && !lo.contains("tv"))
-            return LocalAction.VolumeStep(up = true)
-        if (DOWN.containsMatchIn(lo) && !lo.contains("tele") && !lo.contains("tv"))
-            return LocalAction.VolumeStep(up = false)
-
-        // Valor exacto con % o sin %
-        Regex("\\b(volumen|volume|sonido)\\b[^\\d]*(\\d{1,3})\\s*%?").find(lo)?.let {
-            val lvl = it.groupValues[2].toIntOrNull()?.coerceIn(0, 100) ?: return null
-            return LocalAction.SetVolume(lvl)
+    private fun matchQuickNote(lo: String): LocalAction? {
+        // Guardar nota
+        Regex("^(?:anota|apunta|guarda|nota|recuerda que|agrega nota|nota rapida|escribe)\\s*[:\\-]?\\s*(.{3,200})$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            val content = m.groupValues[1].trim()
+            if (content.isNotBlank()) return LocalAction.QuickNote(content)
         }
-        Regex("\\b(pon|ajusta|set|coloca|dejalo|ponlo)\\b[^\\d]*(\\d{1,3})\\s*%?[^\\w]*(volumen|volume|sonido|de sonido)").find(lo)?.let {
-            val lvl = it.groupValues[2].toIntOrNull()?.coerceIn(0, 100) ?: return null
-            return LocalAction.SetVolume(lvl)
-        }
-        // "al máximo" / "al mínimo"
-        if (Regex("\\b(volumen|sonido|audio)\\b.*(maximo|full|100|al tope|a tope)").containsMatchIn(lo))
-            return LocalAction.SetVolume(100)
-        if (Regex("\\b(volumen|sonido|audio)\\b.*(minimo|0|cero|mudo)").containsMatchIn(lo))
-            return LocalAction.SetVolume(0)
+        // Leer notas
+        if (Regex("\\b(que tengo anotado|mis notas|ver notas|leer notas|que anote|notas guardadas|que guarde)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo))
+            return LocalAction.ReadNotes()
         return null
     }
 
-    // ─── Silencio / Vibración ────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── RECORDATORIO RÁPIDO OFFLINE ───────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // "recuérdame tomar el medicamento en 30 minutos",
+    // "avísame en 2 horas que tengo junta"
+
+    private fun matchQuickReminder(lo: String): LocalAction? {
+        val rx = Regex(
+            "^(?:recuerdame|avisame|notificame|reminder|recuerda|avisa)\\s+(.+?)\\s+" +
+            "(?:en|dentro de)\\s+(\\d+)\\s+(minuto|minutos|hora|horas|segundo|segundos)$",
+            RegexOption.IGNORE_CASE
+        )
+        val m = rx.find(lo) ?: return null
+        val text  = m.groupValues[1].trim()
+        val value = m.groupValues[2].toIntOrNull() ?: return null
+        val unit  = m.groupValues[3].lowercase()
+        val minutes = when {
+            unit.startsWith("hora") -> value * 60
+            unit.startsWith("seg")  -> maxOf(1, value / 60)
+            else                    -> value
+        }
+        return LocalAction.QuickReminder(text, minutes)
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── DISPOSITIVO ───────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private fun matchFlashlight(lo: String): LocalAction? {
+        val flash = "\\b(linterna|flashlight|flash|flas|torch)\\b"
+        return when {
+            Regex("\\b($V_ON)\\b.*$flash", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("$flash.*\\b(on|encendida|activa)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
+                -> LocalAction.ToggleFlashlight(true)
+            Regex("\\b($V_OFF)\\b.*$flash", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("$flash.*\\b(off|apagada|desactiva)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
+                -> LocalAction.ToggleFlashlight(false)
+            else -> null
+        }
+    }
+
+    private fun matchVolume(lo: String): LocalAction? {
+        val vol = "\\b(volumen|vol|audio|sonido)\\b"
+        val ring = "\\b(timbre|ringtone|tono de llamada|tono)\\b"
+        val alarm = "\\b(alarma|alarm)\\b"
+
+        // Volumen de timbre
+        Regex("\\b($V_UP|$V_DOWN)\\b.*$ring", RegexOption.IGNORE_CASE).find(lo)?.let {
+            val up = RX_UP.containsMatchIn(lo)
+            val pct = Regex("\\b(\\d{1,3})\\b").find(lo)?.groupValues?.get(1)?.toIntOrNull()
+            if (pct != null) return LocalAction.SetRingtoneVolume(pct.coerceIn(0,100))
+            return LocalAction.VolumeStep(up, VolumeStream.RING)
+        }
+        // Volumen de alarma
+        Regex("\\b($V_UP|$V_DOWN)\\b.*$alarm|$alarm.*\\b(volumen|vol)\\b", RegexOption.IGNORE_CASE).find(lo)?.let {
+            val pct = Regex("\\b(\\d{1,3})\\b").find(lo)?.groupValues?.get(1)?.toIntOrNull()
+            if (pct != null) return LocalAction.SetAlarmVolume(pct.coerceIn(0,100))
+            return LocalAction.VolumeStep(RX_UP.containsMatchIn(lo), VolumeStream.ALARM)
+        }
+        // Silencia completamente
+        if (Regex("\\b(silencia|silenciar|mute|mutea|mutear)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo))
+            return LocalAction.SetSilentMode(SilentMode.SILENT)
+
+        if (!Regex("\\b($V_UP|$V_DOWN|pon|ajusta|sube|baja|volumen)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)) return null
+        if (!Regex(vol, RegexOption.IGNORE_CASE).containsMatchIn(lo) &&
+            !Regex("\\b($V_UP|$V_DOWN)\\b.*(musica|media|el sonido|el audio)", RegexOption.IGNORE_CASE).containsMatchIn(lo)) return null
+
+        val pct = Regex("\\b(\\d{1,3})\\b").find(lo)?.groupValues?.get(1)?.toIntOrNull()
+        if (pct != null) return LocalAction.SetVolume(pct.coerceIn(0,100))
+        return LocalAction.VolumeStep(RX_UP.containsMatchIn(lo))
+    }
 
     private fun matchSilent(lo: String): LocalAction? = when {
-        Regex("\\b(silencia(r)?|mute|pon.*silencio|modo silencio|silent mode|poner.*mudo|" +
-              "modo mudo|pon.*mudo|mutea|mutear|hazlo mudo)\\b").containsMatchIn(lo)
+        Regex("\\b(modo silencio|silencio total|no hacer ruido|silencioso)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.SetSilentMode(SilentMode.SILENT)
-        Regex("\\b(vibra(cion)?|vibrate|modo vibracion|pon.*vibracion|solo vibra|vibrar)\\b").containsMatchIn(lo)
+        Regex("\\b(modo vibracion|vibrar|vibrador|vibra|vibration)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.SetSilentMode(SilentMode.VIBRATE)
-        Regex("\\b(quita.*silencio|desmutea|unmute|sonido normal|modo normal|modo sonido|" +
-              "activa.*sonido|quita.*mudo|dejar sonar|que suene)\\b").containsMatchIn(lo)
+        Regex("\\b(sonido normal|quita el silencio|activa el sonido|pon sonido|sonido on|deja sonar)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.SetSilentMode(SilentMode.NORMAL)
         else -> null
     }
 
-    // ─── Brillo ──────────────────────────────────────────────────────────────
-
     private fun matchBrightness(lo: String): LocalAction? {
-        val BRIGHT = "(brillo|brightness|pantalla mas (clara|oscura)|iluminacion)"
-        if (Regex("\\b(activa|pon|usa|enable|auto)\\b.*(brillo automatico|auto.?brillo|adaptive brightness|brillo auto)").containsMatchIn(lo))
-            return LocalAction.ToggleAutoBrightness(true)
-        if (Regex("\\b(desactiva|quita|disable)\\b.*(brillo automatico|auto.?brillo|adaptive brightness)").containsMatchIn(lo))
-            return LocalAction.ToggleAutoBrightness(false)
-        if (Regex("\\b(sube|aumenta|raise|turn up|mas brillo|subele el brillo|mas luz)\\b.*$BRIGHT|$BRIGHT.*(arriba|mas)").containsMatchIn(lo))
-            return LocalAction.BrightnessStep(up = true)
-        if (Regex("\\b(baja|reduce|lower|turn down|menos brillo|bajale el brillo|menos luz)\\b.*$BRIGHT|$BRIGHT.*(abajo|menos)").containsMatchIn(lo))
-            return LocalAction.BrightnessStep(up = false)
-        // "brillo al máximo / mínimo"
-        if (Regex("\\b$BRIGHT\\b.*(maximo|100|tope|full)").containsMatchIn(lo)) return LocalAction.SetBrightness(100)
-        if (Regex("\\b$BRIGHT\\b.*(minimo|0|cero|nada|oscuro)").containsMatchIn(lo)) return LocalAction.SetBrightness(0)
-        Regex("\\b$BRIGHT\\b[^\\d]*(\\d{1,3})\\s*%?").find(lo)?.let {
-            val lvl = it.groupValues[1].toIntOrNull()?.coerceIn(0, 100) ?: return null
-            return LocalAction.SetBrightness(lvl)
-        }
-        return null
+        val brillo = "\\b(brillo|brightness|luminosidad|pantalla)\\b"
+        if (!Regex(brillo, RegexOption.IGNORE_CASE).containsMatchIn(lo)) return null
+        if (Regex("\\b(automatico|auto|auto brillo|auto-brillo)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo))
+            return LocalAction.ToggleAutoBrightness(RX_ON.containsMatchIn(lo))
+        val pct = Regex("\\b(\\d{1,3})\\b").find(lo)?.groupValues?.get(1)?.toIntOrNull()
+        if (pct != null) return LocalAction.SetBrightness(pct.coerceIn(0,100))
+        return LocalAction.BrightnessStep(RX_UP.containsMatchIn(lo))
     }
 
-    // ─── WiFi ─────────────────────────────────────────────────────────────────
-    // Cubre: wifi, wi-fi, wi fi, internet, red wifi, el internet, los datos wifi
-
     private fun matchWifi(lo: String): LocalAction? {
-        val wifi = "\\b(wifi|wi.?fi|el internet inalambrico|red inalambrica|la red wifi|internet wifi|el wifi|la wifi|wi fi)\\b"
-        // "enciende el internet" → solo si NO hay "datos moviles" (eso es otra cosa)
-        val internet = "\\b(internet|la red|el internet)\\b"
-        val on  = "\\b(activa|enciende|prende|conecta|turn on|enable|mete|dale|pon|prender|activar|encender|conectar)\\b"
-        val off = "\\b(desactiva|apaga|desconecta|turn off|disable|quita|saca|apagar|desactivar)\\b"
-
-        if (lo.contains("datos moviles") || lo.contains("datos celulares") || lo.contains("datos del celular")) return null
-
+        val wifi = "\\b(wifi|wi-fi|wifi|red inalambrica|wireless)\\b"
         return when {
-            Regex("$on.*($wifi)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
-            Regex("($wifi).*\\b(on|activo|activalo|prendelo|encendido)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
-            (Regex("$on.*$internet", RegexOption.IGNORE_CASE).containsMatchIn(lo) &&
-             !lo.contains("datos") && !lo.contains("movil") && !lo.contains("4g") && !lo.contains("5g"))
+            Regex("\\b($V_ON)\\b.*($wifi)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("($wifi).*\\b(on|activo|activalo)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
                 -> LocalAction.ToggleWifi(true)
-            Regex("$off.*($wifi)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
-            Regex("($wifi).*\\b(off|apagado|apagalo|desactivalo)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
+            Regex("\\b($V_OFF)\\b.*($wifi)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("($wifi).*\\b(off|apagado|apagalo)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
                 -> LocalAction.ToggleWifi(false)
             else -> null
         }
     }
 
-    // ─── Bluetooth ───────────────────────────────────────────────────────────
-    // Cubre: bluetooth, bt, b.t., blutus, bluetoth, blue tooth, el blue, bluetooh
-
     private fun matchBluetooth(lo: String): LocalAction? {
-        val bt = "\\b(bluetooth|bt\\b|b\\.t\\.|blutus|bluetoth|blue tooth|el blue|bluetooh|bluetu[st]|bl[uü]etooth)\\b"
-        val on  = "\\b(activa|enciende|prende|turn on|enable|mete|dale|conecta|jala|abre|sube|pon|prender|activar|encender)\\b"
-        val off = "\\b(desactiva|apaga|turn off|disable|quita|saca|corta|desconecta|apagar|desactivar)\\b"
+        val bt = "\\b(bluetooth|bt\\b|b\\.t\\.|blutus|bluetoth|blue tooth|bluetoo?th)\\b"
         return when {
-            Regex("$on.*$bt", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
-            Regex("$bt.*\\b(on|activo|activalo|prendelo|prendido|encendido)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
+            Regex("\\b($V_ON)\\b.*($bt)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("($bt).*\\b(on|activo|activalo)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
                 -> LocalAction.ToggleBluetooth(true)
-            Regex("$off.*$bt", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
-            Regex("$bt.*\\b(off|apagado|apagalo|desactivalo|desactivado)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
+            Regex("\\b($V_OFF)\\b.*($bt)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("($bt).*\\b(off|apagado|desactiva)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
                 -> LocalAction.ToggleBluetooth(false)
             else -> null
         }
     }
 
-    // ─── Modo avión ───────────────────────────────────────────────────────────
-
     private fun matchAirplane(lo: String): LocalAction? {
         val air = "\\b(modo avion|airplane mode|flight mode|modo vuelo|modo aereo)\\b"
         return when {
-            Regex("\\b(activa|enciende|pon|turn on|mete)\\b.*($air)").containsMatchIn(lo) ||
-            Regex("($air).*\\b(on|activo)\\b").containsMatchIn(lo)
+            Regex("\\b($V_ON)\\b.*($air)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("($air).*\\b(on|activo)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
                 -> LocalAction.ToggleAirplane(true)
-            Regex("\\b(desactiva|apaga|quita|turn off|saca)\\b.*($air)").containsMatchIn(lo) ||
-            Regex("($air).*\\b(off|apagado)\\b").containsMatchIn(lo)
+            Regex("\\b($V_OFF)\\b.*($air)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("($air).*\\b(off|apagado)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
                 -> LocalAction.ToggleAirplane(false)
             else -> null
         }
     }
 
-    // ─── No molestar ──────────────────────────────────────────────────────────
-
     private fun matchDoNotDisturb(lo: String): LocalAction? {
-        val dnd = "\\b(no molestar|dnd|do not disturb|no interrumpir|no interrupciones|no me molestes)\\b"
+        val dnd = "\\b(no molestar|dnd|do not disturb|no interrumpir|no me molestes)\\b"
         return when {
-            Regex("\\b(activa|enciende|pon|enable|mete)\\b.*($dnd)").containsMatchIn(lo)
+            Regex("\\b($V_ON)\\b.*($dnd)", RegexOption.IGNORE_CASE).containsMatchIn(lo)
                 -> LocalAction.ToggleDoNotDisturb(true)
-            Regex("\\b(desactiva|apaga|quita|disable|saca)\\b.*($dnd)").containsMatchIn(lo)
+            Regex("\\b($V_OFF)\\b.*($dnd)", RegexOption.IGNORE_CASE).containsMatchIn(lo)
                 -> LocalAction.ToggleDoNotDisturb(false)
             else -> null
         }
     }
 
-    // ─── NFC ──────────────────────────────────────────────────────────────────
-
     private fun matchNfc(lo: String): LocalAction? = when {
-        Regex("\\b(activa|enciende|prende|turn on|enable)\\b.*\\bnfc\\b").containsMatchIn(lo) ||
-        Regex("\\bnfc\\b.*\\b(on|activo|activa)\\b").containsMatchIn(lo)
+        Regex("\\b($V_ON)\\b.*\\bnfc\\b|\\bnfc\\b.*\\b(on|activo)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.ToggleNfc(true)
-        Regex("\\b(desactiva|apaga|turn off|disable)\\b.*\\bnfc\\b").containsMatchIn(lo) ||
-        Regex("\\bnfc\\b.*\\b(off|apagado|desactiva)\\b").containsMatchIn(lo)
+        Regex("\\b($V_OFF)\\b.*\\bnfc\\b|\\bnfc\\b.*\\b(off|apagado)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.ToggleNfc(false)
         else -> null
     }
 
-    // ─── Modo oscuro ─────────────────────────────────────────────────────────
-
     private fun matchDarkMode(lo: String): LocalAction? {
-        val dark = "\\b(modo oscuro|dark mode|modo noche|tema oscuro|modo dark)\\b"
+        val dark  = "\\b(modo oscuro|dark mode|modo noche|tema oscuro|modo dark)\\b"
         val light = "\\b(modo claro|light mode|modo dia|tema claro|modo normal)\\b"
         return when {
-            Regex("\\b(activa|pon|enable|mete|usa)\\b.*($dark)").containsMatchIn(lo) ||
-            Regex("($dark).*\\b(on|activo)\\b").containsMatchIn(lo)
+            Regex("\\b($V_ON|usa|pon)\\b.*($dark)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("($dark).*\\b(on|activo)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
                 -> LocalAction.ToggleDarkMode(true)
-            Regex("\\b(desactiva|quita|disable|saca)\\b.*($dark)").containsMatchIn(lo) ||
-            Regex("($light)").containsMatchIn(lo)
+            Regex("\\b($V_OFF|quita)\\b.*($dark)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex(light, RegexOption.IGNORE_CASE).containsMatchIn(lo)
                 -> LocalAction.ToggleDarkMode(false)
             else -> null
         }
     }
 
-    // ─── Hotspot / Punto de acceso ───────────────────────────────────────────
-
     private fun matchHotspot(lo: String): LocalAction? {
         val hot = "\\b(hotspot|punto de acceso|compartir datos|tethering|internet movil compartido)\\b"
         return when {
-            Regex("\\b(activa|enciende|prende|turn on|enable|mete|pon)\\b.*($hot)").containsMatchIn(lo) ||
-            Regex("($hot).*\\b(on|activo|activa)\\b").containsMatchIn(lo)
+            Regex("\\b($V_ON)\\b.*($hot)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("($hot).*\\b(on|activo)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
                 -> LocalAction.ToggleHotspot(true)
-            Regex("\\b(desactiva|apaga|turn off|disable|quita|saca)\\b.*($hot)").containsMatchIn(lo) ||
-            Regex("($hot).*\\b(off|apagado|desactiva)\\b").containsMatchIn(lo)
+            Regex("\\b($V_OFF)\\b.*($hot)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("($hot).*\\b(off|apagado)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
                 -> LocalAction.ToggleHotspot(false)
             else -> null
         }
     }
 
-    // ─── Captura / Bloqueo ────────────────────────────────────────────────────
-
     private fun matchScreenshot(lo: String): LocalAction? {
-        return if (Regex("\\b(toma|saca|haz|captura|take|screenshot|printscreen)\\b.*(captura|screenshot|pantalla|screen shot|foto de pantalla|screenshotear)").containsMatchIn(lo) ||
-                   Regex("^(screenshot|captura de pantalla|foto de pantalla)$").containsMatchIn(lo))
+        return if (Regex("\\b(toma|saca|haz|captura|take|screenshot|printscreen)\\b.*(captura|screenshot|pantalla|screen shot|foto de pantalla)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+                   Regex("^(screenshot|captura de pantalla|foto de pantalla)$", RegexOption.IGNORE_CASE).containsMatchIn(lo))
             LocalAction.TakeScreenshot() else null
     }
 
     private fun matchLock(lo: String): LocalAction? {
-        return if (Regex("^(bloquea(r)?( el telefono| la pantalla| el cel| el movil)?|lock( the)? (screen|phone)|apaga(r)? la pantalla|bloquear cel|bloquear celu)$").containsMatchIn(lo))
+        return if (Regex("^(bloquea(r)?( el telefono| la pantalla| el cel| el movil)?|lock( the)? (screen|phone)|apaga(r)? la pantalla|bloquear cel)$", RegexOption.IGNORE_CASE).containsMatchIn(lo))
             LocalAction.LockScreen() else null
     }
 
-    // ─── Alarmas ──────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── ALARMAS Y TIEMPO ─────────────────────────────────────────════════════
+    // ═════════════════════════════════════════════════════════════════════════
 
     private fun matchAlarm(lo: String): LocalAction? {
-        if (Regex("\\b(cancela|elimina|borra|quita|cancel|delete|apaga|desactiva)\\b.*(alarma|alarm|despertador)").containsMatchIn(lo))
+        if (Regex("\\b(cancela|elimina|borra|quita|cancel)\\b.*(alarma|alarm)", RegexOption.IGNORE_CASE).containsMatchIn(lo))
             return LocalAction.CancelAlarm()
+        val alarmTrigger = Regex("\\b(pon|crea|programa|set|ponme|despiertame|despertarme)\\b.*(alarma|alarm|despertar)", RegexOption.IGNORE_CASE)
+        if (!alarmTrigger.containsMatchIn(lo) &&
+            !Regex("\\b(despiertame|levantame)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)) return null
 
-        val hasTrigger = Regex(
-            "\\b(pon|pone|ponme|set|crea|activa|programa|despiertame|despertarme|" +
-            "wake me|alarma|alarm|despertador|ponme una|pon una|quiero despertar|" +
-            "despertame|pon alarma|poner alarma|crear alarma|quiero que me despiertes)\\b"
-        ).containsMatchIn(lo)
-        if (!hasTrigger) return null
-
-        // Patrón 1 — HH:MM (con o sin am/pm, con o sin espacio)
-        // Ej: "6:15", "6:15am", "6:15 am", "6:15 a.m" (el . ya fue reemplazado por espacio en normalize)
-        Regex("(\\d{1,2}):(\\d{2})\\s*(am|pm)?").find(lo)?.let { m ->
-            var h  = m.groupValues[1].toIntOrNull() ?: return@let
-            val mi = m.groupValues[2].toIntOrNull() ?: return@let
-            val ap = m.groupValues[3].lowercase()
-            if (ap == "pm" && h < 12) h += 12
-            if (ap == "am" && h == 12) h = 0
-            return LocalAction.SetAlarmNative(h, mi, extractLabel(lo))
+        // Relativa: "en 2 horas", "en 45 minutos"
+        Regex("\\ben\\s+(\\d+)\\s+(hora|horas|minuto|minutos)\\b", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            val value = m.groupValues[1].toInt()
+            val unit  = m.groupValues[2].lowercase()
+            val cal   = java.util.Calendar.getInstance()
+            if (unit.startsWith("hora")) cal.add(java.util.Calendar.HOUR_OF_DAY, value)
+            else cal.add(java.util.Calendar.MINUTE, value)
+            return LocalAction.SetAlarm(cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
         }
 
-        // Patrón 2 — "a las N am/pm / de la mañana / tarde / noche"
-        // También captura solo el número: "alarma a las 6", "pon alarma a las 7 am"
-        Regex("(?:a las?|at|para las?)\\s*(\\d{1,2})(?:\\s*:(\\d{2}))?\\s*(am|pm|de la manana|de la tarde|de la noche|en punto)?").find(lo)?.let { m ->
-            var h  = m.groupValues[1].toIntOrNull() ?: return@let
-            val mi = m.groupValues[2].toIntOrNull() ?: 0
-            val mod = m.groupValues[3].lowercase()
-            when {
-                mod == "pm" || mod.contains("tarde") || mod.contains("noche") -> if (h < 12) h += 12
-                mod == "am" || mod.contains("mana") -> if (h == 12) h = 0
-            }
-            return LocalAction.SetAlarmNative(h, mi, extractLabel(lo))
+        // Absoluta: "a las 7", "a las 6:30", "a las 10 am"
+        Regex("\\ba las\\s+(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm|a\\.m|p\\.m)?", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            var h = m.groupValues[1].toInt()
+            val min = m.groupValues[2].toIntOrNull() ?: 0
+            val ampm = m.groupValues[3].lowercase().replace(".", "")
+            if (ampm == "pm" && h < 12) h += 12
+            if (ampm == "am" && h == 12) h = 0
+            val label = Regex("(?:llamada|nota|label|etiqueta|para|con titulo)\\s+(.+)$", RegexOption.IGNORE_CASE).find(lo)?.groupValues?.get(1)?.trim() ?: ""
+            return LocalAction.SetAlarm(h, min, label)
         }
-
-        // Patrón 3 — número suelto con am/pm: "alarma 6am", "pon 7pm"
-        Regex("\\b(\\d{1,2})\\s*(am|pm)\\b").find(lo)?.let { m ->
-            var h = m.groupValues[1].toIntOrNull() ?: return@let
-            val ap = m.groupValues[2].lowercase()
-            if (ap == "pm" && h < 12) h += 12
-            if (ap == "am" && h == 12) h = 0
-            return LocalAction.SetAlarmNative(h, 0, extractLabel(lo))
+        // Sin "a las": "pon alarma 7" o "despiértame 6:30"
+        Regex("\\b(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?\\b", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            var h = m.groupValues[1].toInt()
+            val min = m.groupValues[2].toIntOrNull() ?: 0
+            val ampm = m.groupValues[3].lowercase()
+            if (ampm == "pm" && h < 12) h += 12
+            if (h in 0..23) return LocalAction.SetAlarm(h, min)
         }
-
-        // Patrón 4 — "en N horas"
-        Regex("en (\\d+) hora").find(lo)?.let { m ->
-            val cal = java.util.Calendar.getInstance()
-            cal.add(java.util.Calendar.HOUR_OF_DAY, m.groupValues[1].toInt())
-            return LocalAction.SetAlarmNative(cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
-        }
-
-        // Patrón 5 — "en N minutos" (alarma, no timer)
-        Regex("en (\\d+) minuto").find(lo)?.let { m ->
-            val cal = java.util.Calendar.getInstance()
-            cal.add(java.util.Calendar.MINUTE, m.groupValues[1].toInt())
-            return LocalAction.SetAlarmNative(cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
-        }
-
         return null
     }
 
-    private fun extractLabel(lo: String): String =
-        Regex("(?:llamada|etiqueta|label|para|titulada?)[ :]+(.{3,30})").find(lo)?.groupValues?.get(1)?.trim() ?: ""
-
-    // ─── Temporizador ─────────────────────────────────────────────────────────
-
     private fun matchTimer(lo: String): LocalAction? {
-        if (Regex("\\b(cancela|detiene|para|stop|cancel|apaga)\\b.*(temporizador|timer|cuenta regresiva|cronometro)").containsMatchIn(lo))
+        if (Regex("\\b(cancela|para|detén|quita)\\b.*(timer|temporizador|cuenta regresiva)", RegexOption.IGNORE_CASE).containsMatchIn(lo))
             return LocalAction.CancelTimer()
+        val trigger = Regex("\\b(timer|temporizador|cuenta regresiva|pon|crea|inicia|ponme)\\b.*(timer|temporizador|minuto|minutos|segundo|segundos|hora|horas)|\\bde\\s+\\d+\\s+(minutos|segundos|horas)\\b", RegexOption.IGNORE_CASE)
+        if (!trigger.containsMatchIn(lo) &&
+            !Regex("^(timer|temporizador)\\s+(de\\s+)?\\d+", RegexOption.IGNORE_CASE).containsMatchIn(lo)) return null
 
-        if (!Regex("\\b(pon|pone|ponme|set|crea|inicia|activa|temporizador|timer|cuenta regresiva|countdown|cronometro de|cuenta de)\\b").containsMatchIn(lo))
-            return null
+        var totalSeconds = 0L
+        Regex("(\\d+)\\s*(hora|horas|h\\b)",  RegexOption.IGNORE_CASE).find(lo)?.let { totalSeconds += it.groupValues[1].toLong() * 3600 }
+        Regex("(\\d+)\\s*(minuto|minutos|min\\b|m\\b)", RegexOption.IGNORE_CASE).find(lo)?.let { totalSeconds += it.groupValues[1].toLong() * 60 }
+        Regex("(\\d+)\\s*(segundo|segundos|seg\\b|s\\b)", RegexOption.IGNORE_CASE).find(lo)?.let { totalSeconds += it.groupValues[1].toLong() }
 
-        var secs = 0L
-        Regex("(\\d+)\\s*hora").find(lo)?.let { secs += it.groupValues[1].toLong() * 3600 }
-        Regex("(\\d+)\\s*(minuto|min\\b)").find(lo)?.let { secs += it.groupValues[1].toLong() * 60 }
-        Regex("(\\d+)\\s*(segundo|seg\\b|sec\\b)").find(lo)?.let { secs += it.groupValues[1].toLong() }
-
-        // "media hora" = 30 min, "cuarto de hora" = 15 min
-        if (lo.contains("media hora")) secs += 1800
-        if (lo.contains("cuarto de hora") || lo.contains("15 minutos")) secs = if (secs == 0L) 900 else secs
-
-        return if (secs > 0) LocalAction.SetTimer(secs) else null
+        if (totalSeconds <= 0) return null
+        val label = Regex("(?:llamado|label|para|con titulo)\\s+(.+)$", RegexOption.IGNORE_CASE).find(lo)?.groupValues?.get(1)?.trim() ?: ""
+        return LocalAction.SetTimer(totalSeconds, label)
     }
 
-    // ─── Cronómetro ──────────────────────────────────────────────────────────
-
     private fun matchStopwatch(lo: String): LocalAction? = when {
-        Regex("\\b(inicia|empieza|start|pon|activa)\\b.*(cronometro|stopwatch)").containsMatchIn(lo) ||
-        lo == "cronometro"
+        Regex("\\b(inicia|empieza|arranca|start)\\b.*(cronometro|stopwatch)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+        Regex("^(cronometro|stopwatch)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.StartStopwatch()
-        Regex("\\b(detiene|para|stop|pausa|cancela)\\b.*(cronometro|stopwatch)").containsMatchIn(lo)
+        Regex("\\b(detén|para|stop|pausa)\\b.*(cronometro|stopwatch)", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.StopStopwatch()
         else -> null
     }
 
-    // ─── Llamadas de emergencia ───────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── COMUNICACIÓN ──────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
 
     private fun matchEmergencyCall(lo: String): LocalAction? {
-        if (!Regex("\\b(llama(r)?|call|marca|dial|marcame|comunicame)\\b").containsMatchIn(lo)) return null
-        return when {
-            lo.contains("911")        -> LocalAction.CallEmergency("911")
-            lo.contains("112")        -> LocalAction.CallEmergency("112")
-            lo.contains("066")        -> LocalAction.CallEmergency("066")
-            lo.contains("080")        -> LocalAction.CallEmergency("080")
-            lo.contains("ambulancia") -> LocalAction.CallEmergency("112")
-            lo.contains("bomberos")   -> LocalAction.CallEmergency("911")
-            lo.contains("policia") || lo.contains("policía") -> LocalAction.CallEmergency("911")
-            lo.contains("emergencia") && Regex("\\d{3}").containsMatchIn(lo) ->
-                LocalAction.CallEmergency(Regex("\\d{3}").find(lo)!!.value)
-            else -> null
-        }
+        val em = Regex("\\b(911|112|066|080|060|emergencia|ambulancia|policia|bomberos|urgencias)\\b", RegexOption.IGNORE_CASE)
+        return if (Regex("\\b($V_ON|llama|call|marca|llama al|marca al)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo) && em.containsMatchIn(lo))
+            LocalAction.CallEmergency(em.find(lo)!!.value) else null
     }
 
-    // ─── Llamada normal ───────────────────────────────────────────────────────
-
     private fun matchCall(lo: String): LocalAction? {
-        val m = Regex("^(llama(r)?(?: a)?|call|marca(r)?(?: a)?|comunicame con|conectame con|habla(r)? con|marcar a)\\s+(.{2,40})$").find(lo)
-            ?: return null
-        val contact = m.groupValues.last().trim()
-        if (contact.split(" ").size > 5) return null
+        val m = Regex("^(?:llama(r)?( a| le a)?|marca(r)?( a| le a)?|call|llamar a)\\s+(?:a\\s+)?(.+?)\\s*$", RegexOption.IGNORE_CASE).find(lo) ?: return null
+        val contact = (m.groupValues[5].ifBlank { m.groupValues[6] }).trim()
+        if (contact.isBlank() || contact.length > 40) return null
         return LocalAction.Call(contact)
     }
 
-    // ─── WhatsApp ─────────────────────────────────────────────────────────────
-    // Cubre: whatsapp, whats, wapp, wa, W.A., guasap, wasa, what sap, wap
-
     private fun matchWhatsApp(lo: String): LocalAction? {
-        val isWA = lo.contains("whatsapp") || lo.contains("whats") || lo.contains("wapp") ||
-                   lo.contains("what sap") || lo.contains("guasap") || lo.contains("wasa") ||
-                   Regex("\\bwa\\b").containsMatchIn(lo) || Regex("\\bw\\.a\\.\\b").containsMatchIn(lo)
+        val isWA = Regex("\\b(whatsapp|whats|wapp|wasa|wa\\b|w\\.a\\.)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
         if (!isWA) return null
 
-        // Patrón 1: "manda/envía [un] [mensaje/whatsapp] a CONTACTO [por wa] diciendo/que diga MENSAJE"
-        Regex(
-            "^(?:manda|envia|escribe|send|dile|avisa|manda un|envia un)\\s+" +
-            "(?:un\\s+)?(?:mensaje|whatsapp|wha?ts?a?p?p?|guasap|wa|wapp|wasa)?\\s*" +
-            "(?:a\\s+)?(.+?)\\s+" +
-            "(?:por\\s+(?:whatsapp|wha?ts?|guasap|wa|wapp)\\s+)?" +
-            "(?:diciendo|que diga|que dice|que le digas|:|con el texto|con mensaje|el mensaje|el texto)\\s+(.+)$"
-        ).find(lo)?.let { m ->
-            val c = m.groupValues[1].trim().removePrefix("a ").trim()
+        // Patrón 1: manda/envía [un] [mensaje/WA] a CONTACTO diciendo MENSAJE
+        Regex("^(?:$V_SEND)\\s+(?:un\\s+)?(?:mensaje|whatsapp|wa|wapp|wasa)?\\s*(?:a\\s+)?(.+?)\\s+(?:por\\s+(?:whatsapp|wa)\\s+)?(?:diciendo|que diga|que dice|:|con el texto|el mensaje|el texto|dile que)\\s+(.+)$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            val c   = m.groupValues[1].trim().removePrefix("a ").trim()
             val msg = m.groupValues[2].trim()
             if (c.isNotBlank() && msg.isNotBlank() && c.length < 40) return LocalAction.SendWhatsApp(c, msg)
         }
-
-        // Patrón 2: "manda por whatsapp a CONTACTO: MENSAJE"
-        Regex(
-            "^(?:manda|envia|send)\\s+(?:por\\s+)?(?:whatsapp|wha?ts?|guasap|wa\\b|wapp)\\s+" +
-            "(?:a\\s+)?(.+?)[: ]+(.+)$"
-        ).find(lo)?.let { m ->
-            val c = m.groupValues[1].trim()
-            val msg = m.groupValues[2].trim()
+        // Patrón 2: manda por WA a CONTACTO: MENSAJE
+        Regex("^(?:$V_SEND)\\s+(?:por\\s+)?(?:whatsapp|wa\\b|wapp)\\s+(?:a\\s+)?(.+?)[: ]+(.+)$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            val c = m.groupValues[1].trim(); val msg = m.groupValues[2].trim()
             if (c.isNotBlank() && msg.isNotBlank()) return LocalAction.SendWhatsApp(c, msg)
         }
-
-        // Patrón 3: "wa a CONTACTO MENSAJE" (forma ultra-corta)
-        Regex(
-            "^(?:wa|wapp)\\s+a\\s+(.+?)\\s+(?:diciendo|que diga|:|el mensaje|dile)\\s+(.+)$"
-        ).find(lo)?.let { m ->
-            val c = m.groupValues[1].trim()
-            val msg = m.groupValues[2].trim()
+        // Patrón 3: wa a CONTACTO dile MENSAJE
+        Regex("^(?:wa|wapp)\\s+a\\s+(.+?)\\s+(?:diciendo|dile|que diga|:|el mensaje)\\s+(.+)$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            val c = m.groupValues[1].trim(); val msg = m.groupValues[2].trim()
             if (c.isNotBlank() && msg.isNotBlank()) return LocalAction.SendWhatsApp(c, msg)
         }
-
         // Solo abrir chat
-        Regex(
-            "^(?:abre|abrir|chatea con|chatear con|open|mensaje a|habla con|hablar con|" +
-            "abre el chat de|ve al chat de)\\s+" +
-            "(?:(?:whatsapp|wha?ts?|guasap|wa\\b)\\s+(?:con|de)\\s+|" +
-            "chat de (?:whatsapp|wha?ts?)\\s+con\\s+)?(.+)$"
-        ).find(lo)?.let { m ->
-            val c = m.groupValues[1].trim()
-                .removePrefix("en whatsapp").removePrefix("por whatsapp")
-                .removePrefix("en wa").removePrefix("por wa").trim()
-            if (c.isNotBlank() && !c.contains("whatsapp") && !c.contains("\\bwa\\b".toRegex()))
+        Regex("^(?:$V_OPEN|chatea con|chatear con|habla con|hablar con)\\s+(?:(?:whatsapp|wa)\\s+(?:con|de)\\s+|chat de (?:whatsapp|wa)\\s+con\\s+)?(.+?)(?:\\s+(?:en|por)\\s+(?:whatsapp|wa))?$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            val c = m.groupValues[1].trim().removePrefix("en whatsapp").removePrefix("por whatsapp").removePrefix("en wa").trim()
+            if (c.isNotBlank() && !c.contains("whatsapp", ignoreCase = true) && c.length < 40)
                 return LocalAction.OpenWhatsAppChat(c)
         }
         return null
     }
 
-    // ─── Telegram ────────────────────────────────────────────────────────────
-
     private fun matchTelegram(lo: String): LocalAction? {
         if (!lo.contains("telegram")) return null
-        Regex("^(?:manda|envia|escribe|send)\\s+(?:un\\s+)?(?:mensaje|telegram)?\\s*(?:a\\s+)?(.+?)\\s+(?:por\\s+telegram\\s+)?(?:diciendo|que diga|que dice|:|con el texto|el mensaje)\\s+(.+)$").find(lo)?.let { m ->
+        Regex("^(?:$V_SEND)\\s+(?:un\\s+)?(?:mensaje|telegram)?\\s*(?:a\\s+)?(.+?)\\s+(?:por telegram\\s+)?(?:diciendo|que diga|:|el mensaje)\\s+(.+)$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
             val c = m.groupValues[1].trim(); val msg = m.groupValues[2].trim()
             if (c.isNotBlank() && msg.isNotBlank()) return LocalAction.SendTelegram(c, msg)
         }
         return null
     }
 
-    // ─── SMS ─────────────────────────────────────────────────────────────────
-
     private fun matchSms(lo: String): LocalAction? {
-        if (lo.contains("whatsapp") || lo.contains("telegram") || lo.contains("guasap")) return null
-        Regex("^(?:manda|envia|escribe|send)\\s+(?:un\\s+)?(?:sms|mensaje|texto|mensajito)\\s+(?:a\\s+)?(.+?)\\s+(?:diciendo|que diga|que dice|:|con el texto|con mensaje|el texto)\\s+(.+)$").find(lo)?.let { m ->
+        if (Regex("\\b(whatsapp|telegram|wapp|guasap)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)) return null
+        Regex("^(?:$V_SEND)\\s+(?:un\\s+)?(?:sms|mensaje|texto|mensajito)\\s+(?:a\\s+)?(.+?)\\s+(?:diciendo|que diga|:|con el texto|el texto)\\s+(.+)$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
             val c = m.groupValues[1].trim(); val msg = m.groupValues[2].trim()
             if (c.isNotBlank() && msg.isNotBlank()) return LocalAction.SendSms(c, msg)
         }
         return null
     }
 
-    // ─── Navegación ───────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── NAVEGACIÓN / MAPAS / WEB ──────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
 
     private fun matchNavigation(lo: String): LocalAction? {
-        val m = Regex("^(?:llevame a|navega a|como llego a|como voy a|navigate to|directions? to|lleva a|ir a|" +
-                      "ruta a|ruta hacia|lleva(me)? hasta|quiero ir a|como llegar a|guiame a)\\s+(.+)$").find(lo) ?: return null
-        val dest = m.groupValues.last().trim()
-        return if (dest.isNotBlank() && dest.length < 100) LocalAction.Navigate(dest) else null
+        val m = Regex("^(?:llevame a|navega a|como llego a|como voy a|navigate to|directions? to|lleva a|ir a)\\s+(.+)$", RegexOption.IGNORE_CASE).find(lo) ?: return null
+        val dest = m.groupValues[1].trim()
+        if (dest.length > 80) return null
+        return LocalAction.Navigate(dest)
     }
-
-    // ─── Búsqueda web ─────────────────────────────────────────────────────────
 
     private fun matchWebSearch(lo: String): LocalAction? {
-        val m = Regex("^(?:busca(r)?|busca en (?:google|internet|web|la web)|search(?:\\s+for)?|googlea|" +
-                      "busqueda de|googlear|buscar en internet)\\s+(.{3,120})$").find(lo) ?: return null
-        val q = m.groupValues.last().trim()
-        return if (q.isNotBlank()) LocalAction.SearchWeb(q) else null
+        val m = Regex("^(?:busca en google|googlea|busca en internet|search|busca en la web|busca online)\\s+(?:sobre\\s+|acerca de\\s+)?(.+)$", RegexOption.IGNORE_CASE).find(lo) ?: return null
+        return LocalAction.SearchWeb(m.groupValues[1].trim())
     }
-
-    // ─── Búsqueda en Maps ─────────────────────────────────────────────────────
 
     private fun matchMapsSearch(lo: String): LocalAction? {
-        val m = Regex("^(?:busca(r)? en (?:maps|google maps)|muestra(me)? en (?:el mapa|maps)|" +
-                      "encuentra en maps|busca en el mapa|donde esta|donde queda)\\s+(.{3,80})$").find(lo) ?: return null
-        val q = m.groupValues.last().trim()
-        return if (q.isNotBlank()) LocalAction.SearchMaps(q) else null
+        val m = Regex("^(?:busca en maps|busca en google maps|donde esta|donde hay|busca|find)\\s+(.+?)\\s+(?:cerca|en el mapa|en maps|near me|nearby)?$", RegexOption.IGNORE_CASE).find(lo) ?: return null
+        val q = m.groupValues[1].trim()
+        if (q.length < 3 || q.length > 80) return null
+        return LocalAction.SearchMaps(q)
     }
 
-    // ─── Controles de reproducción ────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── MÚSICA ───────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+
+    /**
+     * BUG ORIGINAL:
+     * "abre Spotify y busca música de Carin, pon la primera que aparezca"
+     * IRIS detectaba "y" → MULTI_TASK → splitSubtasks →
+     *   parte 2: "pon la primera que aparezca" → matchShopping → AddShoppingItem("la primera que aparezca") ← ERROR
+     *
+     * FIX: Detectar el patrón completo ANTES de que llegue al splitter.
+     * "abre [APP] y busca [QUERY] [pon/selecciona/escoge] [la primera|el primero|el que salga]"
+     * → SearchAndPlaySpotify(query)
+     */
+    private fun matchSearchAndPlaySpotify(lo: String): LocalAction? {
+        // Patrón: "abre spotify y busca X pon la primera / el primero / el que salga"
+        val rx = Regex(
+            "^(?:$V_OPEN)\\s+(spotify|musica|apple music|deezer|soundcloud|youtube music)\\s+" +
+            "(?:y\\s+)?(?:busca|search|encuentra|pon)\\s+(?:musica\\s+de|canciones\\s+de|artista\\s+)?(.+?)\\s*" +
+            "(?:,|y)?\\s*(?:pon|selecciona|escoge|dale click a|reproduce|abre)\\s+" +
+            "(?:la primera|el primero|el primer resultado|la primera opcion|el que salga|la que salga|la que aparezca|el que aparezca|el primero que aparezca|la primera que aparezca)\\s*$",
+            RegexOption.IGNORE_CASE
+        )
+        rx.find(lo)?.let { m ->
+            val query = m.groupValues[2].trim()
+            if (query.isNotBlank()) return LocalAction.SearchAndPlaySpotify(query)
+        }
+        // Variante más corta: "busca X en spotify y pon la primera"
+        val rx2 = Regex(
+            "^(?:$V_SEARCH)\\s+(?:musica\\s+de|canciones\\s+de|artista\\s+)?(.+?)\\s+(?:en\\s+)?(spotify|apple music|deezer)\\s+" +
+            "(?:y\\s+)?(?:pon|selecciona|dale play a|reproduce)\\s+" +
+            "(?:la primera|el primero|el primer resultado|la primera opcion|el que salga|la que aparezca)\\s*$",
+            RegexOption.IGNORE_CASE
+        )
+        rx2.find(lo)?.let { m ->
+            val query = m.groupValues[1].trim()
+            if (query.isNotBlank()) return LocalAction.SearchAndPlaySpotify(query)
+        }
+        return null
+    }
 
     private fun matchMediaControl(lo: String): LocalAction? = when {
-        Regex("^(pausa(r)?|pause|deten la musica|para la musica|parar musica|stop music|detente|pausalo|pausala)$").containsMatchIn(lo)
+        Regex("^(pausa(r)?|pause|deten la musica|para la musica|stop music|pausalo|pausala)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.PauseMusic()
-        Regex("^(resume|reanuda(r)?|continua(r)? musica|sigue la musica|play again|seguir musica|dale play|dale|sigue)$").containsMatchIn(lo)
+        Regex("^(resume|reanuda(r)?|continua(r)? musica|sigue la musica|play again|dale play|dale|sigue|unpause)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.ResumeMusic()
-        Regex("^(siguiente|proxima cancion|next|salta(r)?|skip|siguiente cancion|siguiente pista|la que sigue|cambia)$").containsMatchIn(lo)
+        Regex("^(siguiente|proxima cancion|next|salta(r)?|skip|la que sigue|cambia la cancion)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.NextTrack()
-        Regex("^(anterior|cancion anterior|prev(ia)?|back|atras|pista anterior|regresa(r)?|la de antes)$").containsMatchIn(lo)
+        Regex("^(anterior|cancion anterior|prev(ia)?|back|la de antes|regresar cancion)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.PrevTrack()
-        Regex("^(aleatoria|shuffle|modo aleatorio|random|mezclar)$").containsMatchIn(lo)
+        Regex("^(aleatoria|shuffle|modo aleatorio|random|mezclar|mezcla)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.ShuffleMusic()
-        Regex("^(repite|repeat|repetir|loop|en loop)$").containsMatchIn(lo)
+        Regex("^(repite|repeat|repetir|loop|en loop)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.RepeatToggle()
         else -> null
     }
 
-    // ─── Música ───────────────────────────────────────────────────────────────
-
     private fun matchMusic(lo: String): LocalAction? {
-        val musicTrigger = Regex("\\b(pon|reproduce|play|toca|ver|mira|busca|quiero ver|quiero escuchar|escucha|escuchar|ponme|dale play a)\\b")
-        if (!musicTrigger.containsMatchIn(lo)) return null
+        if (!Regex("\\b($V_PLAY|busca)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)) return null
+        val blacklist = setOf("volumen","brillo","wifi","bluetooth","alarma","linterna","silencio","modo","pantalla","lista","compras","whatsapp","telegram","nota","recuerda")
 
-        // "pon/ver un video de X en youtube"
-        Regex("^(?:pon|reproduce|play|ver|mira|busca)\\s+(?:un\\s+)?(?:video|videos)\\s+(?:de\\s+)?['\"]?(.+?)['\"]?\\s+en\\s+(youtube|yt|youtube music|yt music)").find(lo)?.let { m ->
-            val q = m.groupValues[1].trim()
-            if (q.isNotBlank()) return LocalAction.PlayMusic(q, "youtube")
+        // "pon/ver video de X en youtube"
+        Regex("^(?:$V_PLAY|ver|mira|busca)\\s+(?:un\\s+)?(?:video|videos?)\\s+(?:de\\s+)?['\"]?(.+?)['\"]?\\s+en\\s+(youtube|yt|youtube music|yt music)\\s*$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            if (m.groupValues[1].isNotBlank()) return LocalAction.PlayMusic(m.groupValues[1].trim(), "youtube")
         }
-        // "ver X en youtube"
-        Regex("^(?:pon|reproduce|play|ver|mira|busca|quiero ver)\\s+(?:un\\s+)?(?:video|videos)\\s+(?:de\\s+)?['\"]?(.{2,80}?)['\"]?\\s*$").find(lo)?.let { m ->
-            val q = m.groupValues[1].trim()
-            if (q.isNotBlank()) return LocalAction.PlayMusic(q, "youtube")
+        // "pon X en PLATAFORMA"
+        Regex("^(?:$V_PLAY)\\s+['\"]?(.+?)['\"]?\\s+en\\s+(spotify|youtube music|yt music|youtube|yt|apple music|deezer|soundcloud)\\s*$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            val q = m.groupValues[1].trim(); val app = resolveApp(m.groupValues[2])
+            if (q.isNotBlank() && blacklist.none { q.contains(it) }) return LocalAction.PlayMusic(q, app)
         }
-        Regex("^(?:ver|mira|busca)\\s+['\"]?(.+?)['\"]?\\s+en\\s+(youtube|yt)\\s*$").find(lo)?.let { m ->
-            val q = m.groupValues[1].trim()
-            if (q.isNotBlank()) return LocalAction.PlayMusic(q, "youtube")
-        }
-        // "pon CANCIÓN en PLATAFORMA"
-        Regex("^(?:pon|reproduce|play|toca|escucha|ponme|dale play a)\\s+['\"]?(.+?)['\"]?\\s+en\\s+(spotify|youtube music|yt music|youtube|yt|apple music|deezer|soundcloud)$").find(lo)?.let { m ->
-            val q   = m.groupValues[1].trim()
-            val app = resolveApp(m.groupValues[2])
-            if (q.isNotBlank()) return LocalAction.PlayMusic(q, app)
-        }
-        // "abre/pon música/spotify" (sin canción)
-        Regex("^(?:pon|abre|reproduce|play)\\s+(?:musica\\s+)?(?:en\\s+)?(spotify|youtube music|yt music|youtube|yt|apple music|deezer|soundcloud)$").find(lo)?.let { m ->
+        // "abre/pon música en spotify" (sin canción)
+        Regex("^(?:$V_OPEN|$V_PLAY)\\s+(?:musica\\s+)?(?:en\\s+)?(spotify|youtube music|yt music|youtube|yt|apple music|deezer|soundcloud)\\s*$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
             return LocalAction.PlayMusic("", resolveApp(m.groupValues[1]))
         }
         // "pon/toca CANCIÓN" sin plataforma → Spotify
-        val blacklist = setOf("volumen","brillo","wifi","bluetooth","alarma","linterna","silencio","modo","pantalla","video","videos","whatsapp","telegram")
-        Regex("^(?:pon|reproduce|play|toca|escucha|quiero escuchar|ponme|dale play a)\\s+(?:la cancion\\s+|la musica\\s+|el tema\\s+|la rola\\s+)?['\"]?(.{2,60}?)['\"]?\\s*$").find(lo)?.let { m ->
+        Regex("^(?:$V_PLAY)\\s+(?:la cancion\\s+|la musica\\s+|el tema\\s+|la rola\\s+)?['\"]?(.{2,60}?)['\"]?\\s*$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
             val q = m.groupValues[1].trim()
-            if (q.isNotBlank() && blacklist.none { q.contains(it) })
-                return LocalAction.PlayMusic(q, "spotify")
+            if (q.isNotBlank() && blacklist.none { q.contains(it) }) return LocalAction.PlayMusic(q, "spotify")
         }
         return null
     }
 
     private fun resolveApp(raw: String): String = when {
         raw == "youtube" || raw == "yt" -> "youtube"
-        raw.contains("youtube music") || raw.contains("yt music") -> "youtube music"
-        raw.contains("apple")  -> "apple music"
-        raw.contains("deezer") -> "deezer"
-        raw.contains("soundcloud") -> "soundcloud"
+        raw.contains("youtube music", ignoreCase = true) || raw.contains("yt music", ignoreCase = true) -> "youtube music"
+        raw.contains("apple", ignoreCase = true)  -> "apple music"
+        raw.contains("deezer", ignoreCase = true) -> "deezer"
+        raw.contains("soundcloud", ignoreCase = true) -> "soundcloud"
         else -> "spotify"
     }
 
-    // ─── URL directa ─────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── URL, SISTEMA, NAVEGACIÓN UI, AJUSTES, MANTENIMIENTO ──────────────────
+    // ═════════════════════════════════════════════════════════════════════════
 
     private fun matchUrl(lo: String): LocalAction? {
-        val m = Regex("^(?:abre?|ve a|open|go to|entra a|ir a)\\s+(https?://\\S+|www\\.\\S+)$").find(lo) ?: return null
+        val m = Regex("^(?:$V_OPEN|ve a|go to|entra a)\\s+(https?://\\S+|www\\.\\S+)$", RegexOption.IGNORE_CASE).find(lo) ?: return null
         var url = m.groupValues[1].trim()
         if (!url.startsWith("http")) url = "https://$url"
         return LocalAction.OpenUrl(url)
     }
 
-    // ─── Consultas del sistema ────────────────────────────────────────────────
-
     private fun matchSystemQuery(lo: String): LocalAction? = when {
-        Regex("\\b(que hora es|dime la hora|what time is it|hora actual|que hora son|la hora)\\b").containsMatchIn(lo)
+        Regex("\\b(que hora es|dime la hora|hora actual|que hora son|la hora)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.QueryInfo(InfoType.TIME)
-        Regex("\\b(que dia es|que fecha es|what day is it|fecha actual|que dia estamos|la fecha)\\b").containsMatchIn(lo)
+        Regex("\\b(que dia es|que fecha es|fecha actual|que dia estamos|la fecha)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.QueryInfo(InfoType.DATE)
-        Regex("\\b(cuanta bateria|nivel de bateria|battery level|como esta la bateria|cuanto de bateria|porcentaje de bateria|la bateria|bateria del cel)\\b").containsMatchIn(lo)
+        Regex("\\b(cuanta bateria|nivel de bateria|battery level|como esta la bateria|porcentaje de bateria|la bateria)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.QueryInfo(InfoType.BATTERY)
-        Regex("\\b(cuanto espacio|almacenamiento disponible|espacio libre|storage available|cuanto almacenamiento|cuanta memoria|el almacenamiento)\\b").containsMatchIn(lo)
+        Regex("\\b(cuanto espacio|almacenamiento disponible|espacio libre|cuanto almacenamiento|cuanta memoria)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.QueryInfo(InfoType.STORAGE)
-        Regex("\\b(esta (el )?wifi (activo|conectado|on)|tengo wifi|wifi esta on|el wifi)\\b").containsMatchIn(lo)
+        Regex("\\b(esta (el )?wifi (activo|conectado|on)|tengo wifi|el wifi)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.QueryInfo(InfoType.WIFI_STATUS)
-        Regex("\\b(esta (el )?bluetooth (activo|on)|tengo bluetooth activo)\\b").containsMatchIn(lo)
+        Regex("\\b(esta (el )?bluetooth (activo|on)|tengo bluetooth activo)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.QueryInfo(InfoType.BT_STATUS)
-        Regex("\\b(cuanta ram|uso de ram|memoria ram|ram libre|la ram)\\b").containsMatchIn(lo)
+        Regex("\\b(cuanta ram|uso de ram|memoria ram|ram libre|la ram)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.QueryInfo(InfoType.RAM_USAGE)
-        Regex("\\b(temperatura|esta caliente|temp del cpu|calentamiento|el cpu|que tan caliente)\\b").containsMatchIn(lo)
+        Regex("\\b(temperatura|esta caliente|temp del cpu|calentamiento)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.QueryInfo(InfoType.CPU_TEMP)
-        Regex("\\b(tiempo encendido|uptime|cuanto lleva prendido|cuanto tiene encendido)\\b").containsMatchIn(lo)
+        Regex("\\b(tiempo encendido|uptime|cuanto lleva prendido)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.QueryInfo(InfoType.UPTIME)
-        Regex("\\b(velocidad de internet|velocidad de red|ping|que tan rapido|el internet esta rapido)\\b").containsMatchIn(lo)
+        Regex("\\b(velocidad de internet|velocidad de red|que tan rapido|el internet)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.QueryInfo(InfoType.NETWORK_SPEED)
-        Regex("\\b(mi ip|ip del celular|ip del telefono|cual es mi ip|ip local)\\b").containsMatchIn(lo)
+        Regex("\\b(mi ip|ip del celular|cual es mi ip|ip local)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.QueryInfo(InfoType.IP_ADDRESS)
         else -> null
     }
 
-    // ─── Navegación del Sistema ──────────────────────────────────────────────
-
     private fun matchNavigationActions(lo: String): LocalAction? = when {
-        Regex("\\b(ve a inicio|pantalla principal|go home|vuelve a inicio|ir a home|inicio|home)\\b").containsMatchIn(lo) &&
-        !lo.contains("ajuste") && !lo.contains("setting") && !lo.contains("aplicaci")
+        Regex("\\b(ve a inicio|pantalla principal|go home|vuelve a inicio|inicio|home)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo) &&
+        !lo.contains("ajuste") && !lo.contains("aplicaci")
             -> LocalAction.GoHome()
-        Regex("\\b(atras|regresa|vuelve|go back|boton atras|pa atras|regresar)\\b").containsMatchIn(lo) &&
-        lo.length < 20  // solo si es un comando corto, evitar falsas capturas
+        Regex("\\b(atras|regresa|vuelve|go back|pa atras|regresar)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo) && lo.length < 20
             -> LocalAction.BackButton()
-        Regex("\\b(apps recientes|multitarea|cambiar de app|recent apps|ver aplicaciones abiertas|apps abiertas)\\b").containsMatchIn(lo)
+        Regex("\\b(apps recientes|multitarea|cambiar de app|recent apps|apps abiertas)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.ShowRecentApps()
         else -> null
     }
 
-    // ─── Accesos Directos a Ajustes ──────────────────────────────────────────
-
-    private fun matchSettingsShortcuts(lo: String): LocalAction? = when {
-        Regex("\\b(ajustes|configuracion|settings|configurar|preferencias)\\b").containsMatchIn(lo) -> when {
-            lo.contains("wifi") || lo.contains("wi-fi") || lo.contains("red") -> LocalAction.OpenWifiSettings()
+    private fun matchSettingsShortcuts(lo: String): LocalAction? {
+        if (!Regex("\\b(ajustes|configuracion|settings|configurar|preferencias)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)) return null
+        return when {
+            lo.contains("wifi") || lo.contains("red") -> LocalAction.OpenWifiSettings()
             lo.contains("bluetooth") || lo.contains("bt") -> LocalAction.OpenBluetoothSettings()
-            lo.contains("bateria") || lo.contains("pila") || lo.contains("carga") -> LocalAction.OpenBatterySettings()
-            lo.contains("pantalla") || lo.contains("brillo") || lo.contains("display") -> LocalAction.OpenDisplaySettings()
+            lo.contains("bateria") || lo.contains("pila") -> LocalAction.OpenBatterySettings()
+            lo.contains("pantalla") || lo.contains("brillo") -> LocalAction.OpenDisplaySettings()
             lo.contains("sonido") || lo.contains("volumen") || lo.contains("audio") -> LocalAction.OpenSoundSettings()
-            lo.contains("almacenamiento") || lo.contains("espacio") || lo.contains("memoria") -> LocalAction.OpenStorageSettings()
-            lo.contains("ubicacion") || lo.contains("gps") || lo.contains("localizacion") -> LocalAction.OpenLocationSettings()
+            lo.contains("almacenamiento") || lo.contains("espacio") -> LocalAction.OpenStorageSettings()
+            lo.contains("ubicacion") || lo.contains("gps") -> LocalAction.OpenLocationSettings()
             lo.contains("seguridad") || lo.contains("huella") || lo.contains("pin") -> LocalAction.OpenSecuritySettings()
             lo.contains("aplicaciones") || lo.contains("apps") -> LocalAction.OpenAppsSettings()
-            lo.contains("fecha") || lo.contains("hora") || lo.contains("reloj") -> LocalAction.OpenDateSettings()
+            lo.contains("fecha") || lo.contains("hora") -> LocalAction.OpenDateSettings()
             lo.contains("idioma") || lo.contains("lenguaje") -> LocalAction.OpenLanguageSettings()
             lo.contains("accesibilidad") -> LocalAction.OpenAccessibilitySettings()
-            lo.contains("desarrollador") || lo.contains("developer") -> LocalAction.OpenDeveloperSettings()
+            lo.contains("desarrollador") -> LocalAction.OpenDeveloperSettings()
             lo.contains("notificaciones") -> LocalAction.OpenNotificationSettings()
             lo.contains("privacidad") -> LocalAction.OpenPrivacySettings()
-            lo.contains("cuenta") || lo.contains("google") -> LocalAction.OpenAccountSettings()
+            lo.contains("cuenta") -> LocalAction.OpenAccountSettings()
             lo.contains("nfc") -> LocalAction.OpenNfcSettings()
-            lo.contains("datos") || lo.contains("data") -> LocalAction.OpenDataUsageSettings()
+            lo.contains("datos") -> LocalAction.OpenDataUsageSettings()
             lo.contains("vpn") -> LocalAction.OpenVpnSettings()
             lo.contains("sincronizacion") || lo.contains("sync") -> LocalAction.OpenSyncSettings()
-            lo.contains("teclado") || lo.contains("entrada") -> LocalAction.OpenInputMethodSettings()
-            lo.contains("sueño") || lo.contains("descanso") -> LocalAction.OpenDreamSettings()
+            lo.contains("teclado") -> LocalAction.OpenInputMethodSettings()
             else -> LocalAction.OpenSettings()
         }
-        else -> null
     }
 
-    // ─── Mantenimiento y Dispositivo ─────────────────────────────────────────
-
     private fun matchDeviceMaintenance(lo: String): LocalAction? {
-        if (Regex("\\b(limpia|borra|quita|clear|elimina)\\b.*(notificaciones|avisos|alerts)").containsMatchIn(lo))
+        if (Regex("\\b(limpia|borra|quita|clear|elimina)\\b.*(notificaciones|avisos)", RegexOption.IGNORE_CASE).containsMatchIn(lo))
             return LocalAction.ClearNotifications()
-
-        if (Regex("\\b(ahorro de energia|modo ahorro|power save|ahorro de bateria|bajo consumo)\\b").containsMatchIn(lo))
+        if (Regex("\\b(ahorro de energia|modo ahorro|power save|ahorro de bateria|bajo consumo)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo))
             return LocalAction.TogglePowerSave()
-
-        Regex("\\b(apaga la pantalla en|tiempo de espera|screen timeout|pantalla se apague en)\\b.*(\\d+)\\s*(segundos|minutos)?").find(lo)?.let { m ->
+        Regex("\\b(pantalla se apague en|screen timeout|timeout pantalla)\\b.*(\\d+)\\s*(segundos|minutos)?", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
             val value = m.groupValues[2].toIntOrNull() ?: return@let
-            val unit = m.groupValues[3]
-            val seconds = if (unit == "minutos") value * 60 else value
-            return LocalAction.SetScreenTimeout(seconds)
+            val secs  = if (m.groupValues[3].contains("minuto")) value * 60 else value
+            return LocalAction.SetScreenTimeout(secs)
         }
-
         return null
     }
 
-    // ─── Apps comunes por nombre rápido ──────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── LISTA DE COMPRAS OFFLINE ──────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private fun matchShopping(lo: String): LocalAction? {
+        if (Regex("\\b(limpia|borra|vacía|vacia|borrar|limpiar)\\b.*(lista|compras)", RegexOption.IGNORE_CASE).containsMatchIn(lo) ||
+            Regex("\\b(lista|compras)\\b.*(limpia|borrar|vaciar)", RegexOption.IGNORE_CASE).containsMatchIn(lo))
+            return LocalAction.ClearShoppingList()
+
+        // CRÍTICO: solo captura si hay mención explícita de "lista" o "compras"
+        // Antes capturaba "la primera que aparezca" porque el regex era muy amplio
+        val addRx = Regex(
+            "\\b(agrega|agregame|añade|añademe|pon|ponme|añadir|agregar|incluye|apunta|mete)\\b\\s+(.+?)\\s*" +
+            "(?:\\b(?:a la|en la|en mi|a mi)\\b.*(lista|compras))",
+            RegexOption.IGNORE_CASE
+        )
+        addRx.find(lo)?.let { m ->
+            val raw = m.groupValues[2].trim()
+            if (raw.isNotBlank() && raw.length < 60) return LocalAction.AddShoppingItem(raw)
+        }
+        // Patrón inverso: "a la lista de compras agrega X"
+        Regex("\\b(?:a la lista|lista de compras|en la lista)\\b.*?\\b(agrega|añade|pon)\\b\\s+(.+)$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            val raw = m.groupValues[2].trim()
+            if (raw.isNotBlank() && raw.length < 60) return LocalAction.AddShoppingItem(raw)
+        }
+        return null
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── COMPARTIR ─────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private fun matchShare(lo: String): LocalAction? {
+        Regex("^(?:comparte|compartir|share)\\s+(?:esto|esta publicacion|este post|esta foto|lo que estoy viendo|el link|el enlace)(?:\\s+con\\s+(.+))?$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            return LocalAction.ShareText(m.groupValues[1].trim())
+        }
+        Regex("^(?:comparte|share)\\s+con\\s+(.+)$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            return LocalAction.ShareText(m.groupValues[1].trim())
+        }
+        return null
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── APPS RÁPIDAS ─────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
 
     private fun matchQuickApps(lo: String): LocalAction? = when {
-        Regex("^(abre|lanza|entra a|ve a|open)\\s+(la )?camara$").containsMatchIn(lo)
+        Regex("^(?:$V_OPEN)\\s+(la )?camara$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.OpenCamera()
-        Regex("^(abre|lanza|entra a|ve a|open)\\s+(la )?galeria$").containsMatchIn(lo) ||
-        Regex("^(mis fotos|ver fotos|la galeria)$").containsMatchIn(lo)
+        Regex("^(?:$V_OPEN)\\s+(la )?galeria$|^(mis fotos|ver fotos)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.OpenGallery()
-        Regex("^(abre|lanza|entra a|ve a|open)\\s+(los |mis )?contactos?$").containsMatchIn(lo)
+        Regex("^(?:$V_OPEN)\\s+(los |mis )?contactos?$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.OpenContacts()
-        Regex("^(abre|lanza|entra a|ve a|open)\\s+(el )?marcador|(abrir|ver) el marcador$").containsMatchIn(lo)
+        Regex("^(?:$V_OPEN)\\s+(el )?marcador$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.OpenDialer()
-        Regex("^(abre|lanza|entra a|ve a|open)\\s+(la )?calculadora?$").containsMatchIn(lo)
+        Regex("^(?:$V_OPEN)\\s+(la )?calculadora?$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.OpenCalculator()
-        Regex("^(abre|lanza|entra a|ve a|open)\\s+(el )?calendario$").containsMatchIn(lo)
+        Regex("^(?:$V_OPEN)\\s+(el )?calendario$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.OpenCalendar()
-        Regex("^(abre|lanza|entra a|ve a|open)\\s+(google )?maps?$").containsMatchIn(lo)
+        Regex("^(?:$V_OPEN)\\s+(google )?maps?$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.OpenMaps()
-        Regex("^(abre|lanza|entra a|ve a|open)\\s+(el )?(navegador|browser|chrome|firefox|edge)$").containsMatchIn(lo)
+        Regex("^(?:$V_OPEN)\\s+(el )?(navegador|browser|chrome|firefox|edge)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.OpenBrowser()
-        Regex("^(abre|lanza|entra a|ve a|open)\\s+(el )?(explorador de archivos|mis archivos|archivos|files)$").containsMatchIn(lo)
+        Regex("^(?:$V_OPEN)\\s+(el )?(explorador de archivos|mis archivos|archivos|files)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.OpenFiles()
-        Regex("^(abre|lanza|entra a|ve a|open)\\s+(el )?(reloj|clock)$").containsMatchIn(lo)
+        Regex("^(?:$V_OPEN)\\s+(el )?(reloj|clock)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.OpenClock()
         else -> null
     }
 
-    // ─── Abrir app genérico — siempre al final ────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── ABRIR APP GENÉRICO — siempre al final ────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
 
     private fun matchOpenApp(lo: String): LocalAction? {
-        val m = Regex("^(?:abre?|lanza|inicia|entra a|ve a|open|launch|start|dale a)\\s+(?:la\\s+app\\s+(?:de\\s+)?|la\\s+aplicacion\\s+(?:de\\s+)?|el\\s+)?(.{2,30})$").find(lo) ?: return null
+        val m = Regex("^(?:$V_OPEN)\\s+(?:la\\s+app\\s+(?:de\\s+)?|la\\s+aplicacion\\s+(?:de\\s+)?|el\\s+)?(.{2,30})$", RegexOption.IGNORE_CASE).find(lo) ?: return null
         val appName = m.groupValues[1].trim()
-        val geoWords = listOf("calle","avenida","colonia","ciudad","pais","cerca","pueblo","estado")
+        val geoWords = listOf("calle","avenida","colonia","ciudad","pais","cerca","pueblo","estado","nota","lista","primera","primera")
         if (geoWords.any { appName.contains(it) }) return null
         if (appName.split(" ").size > 4) return null
         return LocalAction.OpenApp(appName)
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Splitter de sub-tareas
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // SPLITTER DE SUB-TAREAS
+    // ═════════════════════════════════════════════════════════════════════════
 
     private fun splitSubtasks(text: String): List<String> {
         var parts = listOf(text)
         listOf(
-            Regex("\\s+y luego\\s+",      RegexOption.IGNORE_CASE),
-            Regex("\\s+y despues\\s+",    RegexOption.IGNORE_CASE),
-            Regex("\\s+y tambien\\s+",    RegexOption.IGNORE_CASE),
-            Regex("\\s+ademas\\s+",       RegexOption.IGNORE_CASE),
-            Regex("\\s+and then\\s+",     RegexOption.IGNORE_CASE),
-            Regex("\\s+y enseguida\\s+",  RegexOption.IGNORE_CASE),
-            Regex("\\s+despues de eso\\s+", RegexOption.IGNORE_CASE)
+            Regex("\\s+y luego\\s+",       RegexOption.IGNORE_CASE),
+            Regex("\\s+y despues\\s+",     RegexOption.IGNORE_CASE),
+            Regex("\\s+y tambien\\s+",     RegexOption.IGNORE_CASE),
+            Regex("\\s+ademas\\s+",        RegexOption.IGNORE_CASE),
+            Regex("\\s+and then\\s+",      RegexOption.IGNORE_CASE),
+            Regex("\\s+y enseguida\\s+",   RegexOption.IGNORE_CASE),
+            Regex("\\s+despues de eso\\s+",RegexOption.IGNORE_CASE)
         ).forEach { r ->
             parts = parts.flatMap { r.split(it).map(String::trim).filter { p -> p.length > 5 } }
         }
         return parts
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Resolución de contactos
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // RESOLUCIÓN DE CONTACTOS
+    // ═════════════════════════════════════════════════════════════════════════
 
     fun resolveContactNumber(context: Context, nameOrNumber: String): String? {
         if (nameOrNumber.matches(Regex("[\\+\\d\\s\\-\\(\\)]{7,}"))) return nameOrNumber
@@ -1078,10 +1112,6 @@ object LocalIntentProcessor {
         }
     }
 
-    /**
-     * Intenta encontrar un número de teléfono en el texto de memorias del usuario.
-     * Útil cuando el contacto no está en la agenda pero sí lo anotó el usuario.
-     */
     fun resolveContactFromMemory(memory: String, nameQuery: String): String? {
         if (memory.isBlank()) return null
         val q = nameQuery.lowercase()
@@ -1091,97 +1121,20 @@ object LocalIntentProcessor {
             ?.let { phonePat.find(it)?.value?.trim() }
     }
 
-    // Accesores públicos para respuestas sociales (usados en VM)
-    fun greetingResponse()     = GREETING_RESPONSES[(System.currentTimeMillis() % GREETING_RESPONSES.size).toInt()]
-    fun farewellResponse()     = FAREWELL_RESPONSES[(System.currentTimeMillis() % FAREWELL_RESPONSES.size).toInt()]
-    fun gratitudeResponse()    = GRATITUDE_RESPONSES[(System.currentTimeMillis() % GRATITUDE_RESPONSES.size).toInt()]
-    fun affirmationResponse()  = AFFIRMATION_RESPONSES[(System.currentTimeMillis() % AFFIRMATION_RESPONSES.size).toInt()]
+    // ═════════════════════════════════════════════════════════════════════════
+    // ACCESORES PÚBLICOS — respuestas sociales y prompt optimizado
+    // ═════════════════════════════════════════════════════════════════════════
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Prompt optimizado para IA con sub-tareas
-    // ─────────────────────────────────────────────────────────────────────────
+    fun greetingResponse()    = GREETING_RESPONSES[(System.currentTimeMillis() % GREETING_RESPONSES.size).toInt()]
+    fun farewellResponse()    = FAREWELL_RESPONSES[(System.currentTimeMillis() % FAREWELL_RESPONSES.size).toInt()]
+    fun gratitudeResponse()   = GRATITUDE_RESPONSES[(System.currentTimeMillis() % GRATITUDE_RESPONSES.size).toInt()]
+    fun affirmationResponse() = AFFIRMATION_RESPONSES[(System.currentTimeMillis() % AFFIRMATION_RESPONSES.size).toInt()]
 
     fun buildOptimizedPrompt(subtasks: List<String>, originalInput: String): String {
         if (subtasks.size <= 1) return originalInput
-        // Prompt ultra-compacto: solo acciones numeradas.
-        // La IA SOLO ejecuta herramientas. Sin texto entre ellas.
-        // Ahorra ~200-400 tokens vs versión anterior.
         val sb = StringBuilder("SECUENCIA:\n")
         subtasks.forEachIndexed { i, t -> sb.append("${i + 1}.$t\n") }
         sb.append("REGLA:ejecuta herramienta por herramienta.Sin texto entre pasos.")
         return sb.toString()
     }
-
-    // ─── Lista de compras ─────────────────────────────────────────────────────
-
-    private fun matchShopping(lo: String): LocalAction? {
-        // Limpiar lista
-        if (Regex("\\b(limpia|borra|vacía|vacia|borrar|limpiar)\\b.*(lista|compras)").containsMatchIn(lo) ||
-            Regex("\\b(lista|compras)\\b.*(limpia|borrar|vaciar)").containsMatchIn(lo))
-            return LocalAction.ClearShoppingList()
-
-        // Agregar ítem: "agrega leche", "añade pan a la lista", "pon huevos en la lista"
-        val addRegex = Regex(
-            "\\b(agrega|agregame|añade|añademe|pon|ponme|añadir|agregar|poner|" +
-            "incluye|apunta|apuntame|mete|meteme)\\b\\s+(.+?)\\s*(?:\\b(?:a la|en la|en mi|a mi)\\b.*(lista|compras))?$",
-            RegexOption.IGNORE_CASE
-        )
-        addRegex.find(lo)?.let { m ->
-            val raw = m.groupValues[2].trim()
-                .replace(Regex("\\b(a la|en la|en mi|a mi)\\b.*(lista|compras).*$", RegexOption.IGNORE_CASE), "")
-                .replace(Regex("\\b(lista|compras|lista de compras)\\b.*$", RegexOption.IGNORE_CASE), "")
-                .trim()
-            if (raw.isNotBlank() && raw.length < 60) return LocalAction.AddShoppingItem(raw)
-        }
-
-        // Patrón alternativo: "a la lista de compras agrega X"
-        val reverseRegex = Regex(
-            "\\b(?:a la lista|lista de compras|en la lista)\\b.*?\\b(agrega|añade|pon)\\b\\s+(.+)$",
-            RegexOption.IGNORE_CASE
-        )
-        reverseRegex.find(lo)?.let { m ->
-            val raw = m.groupValues[2].trim()
-            if (raw.isNotBlank() && raw.length < 60) return LocalAction.AddShoppingItem(raw)
-        }
-
-        return null
-    }
-
-    // ─── NUEVOS PATRONES v4 — antes requerían skills o IA ────────────────────
-
-    // ─── Compartir contenido ─────────────────────────────────────────────────
-    // "comparte esto", "comparte la pantalla", "comparte esta publicación con X"
-    private fun matchShare(lo: String): LocalAction? {
-        val shareRegex = Regex(
-            "^(?:comparte|compartir|share|manda|envia)\\s+" +
-            "(?:esto|esta publicacion|este post|esta foto|esta imagen|el link|el enlace|" +
-            "lo que estoy viendo|la pantalla|esto que veo)\\s*" +
-            "(?:con\\s+(.+))?$",
-            RegexOption.IGNORE_CASE
-        )
-        shareRegex.find(lo)?.let { m ->
-            val contact = m.groupValues[1].trim()
-            return LocalAction.ShareText(contact.ifBlank { "" })
-        }
-        // "comparte con X" sin especificar qué
-        Regex("^(?:comparte|share)\\s+con\\s+(.+)$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
-            return LocalAction.ShareText(m.groupValues[1].trim())
-        }
-        return null
-    }
-
-    // ─── Control de volumen de timbre y alarma ───────────────────────────────
-    private fun matchRingtoneVolume(lo: String): LocalAction? {
-        // "sube el timbre", "volumen de la alarma a 80"
-        Regex("\\b(sube|baja|pon|ajusta)\\b.*(timbre|ringtone|tono de llamada)").containsMatchIn(lo).let { if (!it) return null }
-        val level = Regex("\\b(\\d{1,3})\\b").find(lo)?.groupValues?.get(1)?.toIntOrNull()
-        return if (level != null) LocalAction.SetRingtoneVolume(level.coerceIn(0, 100)) else null
-    }
-
-    private fun matchAlarmVolume(lo: String): LocalAction? {
-        Regex("\\b(sube|baja|pon|ajusta)\\b.*(alarma|alarm).*\\b(volumen|vol)\\b|\\b(volumen|vol)\\b.*(alarma|alarm)").containsMatchIn(lo).let { if (!it) return null }
-        val level = Regex("\\b(\\d{1,3})\\b").find(lo)?.groupValues?.get(1)?.toIntOrNull()
-        return if (level != null) LocalAction.SetAlarmVolume(level.coerceIn(0, 100)) else null
-    }
-
 }

@@ -1,6 +1,9 @@
 package com.doey
 
 import android.app.Application
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import android.content.Intent
 import android.speech.SpeechRecognizer
 import android.view.KeyEvent
@@ -242,6 +245,15 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             val intent = LocalIntentProcessor.classify(text)
             when (intent) {
                 is LocalIntentProcessor.IntentClass.Local -> {
+                    // Caso especial: SearchAndPlaySpotify usa accesibilidad → delegar a IA con prompt compacto
+                    if (intent.action is LocalIntentProcessor.LocalAction.SearchAndPlaySpotify) {
+                        val query = (intent.action as LocalIntentProcessor.LocalAction.SearchAndPlaySpotify).query
+                        val spotifyPrompt = "TAREA:abre Spotify→busca '$query'→accessibility get_tree→click primer resultado musical→confirma reproducción"
+                        p.processUtterance(userText = spotifyPrompt,
+                            onSpeak = if (voiceEnabled) { t, lang -> DoeyTTSEngine.speakAndWait(t, lang) } else null)
+                        if (_uiState.value.isDrivingMode && voiceEnabled) { delay(500); startDrivingListen() }
+                        return@launch
+                    }
                     // Ejecutar localmente sin gastar tokens
                     val result = executeLocalAction(intent.action)
                     if (result.isNotBlank()) {
@@ -1434,6 +1446,66 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "🛒 Lista de compras limpia"
                 }
 
+                // ── Calculadora offline ──────────────────────────────────────────
+                is LocalIntentProcessor.LocalAction.Calculate -> {
+                    try {
+                        val expr = action.expression
+                            .replace("por",   "*").replace(Regex("\bx\b"), "*")
+                            .replace("entre", "/").replace("dividido", "/")
+                            .replace("mas",   "+").replace("menos", "-")
+                        val result = evalSimple(expr)
+                        "🧮 = $result"
+                    } catch (_: Exception) { "" }
+                }
+
+                // ── Conversión de unidades offline ────────────────────────────────
+                is LocalIntentProcessor.LocalAction.Convert -> {
+                    convertUnits(action.value, action.from, action.to) ?: ""
+                }
+
+                // ── Notas rápidas offline ─────────────────────────────────────────
+                is LocalIntentProcessor.LocalAction.QuickNote -> {
+                    val prefs = app.getSharedPreferences("doey_iris_notes", android.content.Context.MODE_PRIVATE)
+                    val existing = prefs.getString("notes", "") ?: ""
+                    val ts = java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                    val newNote = "[$ts] ${action.content}"
+                    prefs.edit().putString("notes", if (existing.isBlank()) newNote else "$existing
+$newNote").apply()
+                    "📝 Anotado: ${action.content}"
+                }
+
+                is LocalIntentProcessor.LocalAction.ReadNotes -> {
+                    val prefs = app.getSharedPreferences("doey_iris_notes", android.content.Context.MODE_PRIVATE)
+                    val notes = prefs.getString("notes", "") ?: ""
+                    if (notes.isBlank()) "📝 No tienes notas guardadas aún." else "📝 Tus notas:
+$notes"
+                }
+
+                // ── Recordatorio rápido offline ───────────────────────────────────
+                is LocalIntentProcessor.LocalAction.QuickReminder -> {
+                    try {
+                        val alarmMgr = app.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
+                        val intent = android.content.Intent(app, com.doey.servicios.comun.ReceptorAlarmas::class.java).apply {
+                            putExtra("label", action.text)
+                        }
+                        val pi = android.app.PendingIntent.getBroadcast(
+                            app, System.currentTimeMillis().toInt(), intent,
+                            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                        )
+                        alarmMgr.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP,
+                            System.currentTimeMillis() + action.inMinutes * 60_000L, pi)
+                        "⏰ Te recuerdo "${action.text}" en ${action.inMinutes} minuto${if (action.inMinutes != 1) "s" else ""}"
+                    } catch (_: Exception) { "" }
+                }
+
+                // ── Buscar y reproducir primer resultado en Spotify ────────────────
+                // Delegar a la IA con instrucción compacta de accesibilidad
+                is LocalIntentProcessor.LocalAction.SearchAndPlaySpotify -> {
+                    // Retornar blank aquí para que el pipeline lo procese con
+                    // la instrucción compacta de accesibilidad
+                    ""
+                }
+
                 else -> "" // Fallback para cualquier acción no manejada explícitamente
             }
         } catch (e: Exception) {
@@ -1652,6 +1724,140 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     // ── Speech events ─────────────────────────────────────────────────────────
     private fun observeSpeechEvents() {
         DoeySpeechEvents.onPartialResult = { partial -> _uiState.update { it.copy(partialSpeech = partial) } }
+    }
+
+
+    // ── Calculadora offline ───────────────────────────────────────────────────
+    private fun evaluateExpression(expr: String): String {
+        // Evaluador simple: solo operaciones básicas sin dependencias externas
+        val clean = expr.replace(" ", "").replace(",", ".")
+        // Parsear potencias primero
+        val withPow = Regex("(\d+(?:\.\d+)?)\^(\d+(?:\.\d+)?)").replace(clean) { m ->
+            Math.pow(m.groupValues[1].toDouble(), m.groupValues[2].toDouble()).toString()
+        }
+        // Usar ScriptEngine si disponible, sino parsear manualmente
+        return try {
+            val result = javax.script.ScriptEngineManager().getEngineByName("rhino")
+                ?.eval(withPow) as? Number ?: return evalManual(withPow)
+            val d = result.toDouble()
+            if (d == d.toLong().toDouble()) d.toLong().toString() else "%.4f".format(d).trimEnd('0').trimEnd('.')
+        } catch (e: Exception) {
+            evalManual(withPow)
+        }
+    }
+
+    private fun evalManual(expr: String): String {
+        // Parsear expresiones simples: A op B
+        Regex("^(-?\d+(?:\.\d+)?)([+\-*/])(-?\d+(?:\.\d+)?)$").find(expr.trim())?.let { m ->
+            val a = m.groupValues[1].toDouble()
+            val op = m.groupValues[2]
+            val b = m.groupValues[3].toDouble()
+            val r = when(op) {
+                "+" -> a + b; "-" -> a - b; "*" -> a * b; "/" -> if (b != 0.0) a / b else throw ArithmeticException("División entre cero")
+                else -> throw Exception("Operador desconocido")
+            }
+            return if (r == r.toLong().toDouble()) r.toLong().toString() else "%.4f".format(r).trimEnd('0').trimEnd('.')
+        }
+        throw Exception("Expresión no reconocida")
+    }
+
+    // ── Conversión de unidades offline ────────────────────────────────────────
+    private fun convertUnits(value: Double, from: String, to: String): String? {
+        val result: Double = when ("$from→$to") {
+            // Longitud
+            "km→mi" -> value * 0.621371;   "mi→km" -> value * 1.60934
+            "m→ft"  -> value * 3.28084;    "ft→m"  -> value * 0.3048
+            "m→cm"  -> value * 100.0;      "cm→m"  -> value / 100.0
+            "km→m"  -> value * 1000.0;     "m→km"  -> value / 1000.0
+            "in→cm" -> value * 2.54;       "cm→in" -> value / 2.54
+            "ft→in" -> value * 12.0;       "in→ft" -> value / 12.0
+            "mi→m"  -> value * 1609.34;    "m→mi"  -> value / 1609.34
+            // Peso
+            "kg→lb" -> value * 2.20462;    "lb→kg" -> value / 2.20462
+            "g→oz"  -> value * 0.035274;   "oz→g"  -> value / 0.035274
+            "kg→g"  -> value * 1000.0;     "g→kg"  -> value / 1000.0
+            "lb→oz" -> value * 16.0;       "oz→lb" -> value / 16.0
+            // Temperatura
+            "c→f"   -> value * 9.0/5.0 + 32
+            "f→c"   -> (value - 32) * 5.0/9.0
+            "c→k"   -> value + 273.15;     "k→c"   -> value - 273.15
+            "f→k"   -> (value - 32) * 5.0/9.0 + 273.15
+            // Volumen
+            "l→ml"  -> value * 1000.0;     "ml→l"  -> value / 1000.0
+            "l→gal" -> value * 0.264172;   "gal→l" -> value * 3.78541
+            // Moneda (tipos fijos aproximados — sin internet)
+            "usd→mxn" -> value * 17.5;     "mxn→usd" -> value / 17.5
+            "eur→mxn" -> value * 19.0;     "mxn→eur" -> value / 19.0
+            "usd→eur" -> value * 0.92;     "eur→usd" -> value / 0.92
+            else -> return null
+        }
+        val fromLabel = unitLabel(from); val toLabel = unitLabel(to)
+        val formatted = if (result == result.toLong().toDouble()) result.toLong().toString()
+                        else "%.4f".format(result).trimEnd('0').trimEnd('.')
+        return "🔄 $value $fromLabel = $formatted $toLabel${if (from in listOf("usd","mxn","eur")) " (tasa aproximada, sin internet)" else ""}"
+    }
+
+    private fun unitLabel(u: String) = when(u) {
+        "km" -> "km"; "mi" -> "millas"; "m" -> "metros"; "cm" -> "cm"; "ft" -> "pies"; "in" -> "pulgadas"
+        "kg" -> "kg"; "lb" -> "libras"; "g" -> "gramos"; "oz" -> "oz"
+        "c" -> "°C"; "f" -> "°F"; "k" -> "K"
+        "l" -> "litros"; "ml" -> "ml"; "gal" -> "galones"
+        "usd" -> "USD"; "mxn" -> "MXN"; "eur" -> "EUR"
+        else -> u
+    }
+
+
+    private fun evalSimple(expr: String): String {
+        val clean = expr.replace(" ", "").replace(",", ".")
+        // Soporta: A+B, A-B, A*B, A/B, A^B, y %
+        val withPow = Regex("(\d+(?:\.\d+)?)\^(\d+(?:\.\d+)?)").replace(clean) { m ->
+            Math.pow(m.groupValues[1].toDouble(), m.groupValues[2].toDouble()).toString()
+        }
+        val withPct = Regex("\((\d+\.?\d*)/100\)\*(\d+\.?\d*)").replace(withPow) { m ->
+            (m.groupValues[1].toDouble() / 100.0 * m.groupValues[2].toDouble()).toString()
+        }
+        // Parsear expresión simple A op B
+        val rx = Regex("^(-?\d+(?:\.\d+)?)([+\-*/])(-?\d+(?:\.\d+)?)$")
+        val m = rx.find(withPct.trim()) ?: throw Exception("Expresión no soportada")
+        val a = m.groupValues[1].toDouble(); val b = m.groupValues[3].toDouble()
+        val r = when(m.groupValues[2]) {
+            "+" -> a + b; "-" -> a - b; "*" -> a * b
+            "/" -> { if (b == 0.0) throw ArithmeticException("División entre cero"); a / b }
+            else -> throw Exception("Operador desconocido")
+        }
+        return if (r == r.toLong().toDouble()) r.toLong().toString() else "%.4f".format(r).trimEnd('0').trimEnd('.')
+    }
+
+    private fun convertUnits(value: Double, from: String, to: String): String? {
+        val key = "$from→$to"
+        val result: Double = when (key) {
+            "km→mi" -> value*0.621371; "mi→km" -> value*1.60934
+            "m→ft"  -> value*3.28084;  "ft→m"  -> value*0.3048
+            "m→cm"  -> value*100.0;    "cm→m"  -> value/100.0
+            "km→m"  -> value*1000.0;   "m→km"  -> value/1000.0
+            "in→cm" -> value*2.54;     "cm→in" -> value/2.54
+            "ft→in" -> value*12.0;     "in→ft" -> value/12.0
+            "kg→lb" -> value*2.20462;  "lb→kg" -> value/2.20462
+            "g→oz"  -> value*0.035274; "oz→g"  -> value/0.035274
+            "kg→g"  -> value*1000.0;   "g→kg"  -> value/1000.0
+            "c→f"   -> value*9.0/5.0+32
+            "f→c"   -> (value-32)*5.0/9.0
+            "c→k"   -> value+273.15;   "k→c"   -> value-273.15
+            "l→ml"  -> value*1000.0;   "ml→l"  -> value/1000.0
+            "l→gal" -> value*0.264172; "gal→l" -> value*3.78541
+            "usd→mxn" -> value*17.5;   "mxn→usd" -> value/17.5
+            "eur→mxn" -> value*19.0;   "mxn→eur" -> value/19.0
+            "usd→eur" -> value*0.92;   "eur→usd" -> value/0.92
+            else -> return null
+        }
+        val toLabel = mapOf("km" to "km","mi" to "millas","m" to "metros","cm" to "cm","ft" to "pies",
+            "in" to "pulgadas","kg" to "kg","lb" to "libras","g" to "gramos","oz" to "oz",
+            "c" to "°C","f" to "°F","k" to "K","l" to "litros","ml" to "ml","gal" to "galones",
+            "usd" to "USD","mxn" to "MXN","eur" to "EUR")
+        val fStr = if (result == result.toLong().toDouble()) result.toLong().toString()
+                   else "%.4f".format(result).trimEnd('0').trimEnd('.')
+        val note = if (from in listOf("usd","mxn","eur")) " *(tasa aprox.)*" else ""
+        return "🔄 $value ${toLabel[from]?:from} = $fStr ${toLabel[to]?:to}$note"
     }
 
     private fun resolveLanguage(lang: String): String {
