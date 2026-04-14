@@ -17,14 +17,14 @@ class ConversationPipeline(
     private val ctx: android.content.Context,
     private var provider: LLMProvider,
     private val tools: ToolRegistry,
-    private val skillLoader: SkillLoader,
+    private val skillLoader: SkillLoader,          // Mantenido para compatibilidad, no se usa
     private var drivingMode: Boolean = false,
     private var language: String = "es",
     private var soul: String = "",
     private var personalMemory: String = "",
     private var userName: String = "",
-    private var maxIterations: Int = 8,           // Reducido de 10: 8 es más que suficiente
-    private var maxHistoryMessages: Int = 16,      // Reducido de 20
+    private var maxIterations: Int = 7,
+    private var maxHistoryMessages: Int = 12,
     private var expertMode: Boolean = false,
     private var tokenOptimizerEnabled: Boolean = true,
     private var promptCacheEnabled: Boolean = true,
@@ -39,19 +39,19 @@ class ConversationPipeline(
     var onTranscript: ((role: String, text: String) -> Unit)? = null
     var onError: ((error: String) -> Unit)? = null
 
-    // ── Cache de system prompt (evita reconstruirlo en cada mensaje) ──────────
-    private var cachedSystemPrompt: String = ""
-    private var systemPromptDirty: Boolean = true
-    private var cachedMinimalPrompt: String = ""
-    private var minimalPromptDirty: Boolean = true
+    // Cache de prompts — se invalidan solo cuando cambia configuración
+    private var cachedNano: String = ""
+    private var cachedMini: String = ""
+    private var cachedFull: String = ""
+    private var promptsDirty = true
 
-    fun setEnabledSkills(names: List<String>) { enabledSkillNames = names; systemPromptDirty = true; minimalPromptDirty = true }
-    fun setDrivingMode(v: Boolean)            { drivingMode = v; systemPromptDirty = true; minimalPromptDirty = true }
-    fun setLanguage(v: String)                { language = v; systemPromptDirty = true; minimalPromptDirty = true }
-    fun setSoul(v: String)                    { soul = v; systemPromptDirty = true; minimalPromptDirty = true }
-    fun setPersonalMemory(v: String)          { personalMemory = v; systemPromptDirty = true }
-    fun setUserName(v: String)                { userName = v; systemPromptDirty = true }
-    fun setExpertMode(v: Boolean)             { expertMode = v; systemPromptDirty = true }
+    fun setEnabledSkills(names: List<String>) { enabledSkillNames = names }
+    fun setDrivingMode(v: Boolean)            { drivingMode = v; promptsDirty = true }
+    fun setLanguage(v: String)                { language = v; promptsDirty = true }
+    fun setSoul(v: String)                    { soul = v; promptsDirty = true }
+    fun setPersonalMemory(v: String)          { personalMemory = v; promptsDirty = true }
+    fun setUserName(v: String)                { userName = v; promptsDirty = true }
+    fun setExpertMode(v: Boolean)             { expertMode = v; promptsDirty = true }
     fun setProvider(p: LLMProvider)           { provider = p }
     fun clearHistory()                        { history.clear() }
     fun exportHistory(): List<Message>        = history.toList()
@@ -59,19 +59,16 @@ class ConversationPipeline(
     fun appendToHistory(msgs: List<Message>)  { history.addAll(msgs); trimHistory() }
     fun setIdle()                             { _state.value = PipelineState.IDLE }
     fun setTokenOptimizerEnabled(v: Boolean)  { tokenOptimizerEnabled = v }
-    fun setPromptCacheEnabled(v: Boolean)     { promptCacheEnabled = v; if (!v) { systemPromptDirty = true; minimalPromptDirty = true } }
+    fun setPromptCacheEnabled(v: Boolean)     { promptCacheEnabled = v; if (!v) promptsDirty = true }
     fun setHistoryCompressionEnabled(v: Boolean) { historyCompressionEnabled = v }
 
     fun startListening() {
-        if (_state.value == PipelineState.IDLE || _state.value == PipelineState.SPEAKING) {
+        if (_state.value == PipelineState.IDLE || _state.value == PipelineState.SPEAKING)
             _state.value = PipelineState.LISTENING
-        }
     }
-
     fun stopListening() {
-        if (_state.value == PipelineState.LISTENING) {
+        if (_state.value == PipelineState.LISTENING)
             _state.value = PipelineState.IDLE
-        }
     }
 
     suspend fun processUtterance(
@@ -82,14 +79,14 @@ class ConversationPipeline(
         when (_state.value) {
             PipelineState.LISTENING -> _state.value = PipelineState.PROCESSING
             PipelineState.IDLE      -> _state.value = PipelineState.PROCESSING
-            else                    -> return ""
+            else -> return ""
         }
 
         return try {
             if (!silent) onTranscript?.invoke("user", userText)
             Log.d(TAG, "Processing: ${userText.take(80)}")
 
-            // ── Clasificar complejidad para elegir prompt ─────────────────────
+            // ── Clasificar complejidad → elegir prompt y estrategia ──────────
             val complexity = if (tokenOptimizerEnabled)
                 TokenOptimizer.classifyComplexity(userText)
             else
@@ -97,34 +94,43 @@ class ConversationPipeline(
 
             val strategy = TokenOptimizer.getStrategy(complexity, maxIterations)
 
-            // ── Construir system prompt (mínimo o completo según complejidad) ──
+            // ── System prompt según complejidad ───────────────────────────────
+            // TRIVIAL/SIMPLE  → nano (~30 tokens) o mini (~80 tokens)
+            // MODERATE/COMPLEX → full (~200-300 tokens)
             val systemPrompt = when {
-                !tokenOptimizerEnabled -> getOrBuildFullPrompt()
-                strategy.useMinimalPrompt -> getOrBuildMinimalPrompt()
-                else -> getOrBuildFullPrompt()
+                !tokenOptimizerEnabled -> getOrBuildFull()
+                complexity == TokenOptimizer.CommandComplexity.TRIVIAL -> getOrBuildNano()
+                strategy.useMinimalPrompt -> getOrBuildMini()
+                else -> getOrBuildFull()
             }
 
-            val systemMsg = Message(role = "system", content = systemPrompt)
-            val userMsg   = Message(role = "user",   content = userText)
+            val userMsg = Message(role = "user", content = userText)
 
             // ── Historial comprimido ──────────────────────────────────────────
             val workingHistory = when {
+                strategy.maxHistoryMessages == 0 -> emptyList()
                 !historyCompressionEnabled -> history.takeLast(maxHistoryMessages)
                 strategy.compressHistory && history.size > strategy.maxHistoryMessages ->
                     TokenOptimizer.compressHistory(history, keepLast = strategy.maxHistoryMessages)
                 else -> history.takeLast(strategy.maxHistoryMessages)
             }
             val cleanHistory = if (tokenOptimizerEnabled)
-                TokenOptimizer.deduplicateToolResults(workingHistory)
-            else workingHistory
+                TokenOptimizer.deduplicateToolResults(workingHistory) else workingHistory
 
-            val messages = listOf(systemMsg) + cleanHistory + listOf(userMsg)
+            val messages = listOf(Message(role = "system", content = systemPrompt)) +
+                           cleanHistory + listOf(userMsg)
+
             history.add(userMsg)
 
-            // ── Opciones LLM: maxTokens bajo porque la IA no genera texto largo ─
+            // ── maxTokens según complejidad ───────────────────────────────────
             val llmOptions = LLMOptions(
-                maxTokens   = if (strategy.useMinimalPrompt) 512 else 1024,
-                temperature = 0.1  // Más bajo = más determinista
+                maxTokens   = when (complexity) {
+                    TokenOptimizer.CommandComplexity.TRIVIAL  -> 128
+                    TokenOptimizer.CommandComplexity.SIMPLE   -> 256
+                    TokenOptimizer.CommandComplexity.MODERATE -> 512
+                    TokenOptimizer.CommandComplexity.COMPLEX  -> 768
+                },
+                temperature = 0.1
             )
 
             val result = runToolLoop(
@@ -141,19 +147,14 @@ class ConversationPipeline(
             history.addAll(result.newMessages)
             trimHistory()
 
-            if (isSilent) {
-                _state.value = PipelineState.IDLE
-                return ""
-            }
+            if (isSilent) { _state.value = PipelineState.IDLE; return "" }
 
-            if (assistantText.isNotBlank()) {
-                onTranscript?.invoke("assistant", assistantText)
-            }
+            if (assistantText.isNotBlank()) onTranscript?.invoke("assistant", assistantText)
 
             if (drivingMode && onSpeak != null && assistantText.isNotBlank()) {
                 _state.value = PipelineState.SPEAKING
                 try { onSpeak(assistantText, language.ifBlank { "es-MX" }) }
-                catch (e: Exception) { Log.e(TAG, "TTS error: ${e.message}") }
+                catch (e: Exception) { Log.e(TAG, "TTS: ${e.message}") }
                 if (_state.value != PipelineState.LISTENING) _state.value = PipelineState.IDLE
             } else {
                 if (_state.value != PipelineState.LISTENING) _state.value = PipelineState.IDLE
@@ -163,40 +164,47 @@ class ConversationPipeline(
 
         } catch (e: Exception) {
             Log.e(TAG, "Pipeline error: ${e.message}")
-            _state.value = PipelineState.ERROR
-
-            // ── Respuestas locales para errores comunes (cero tokens) ─────────
-            val friendlyError = friendlyErrorMessage(e.message ?: "")
-            onTranscript?.invoke("assistant", friendlyError)
-            onError?.invoke(e.message ?: "Error desconocido")
-            history.add(Message(role = "assistant", content = "[Error: ${e.message}]"))
             _state.value = PipelineState.IDLE
-            friendlyError
+            val msg = friendlyError(e.message ?: "")
+            onTranscript?.invoke("assistant", msg)
+            onError?.invoke(e.message ?: "Error")
+            history.add(Message(role = "assistant", content = "[Error]"))
+            msg
         }
     }
 
-    // ── Mensajes de error amigables sin gastar tokens ─────────────────────────
-    private fun friendlyErrorMessage(errorMsg: String): String = when {
-        errorMsg.contains("401") || errorMsg.contains("API key") ->
-            "Hay un problema con mi configuración. Ve a Ajustes y revisa la API key."
-        errorMsg.contains("429") || errorMsg.contains("rate limit") || errorMsg.contains("quota") ->
-            "Estoy muy ocupado ahora mismo. Espera un momento e intenta de nuevo."
-        errorMsg.contains("timeout") || errorMsg.contains("connect") || errorMsg.contains("network") ->
-            "No tengo conexión a internet. Revisa tu WiFi o datos."
-        errorMsg.contains("model") && errorMsg.contains("not found") ->
-            "El modelo configurado no existe. Ve a Ajustes y verifica el nombre."
+    private fun friendlyError(e: String) = when {
+        e.contains("401") || e.contains("API key") ->
+            "Hay un problema con la API key. Ve a Ajustes y verifícala."
+        e.contains("429") || e.contains("limit") ->
+            "Demasiadas peticiones seguidas. Espera un momento e intenta de nuevo."
+        e.contains("timeout") || e.contains("connect") ->
+            "Sin conexión. Revisa tu internet."
+        e.contains("model") || e.contains("404") ->
+            "Modelo no encontrado. Ve a Ajustes."
         else -> "Algo salió mal. Intenta de nuevo."
     }
 
     // ── Cache de prompts ──────────────────────────────────────────────────────
 
-    private fun getOrBuildFullPrompt(): String {
-        if (promptCacheEnabled && !systemPromptDirty && cachedSystemPrompt.isNotBlank())
-            return cachedSystemPrompt
-        cachedSystemPrompt = SystemPromptBuilder.build(
+    private fun getOrBuildNano(): String {
+        if (promptCacheEnabled && !promptsDirty && cachedNano.isNotBlank()) return cachedNano
+        cachedNano = SystemPromptBuilder.buildNano(language)
+        return cachedNano
+    }
+
+    private fun getOrBuildMini(): String {
+        if (promptCacheEnabled && !promptsDirty && cachedMini.isNotBlank()) return cachedMini
+        cachedMini = SystemPromptBuilder.buildMini(language, soul)
+        return cachedMini
+    }
+
+    private fun getOrBuildFull(): String {
+        if (promptCacheEnabled && !promptsDirty && cachedFull.isNotBlank()) return cachedFull
+        cachedFull = SystemPromptBuilder.build(
             skillLoader        = skillLoader,
             toolRegistry       = tools,
-            enabledSkillNames  = enabledSkillNames,
+            enabledSkillNames  = emptyList(),
             drivingMode        = drivingMode,
             language           = language,
             soul               = soul,
@@ -204,26 +212,13 @@ class ConversationPipeline(
             expertMode         = expertMode,
             userName           = userName
         )
-        systemPromptDirty = false
-        return cachedSystemPrompt
-    }
-
-    private fun getOrBuildMinimalPrompt(): String {
-        if (promptCacheEnabled && !minimalPromptDirty && cachedMinimalPrompt.isNotBlank())
-            return cachedMinimalPrompt
-        cachedMinimalPrompt = SystemPromptBuilder.buildMinimal(
-            language     = language,
-            soul         = soul,
-            toolSummaries = tools.getSummaries()
-        )
-        minimalPromptDirty = false
-        return cachedMinimalPrompt
+        promptsDirty = false
+        return cachedFull
     }
 
     private fun trimHistory() {
         if (history.size <= maxHistoryMessages) return
         var start = history.size - maxHistoryMessages
-        // No cortar en medio de un bloque tool_call/tool
         while (start < history.size) {
             val msg = history[start]
             if (msg.role == "tool") { start++; continue }

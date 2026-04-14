@@ -36,7 +36,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     val scope    = rememberCoroutineScope()
 
     // ── Estado de todos los ajustes ───────────────────────────────────────────
-    var provider         by remember { mutableStateOf("gemini") }
+    val provider         = "gemini"
     var apiKey           by remember { mutableStateOf("") }
     var model            by remember { mutableStateOf("") }
     var theme            by remember { mutableStateOf("DeepSeaBlue") }
@@ -56,8 +56,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
 
     // Cargar todos los ajustes al iniciar
     LaunchedEffect(Unit) {
-        provider        = settings.getProvider()
-        apiKey          = settings.getApiKey(provider)
+        apiKey          = settings.getApiKey("gemini")
         model           = settings.getModel()
         theme           = settings.getTheme()
         maxIterations   = settings.getMaxIterations()
@@ -74,27 +73,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
         updateGlassTheme(theme)
     }
 
-    LaunchedEffect(provider) {
-        apiKey = settings.getApiKey(provider)
-        // Si el modelo guardado corresponde a otro proveedor, sugerir el default correcto
-        val savedModel = settings.getModel()
-        val defaultForProvider = when (provider) {
-            "gemini"       -> "gemini-2.5-flash"
-            "groq"         -> "llama-3.3-70b-versatile"
-            "openrouter"   -> "meta-llama/llama-3.3-70b-instruct:free"
-            else           -> savedModel
-        }
-        // Si el modelo guardado no tiene sentido para este proveedor, usar el default
-        val isCompatible = when (provider) {
-            "gemini"     -> savedModel.startsWith("gemini")
-            "groq"       -> !savedModel.startsWith("gemini") && !savedModel.contains("/")
-            "openrouter" -> savedModel.contains("/") || savedModel.isBlank()
-            else         -> true
-        }
-        model = if (isCompatible && savedModel.isNotBlank()) savedModel else defaultForProvider
-    }
 
-    val providers = listOf("gemini", "groq", "openrouter")
 
     Box(Modifier.fillMaxSize()) {
         GlassBackground(accentColor = TauAccent)
@@ -107,67 +86,42 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
 
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
 
-                // ── 1. Cerebro de Doey ────────────────────────────────────────────
+                // ── 1. Cerebro de Doey — Gemini ──────────────────────────────────
                 TauSettingsSection(title = "Cerebro de Doey", icon = CustomIcons.Psychology) {
-                    providers.forEach { p ->
-                        val isSelected = provider == p
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { provider = p }
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                when (p) {
-                                    "gemini"    -> CustomIcons.AutoAwesome
-                                    "groq"      -> CustomIcons.Bolt
-                                    else        -> CustomIcons.Cloud
-                                },
-                                null, tint = if (isSelected) TauAccent else TauText3, modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Text(
-                                when (p) {
-                                "gemini"       -> "Gemini"
-                                "groq"         -> "Groq"
-                                "openrouter"   -> "OpenRouter"
-                                else           -> p.replaceFirstChar { it.uppercase() }
-                            },
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) TauAccent else TauText1,
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (isSelected) Icon(CustomIcons.CheckCircle, null, tint = TauAccent, modifier = Modifier.size(18.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                        Icon(CustomIcons.AutoAwesome, null, tint = TauAccent, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text("Google Gemini", fontWeight = FontWeight.Bold, color = TauAccent)
+                            Text("El modelo con más límite gratuito — 1,500 req/día", fontSize = 12.sp, color = TauText3)
                         }
                     }
 
-                    Spacer(Modifier.height(8.dp))
                     DoeyTextField(
                         value = apiKey,
                         onValueChange = { apiKey = it },
-                        label = "API Key — ${provider.uppercase()}",
-                        placeholder = "Pega tu API key aquí"
+                        label = "API Key de Gemini",
+                        placeholder = "Obtén tu key gratis en aistudio.google.com"
                     )
 
                     Spacer(Modifier.height(8.dp))
                     DoeyTextField(
                         value = model,
                         onValueChange = { model = it },
-                        label = "Modelo",
-                        placeholder = when (provider) {
-                            "gemini"     -> "gemini-2.5-flash"
-                            "groq"       -> "llama-3.3-70b-versatile"
-                            "openrouter" -> "meta-llama/llama-3.3-70b-instruct:free"
-                            else         -> "nombre-del-modelo"
-                        }
+                        label = "Modelo (opcional)",
+                        placeholder = "gemini-2.5-flash"
+                    )
+                    Text(
+                        "gemini-2.5-flash = rápido y gratis  •  gemini-2.0-flash-lite = más ligero",
+                        fontSize = 11.sp, color = TauText3, modifier = Modifier.padding(top = 4.dp)
                     )
 
                     Spacer(Modifier.height(12.dp))
                     GlassButton(onClick = {
                         scope.launch {
-                            settings.setApiKey(provider, apiKey)
-                            settings.setModel(model)
+                            settings.setApiKey("gemini", apiKey)
+                            settings.setProvider("gemini")
+                            settings.setModel(model.ifBlank { "gemini-2.5-flash" })
                             showApiSaved = true
                             delay(2000)
                             showApiSaved = false
@@ -294,7 +248,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                 Spacer(Modifier.height(12.dp))
                 GlassButton(onClick = {
                     scope.launch {
-                        settings.setProvider(provider)
+                        settings.setProvider("gemini")
                         settings.setModel(model)
                         settings.setTheme(theme)
                         settings.setMaxIterations(maxIterations)

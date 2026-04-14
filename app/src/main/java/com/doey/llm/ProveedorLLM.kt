@@ -9,7 +9,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 // ── Data classes ──────────────────────────────────────────────────────────────
 
@@ -39,11 +38,11 @@ data class LLMResponse(
 )
 
 data class LLMOptions(
-    val maxTokens: Int      = 1024,   // Reducido de 4096 — la IA nunca necesita generar texto largo
-    val temperature: Double = 0.1     // Más bajo = más determinista = menos alucinaciones
+    val maxTokens: Int      = 512,   // Bajo: la IA solo genera 1 oración + herramientas
+    val temperature: Double = 0.1   // Determinista: menos alucinaciones
 )
 
-// ── Provider interface ────────────────────────────────────────────────────────
+// ── Interfaz ──────────────────────────────────────────────────────────────────
 
 interface LLMProvider {
     suspend fun chat(
@@ -55,138 +54,14 @@ interface LLMProvider {
     suspend fun testConnection(): Pair<Boolean, String?>
 }
 
-// ── OpenAI-compatible (Groq / OpenRouter / custom) ────────────────────────────
-
-class OpenAIProvider(
-    private val apiKey: String,
-    private val model: String   = "llama-3.3-70b-versatile",
-    private val baseUrl: String = "https://api.groq.com/openai/v1/chat/completions"
-) : LLMProvider {
-
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(90, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
-    private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
-
-    override fun getCurrentModel() = model
-
-    override suspend fun testConnection(): Pair<Boolean, String?> = withContext(Dispatchers.IO) {
-        try {
-            val body = JSONObject().apply {
-                put("model", model)
-                put("messages", JSONArray().put(JSONObject().apply {
-                    put("role", "user"); put("content", "hello")
-                }))
-                put("max_tokens", 5)
-            }
-            val resp = client.newCall(buildRequest(body)).execute()
-            val ok   = resp.isSuccessful
-            val err  = if (!ok) parseError(resp.code, resp.body?.string() ?: "") else null
-            resp.close()
-            Pair(ok, err)
-        } catch (e: Exception) { Pair(false, e.message) }
-    }
-
-    override suspend fun chat(
-        messages: List<Message>,
-        tools: List<ToolDefinition>,
-        options: LLMOptions
-    ): LLMResponse = withContext(Dispatchers.IO) {
-        val body = JSONObject().apply {
-            put("model", model)
-            put("messages", JSONArray().apply { messages.forEach { put(msgToJson(it)) } })
-            put("max_tokens", options.maxTokens)
-            put("temperature", options.temperature)
-            if (tools.isNotEmpty()) {
-                put("tools", JSONArray().apply { tools.forEach { put(toolToJson(it)) } })
-                put("tool_choice", "auto")
-            }
-        }
-        val resp = client.newCall(buildRequest(body)).execute()
-        val rb   = resp.body?.string() ?: throw Exception("Cuerpo vacío")
-        if (!resp.isSuccessful) throw Exception(parseError(resp.code, rb))
-        parseResponse(JSONObject(rb))
-    }
-
-    private fun buildRequest(body: JSONObject) =
-        Request.Builder()
-            .url(baseUrl)
-            .addHeader("Authorization", "Bearer $apiKey")
-            .addHeader("Content-Type", "application/json")
-            .post(body.toString().toRequestBody(JSON_MEDIA))
-            .build()
-
-    private fun msgToJson(msg: Message): JSONObject = JSONObject().apply {
-        put("role", msg.role)
-        when {
-            msg.role == "tool" -> {
-                put("content", msg.content)
-                put("tool_call_id", msg.toolCallId ?: "")
-            }
-            msg.role == "assistant" && !msg.toolCalls.isNullOrEmpty() -> {
-                put("content", if (msg.content.isBlank()) JSONObject.NULL else msg.content)
-                put("tool_calls", JSONArray().apply {
-                    msg.toolCalls.forEach { tc ->
-                        put(JSONObject().apply {
-                            put("id", tc.id); put("type", "function")
-                            put("function", JSONObject().apply {
-                                put("name", tc.name)
-                                put("arguments", JSONObject(tc.arguments).toString())
-                            })
-                        })
-                    }
-                })
-            }
-            else -> put("content", msg.content)
-        }
-    }
-
-    private fun toolToJson(tool: ToolDefinition) = JSONObject().apply {
-        put("type", "function")
-        put("function", JSONObject().apply {
-            put("name", tool.name)
-            put("description", tool.description)
-            put("strict", false)
-            put("parameters", JSONObject(tool.parameters))
-        })
-    }
-
-    private fun parseResponse(json: JSONObject): LLMResponse {
-        val choice  = json.getJSONArray("choices").getJSONObject(0)
-        val message = choice.getJSONObject("message")
-        val content = message.optString("content", "")
-        val finish  = choice.optString("finish_reason", "stop")
-        val calls   = mutableListOf<ToolCall>()
-        message.optJSONArray("tool_calls")?.let { arr ->
-            for (i in 0 until arr.length()) {
-                val tc  = arr.getJSONObject(i)
-                val fn  = tc.getJSONObject("function")
-                val raw = try { JSONObject(fn.optString("arguments", "{}")) } catch (_: Exception) { JSONObject() }
-                val map = mutableMapOf<String, Any?>()
-                raw.keys().forEach { k -> map[k] = raw.opt(k) }
-                calls.add(ToolCall(tc.getString("id"), fn.getString("name"), map))
-            }
-        }
-        return LLMResponse(content, calls, if (finish == "tool_calls") "tool_calls" else "stop")
-    }
-
-    private fun parseError(code: Int, body: String): String = try {
-        val json = JSONObject(body)
-        val msg  = json.optJSONObject("error")?.optString("message", "") ?: json.optString("message", "")
-        when {
-            msg.isNotBlank() -> "Error $code: $msg"
-            code == 401 -> "Error 401: API key inválida"
-            code == 429 -> "Error 429: Límite alcanzado"
-            code == 404 -> "Error 404: Modelo '$model' no encontrado"
-            code == 500 -> "Error 500: Servidor caído"
-            else -> "Error HTTP $code"
-        }
-    } catch (_: Exception) { "Error HTTP $code" }
-}
-
-// ── Gemini ────────────────────────────────────────────────────────────────────
+// ── Gemini — único proveedor soportado ───────────────────────────────────────
+//
+// Gemini 2.5 Flash es el mejor modelo gratuito para este caso de uso:
+//  • 1,500 requests/día gratis (vs 14,400 de Groq pero con límite de tokens/hora)
+//  • 1,000,000 tokens contexto
+//  • Tool calling nativo y confiable
+//  • Sin límite de tokens/día (solo req/min: 15)
+//  • Modelos menores disponibles si se necesita más volumen: gemini-2.0-flash-lite
 
 class GeminiProvider(
     private val apiKey: String,
@@ -215,7 +90,7 @@ class GeminiProvider(
             }
             val resp = client.newCall(buildRequest(body)).execute()
             val ok   = resp.isSuccessful
-            val err  = if (!ok) parseGeminiError(resp.code, resp.body?.string() ?: "") else null
+            val err  = if (!ok) parseError(resp.code, resp.body?.string() ?: "") else null
             resp.close()
             Pair(ok, err)
         } catch (e: Exception) { Pair(false, e.message) }
@@ -251,7 +126,7 @@ class GeminiProvider(
                                     }
                                 })
                             })
-                        } else {
+                        } else if (msg.content.isNotBlank()) {
                             put(JSONObject().apply {
                                 put("role", "model")
                                 put("parts", JSONArray().put(JSONObject().apply { put("text", msg.content) }))
@@ -305,9 +180,9 @@ class GeminiProvider(
         }
 
         val resp = client.newCall(buildRequest(body)).execute()
-        val rb   = resp.body?.string() ?: throw Exception("Cuerpo vacío")
-        if (!resp.isSuccessful) throw Exception(parseGeminiError(resp.code, rb))
-        parseGeminiResponse(JSONObject(rb))
+        val rb   = resp.body?.string() ?: throw Exception("Sin respuesta del servidor")
+        if (!resp.isSuccessful) throw Exception(parseError(resp.code, rb))
+        parseResponse(JSONObject(rb))
     }
 
     private fun cleanSchema(obj: JSONObject): JSONObject {
@@ -343,20 +218,20 @@ class GeminiProvider(
             .post(body.toString().toRequestBody(JSON_MEDIA))
             .build()
 
-    private fun parseGeminiResponse(json: JSONObject): LLMResponse {
+    private fun parseResponse(json: JSONObject): LLMResponse {
         if (json.has("error")) {
             val e = json.getJSONObject("error")
-            throw Exception(parseGeminiError(e.optInt("code", 0), json.toString()))
+            throw Exception(parseError(e.optInt("code", 0), json.toString()))
         }
         val candidates = json.optJSONArray("candidates")
         if (candidates == null || candidates.length() == 0) {
             val reason = json.optJSONObject("promptFeedback")?.optString("blockReason", "")
-            if (!reason.isNullOrBlank()) throw Exception("Gemini bloqueó: $reason")
-            throw Exception("Gemini sin respuesta")
+            if (!reason.isNullOrBlank()) throw Exception("Bloqueado: $reason")
+            throw Exception("Sin respuesta")
         }
         val candidate = candidates.getJSONObject(0)
-        val finishRaw = candidate.optString("finishReason", "STOP")
-        if (finishRaw == "SAFETY") throw Exception("Gemini bloqueó por seguridad. Reformula.")
+        if (candidate.optString("finishReason") == "SAFETY")
+            throw Exception("Bloqueado por seguridad. Reformula.")
 
         val content = candidate.optJSONObject("content") ?: return LLMResponse("", emptyList(), "stop")
         val parts   = content.optJSONArray("parts")       ?: return LLMResponse("", emptyList(), "stop")
@@ -379,104 +254,38 @@ class GeminiProvider(
         return LLMResponse(textParts.joinToString(""), calls, if (calls.isNotEmpty()) "tool_calls" else "stop")
     }
 
-    private fun parseGeminiError(code: Int, body: String): String = try {
+    private fun parseError(code: Int, body: String): String = try {
         val msg = JSONObject(body).optJSONObject("error")?.optString("message", "") ?: ""
         when {
-            msg.isNotBlank() -> "Gemini $code: $msg"
-            code == 401 -> "Gemini 401: API key inválida"
-            code == 429 -> "Gemini 429: Límite alcanzado"
-            code == 404 -> "Gemini 404: Modelo '$model' no encontrado"
-            else -> "Gemini Error $code"
+            msg.isNotBlank() -> msg
+            code == 401 -> "API key inválida o expirada"
+            code == 403 -> "Sin permisos para este modelo"
+            code == 404 -> "Modelo '$model' no encontrado. Prueba gemini-2.5-flash"
+            code == 429 -> "Límite de peticiones alcanzado. Espera un momento"
+            code == 500 -> "Error interno de Gemini. Reintenta"
+            else -> "Error $code"
         }
-    } catch (_: Exception) { "Gemini Error $code" }
+    } catch (_: Exception) { "Error $code" }
 }
 
-// ── RotatingProvider — rota entre proveedores cuando uno falla o se agota ─────
-//
-//  Problema original: un solo proveedor se agota (429) y todo colapsa.
-//  Solución: lista ordenada de proveedores. Si el primero falla con 429 o error
-//  de red, se pasa al siguiente de forma transparente. El usuario nunca lo ve.
-
-class RotatingProvider(
-    private val providers: List<LLMProvider>
-) : LLMProvider {
-
-    private val currentIndex = AtomicInteger(0)
-
-    override fun getCurrentModel(): String =
-        providers.getOrNull(currentIndex.get())?.getCurrentModel() ?: "unknown"
-
-    override suspend fun testConnection(): Pair<Boolean, String?> {
-        for (p in providers) {
-            val (ok, err) = p.testConnection()
-            if (ok) return Pair(true, null)
-        }
-        return Pair(false, "Ningún proveedor disponible")
-    }
-
-    override suspend fun chat(
-        messages: List<Message>,
-        tools: List<ToolDefinition>,
-        options: LLMOptions
-    ): LLMResponse {
-        val start = currentIndex.get()
-        val total = providers.size
-
-        for (offset in 0 until total) {
-            val idx = (start + offset) % total
-            val provider = providers[idx]
-            try {
-                val result = provider.chat(messages, tools, options)
-                // Éxito — si habíamos rotado, volver al índice correcto
-                currentIndex.set(idx)
-                return result
-            } catch (e: Exception) {
-                val msg = e.message ?: ""
-                val shouldRotate = msg.contains("429") ||
-                                   msg.contains("rate limit", ignoreCase = true) ||
-                                   msg.contains("quota", ignoreCase = true) ||
-                                   msg.contains("timeout", ignoreCase = true) ||
-                                   msg.contains("connect", ignoreCase = true)
-                if (!shouldRotate || offset == total - 1) {
-                    // Error no-rotable o último proveedor — propagar
-                    throw e
-                }
-                // Rotar al siguiente
-                android.util.Log.w("RotatingProvider", "Proveedor ${provider.getCurrentModel()} falló ($msg), rotando...")
-            }
-        }
-        throw Exception("Todos los proveedores fallaron")
-    }
-}
-
-// ── Factory ───────────────────────────────────────────────────────────────────
+// ── Factory simplificado — solo Gemini ───────────────────────────────────────
 
 object LLMProviderFactory {
-    fun create(provider: String, apiKey: String, model: String, customUrl: String = ""): LLMProvider =
-        when (provider) {
-            "gemini"     -> GeminiProvider(apiKey, model.ifBlank { "gemini-2.5-flash" })
-            "groq"       -> OpenAIProvider(apiKey, model.ifBlank { "llama-3.3-70b-versatile" },
-                                           "https://api.groq.com/openai/v1/chat/completions")
-            "openrouter" -> OpenAIProvider(apiKey, model.ifBlank { "meta-llama/llama-3.3-70b-instruct:free" },
-                                           "https://openrouter.ai/api/v1/chat/completions")
-            "custom"     -> OpenAIProvider(apiKey, model.ifBlank { "gpt-4o-mini" },
-                                           customUrl.ifBlank { "https://api.openai.com/v1/chat/completions" })
-            else         -> throw IllegalArgumentException("Proveedor desconocido: '$provider'")
-        }
+    fun create(
+        provider: String = "gemini",
+        apiKey: String,
+        model: String = "",
+        customUrl: String = ""
+    ): LLMProvider = GeminiProvider(
+        apiKey = apiKey,
+        model  = model.ifBlank { "gemini-2.5-flash" }
+    )
+}
 
-    /**
-     * Crea un RotatingProvider con múltiples proveedores configurados.
-     * El orden determina la prioridad.
-     */
-    fun createRotating(configs: List<Triple<String, String, String>>): LLMProvider {
-        val providers = configs.mapNotNull { (provider, key, model) ->
-            if (key.isBlank()) null
-            else runCatching { create(provider, key, model) }.getOrNull()
-        }
-        return when {
-            providers.isEmpty() -> throw IllegalArgumentException("Sin proveedores configurados")
-            providers.size == 1 -> providers.first()
-            else                -> RotatingProvider(providers)
-        }
-    }
+// ── RotatingProvider — mantenido como no-op por compatibilidad ────────────────
+class RotatingProvider(private val providers: List<LLMProvider>) : LLMProvider {
+    override fun getCurrentModel() = providers.firstOrNull()?.getCurrentModel() ?: "gemini-2.5-flash"
+    override suspend fun testConnection() = providers.firstOrNull()?.testConnection() ?: Pair(false, "Sin proveedor")
+    override suspend fun chat(messages: List<Message>, tools: List<ToolDefinition>, options: LLMOptions) =
+        providers.first().chat(messages, tools, options)
 }

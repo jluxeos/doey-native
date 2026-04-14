@@ -58,7 +58,6 @@ import com.doey.ui.comun.UserProfile
 import com.doey.ui.comun.PerformanceMode
 import com.doey.ui.basico.JournalScreen
 import com.doey.ui.basico.FriendlySettingsScreen
-import com.doey.ui.avanzado.SkillsScreen
 import com.doey.ui.avanzado.LogScreen
 import com.doey.ui.avanzado.PermissionsScreen
 
@@ -80,7 +79,6 @@ val ErrorRed       = TauRed
 // ── Navegación ────────────────────────────────────────────────────────────────
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Inicio             : Screen("inicio",             "Inicio",         CustomIcons.Home)
-    object Habilidades        : Screen("habilidades",        "Habilidades",    CustomIcons.Star)
     object Memorias         : Screen("memorias",         "Memorias",       CustomIcons.Message)
     object Agendas          : Screen("agendas",          "Agendas",        CustomIcons.Clock)
     object Diario           : Screen("diario",           "Diario",         CustomIcons.LibraryBooks)
@@ -204,7 +202,6 @@ fun DoeyApp() {
                         composable(Screen.Memorias.route) { MemoriesScreen(vm) }
                         composable(Screen.Diario.route) { JournalScreen(vm) }
                         composable(Screen.Agendas.route) { SchedulesScreen(vm) }
-                        composable(Screen.Habilidades.route) { SkillsScreen(vm) }
                         composable(Screen.Registros.route) { LogScreen() }
                         composable(Screen.Permisos.route) { PermissionsScreen() }
                         composable(Screen.AjustesBasicos.route) { FriendlySettingsScreen(vm) }
@@ -289,10 +286,6 @@ private fun DoeyDrawerContent(
                 }
 
                 DrawerSectionHeader("Herramientas")
-                DrawerItem(CustomIcons.Extension, "Skills", currentRoute == Screen.Habilidades.route) {
-                    scope.launch { drawerState.close() }
-                    nav.navigate(Screen.Habilidades.route)
-                }
                 DrawerItem(CustomIcons.Alarm, "Utilerías", currentRoute == Screen.Agendas.route) {
                     scope.launch { drawerState.close() }
                     nav.navigate(Screen.Agendas.route)

@@ -118,29 +118,15 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         val skillLoader = SkillLoader(app)
         val tools       = buildTools(skillLoader, enabledSkills)
 
-        // ── Crear provider con rotación automática ───────────────────────────
-        // Si el usuario tiene configurados múltiples proveedores, rotamos entre ellos
-        // de forma transparente cuando uno falla o se agota (429/timeout).
-        val primaryProvider = com.doey.llm.LLMProviderFactory.create(
-            provider,
-            settings.getApiKey(provider),
-            model,
-            settings.getCustomModelUrl()
+        // Gemini — único proveedor en v4
+        val geminiProvider = com.doey.llm.GeminiProvider(
+            apiKey = settings.getApiKey("gemini"),
+            model  = model.ifBlank { "gemini-2.5-flash" }
         )
-        // Proveedor de respaldo: OpenRouter gratuito si el principal no es ya OpenRouter
-        val backupKey = settings.getApiKey("openrouter")
-        val finalProvider = if (backupKey.isNotBlank() && provider != "openrouter") {
-            val backup = com.doey.llm.LLMProviderFactory.create(
-                "openrouter", backupKey, "meta-llama/llama-3.3-70b-instruct:free"
-            )
-            com.doey.llm.RotatingProvider(listOf(primaryProvider, backup))
-        } else {
-            primaryProvider
-        }
 
         val p = ConversationPipeline(
             ctx                      = app,
-            provider                 = finalProvider,
+            provider                 = geminiProvider,
             tools                    = tools,
             skillLoader              = skillLoader,
             drivingMode              = drivingMode,
@@ -219,7 +205,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         register(AccessibilityTool())
         register(AppSearchTool())
         register(FileStorageTool())
-        register(SkillDetailTool(skillLoader))
         register(PersonalMemoryTool())
         register(JournalTool())
         register(TimerTool())
@@ -235,7 +220,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         register(FlashlightTool())
         register(CountdownTool())
 
-        removeDisabledSkillTools(skillLoader.getDisabledExclusiveTools(enabledSkills))
     }
 
     // ── Observadores ─────────────────────────────────────────────────────────

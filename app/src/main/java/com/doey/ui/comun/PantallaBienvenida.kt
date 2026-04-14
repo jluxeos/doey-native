@@ -87,7 +87,7 @@ fun OnboardingFlow(
     var usageLevel by remember { mutableStateOf("Bajo") } // Bajo, Medio, Alto
     var selectedProfile by remember { mutableStateOf<UserProfile?>(null) }
     var selectedPerformance by remember { mutableStateOf<PerformanceMode?>(null) }
-    var selectedProvider by remember { mutableStateOf("openrouter") }
+    var selectedProvider by remember { mutableStateOf("gemini") }
     var apiKey by remember { mutableStateOf("") }
 
     Box(

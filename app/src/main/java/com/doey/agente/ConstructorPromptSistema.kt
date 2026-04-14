@@ -6,10 +6,34 @@ import java.util.*
 
 object SystemPromptBuilder {
 
+    // ── Prompt NANO (~30 tokens) — para comandos triviales que IRIS no resolvió ──
+    // Úsalo cuando la complejidad es TRIVIAL o SIMPLE y no hay historial.
+    // La IA literalmente solo necesita saber que es un parser de acciones.
+    fun buildNano(language: String): String {
+        val lang = if (language.startsWith("es")) "es" else language.take(2)
+        return "Asistente Android. Idioma:$lang. Petición→herramienta inmediata. Respuesta:máx 1 oración."
+    }
+
+    // ── Prompt MINI (~80 tokens) — para comandos simples con 1 acción ───────────
+    // Incluye idioma + rol + regla de parser + fecha (necesaria para alarmas)
+    fun buildMini(language: String, soul: String): String {
+        val lang  = resolveLangName(language)
+        val today = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).format(Date())
+        return buildString {
+            append("Eres Doey, asistente Android. Idioma:$lang. Fecha:$today.\n")
+            append("PARSER:acción→herramienta inmediata. Sin texto antes de actuar.\n")
+            append("Respuesta final:máx 1 oración corta. Sin JSON ni código al usuario.\n")
+            if (soul.isNotBlank()) append("Tono:${soul.take(80)}\n")
+        }
+    }
+
+    // ── Prompt FULL (~200-300 tokens) — para comandos complejos/encadenados ─────
+    // Incluye fecha, memoria del usuario, reglas de encadenamiento y herramientas resumidas.
+    // Sigue siendo 10x más pequeño que el system prompt anterior (~2000 tokens).
     fun build(
-        skillLoader: SkillLoader,
+        skillLoader: SkillLoader,       // Ignorado — skills eliminadas en v4
         toolRegistry: ToolRegistry,
-        enabledSkillNames: List<String>,
+        enabledSkillNames: List<String>, // Ignorado
         drivingMode: Boolean,
         language: String = "es",
         soul: String = "",
@@ -17,135 +41,56 @@ object SystemPromptBuilder {
         expertMode: Boolean = false,
         userName: String = ""
     ): String {
-        val langName = resolveLanguageName(language)
-        val now      = Date()
-        val dateStr  = SimpleDateFormat("EEEE d MMM yyyy HH:mm", Locale("es")).format(now)
-        val isoDate  = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).format(now)
-        val tz       = TimeZone.getDefault().id
+        val lang  = resolveLangName(language)
+        val today = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).format(Date())
+        val tz    = TimeZone.getDefault().id
 
-        val parts = mutableListOf<String>()
-
-        // ── Identidad + contexto temporal ─────────────────────────────────────
-        parts.add("""
-# Doey — Asistente Android
-${if (userName.isNotBlank()) "Usuario: $userName." else ""}
-Fecha: $dateStr | $isoDate | TZ: $tz
-
-## Tu único trabajo
-Eres un PARSER DE ACCIONES, no un chatbot.
-Cuando el usuario pide hacer algo → PRIMERA respuesta = llamada a herramienta. Punto.
-NUNCA escribas texto explicando lo que vas a hacer. Hazlo.
-NUNCA generes JSON o código crudo como texto al usuario.
-Si completas una acción → di máximo 1 oración corta en $langName. Nada más.
-Si el usuario solo hace una pregunta sin acción → responde brevemente en $langName.
-
-## Modo
-${if (drivingMode) """CONDUCCIÓN: respuestas de 1 oración máximo. Sin Markdown. Sin listas."""
-else """Normal: Markdown permitido cuando realmente ayuda. Sé conciso."""}
-
-${if (!expertMode) """## Restricciones (sin API keys)
-Acciones en apps externas → usa `intent` o `accessibility`. Sin llamadas HTTP a APIs externas."""
-else """## Modo Experto — usa el método más eficiente disponible."""}
-
-## Reglas de ejecución
-
-**R1. PARSER PURO** — Petición de acción = herramienta inmediata. Sin preámbulos, sin narrar.
-**R2. Idioma** — Responde siempre en $langName.
-**R3. Sin jerga** — Nunca JSON, códigos de error, nombres de API, ni tecnicismos al usuario.
-**R4. Errores** — Si falla una herramienta: intenta alternativa (`intent` → `accessibility`). Si todo falla: 1 oración simple.
-**R5. Condicionales** — "Si X entonces Y": (1) obtén dato con herramienta, (2) evalúa, (3) actúa solo si se cumple.
-**R6. Secuencial** — Comandos encadenados: ejecuta uno, verifica, luego el siguiente. NUNCA paralelos.
-**R7. No te rindas** — Primer fallo = intenta alternativa. Nunca te rindes en el primer intento.
-**R8. App desconocida** — Usa `find_and_launch_app`, no adivines el package name.
-**R9. Agente UI** — Sin API directa: (a) `accessibility get_tree`, (b) identifica elemento, (c) `click`/`type`/`scroll`, (d) verifica con `get_tree`, (e) repite hasta completar. 3 fallos → reporta.
-**R10. Verificación** — Tras `intent` en app externa: `accessibility get_tree` para confirmar estado. Si texto escrito pero no enviado → completa con `accessibility`.
-**R11. Comandos encadenados** — "haz X y luego Y": ejecuta X completo → confirma → ejecuta Y. Secuencial, no paralelo.
-        """.trimIndent())
-
-        // ── Capacidades offline (sin internet) ────────────────────────────────
-        parts.add("""
-## Capacidades sin internet
-
-clipboard: `write`/`read` — "copia esto", "¿qué tengo copiado?"
-shopping_list: `add`/`remove`/`read`/`check`/`clear` — "añade leche", "ya compré el pan"
-quick_note: `save`/`append`/`read`/`list`/`delete` — "anota que...", "¿qué tengo anotado?"
-volume: `get`/`set`/`mute`/`unmute` — streams: media|ringtone|alarm|notification
-connectivity: `status`/`open_wifi_settings`/`open_bluetooth_settings`
-flashlight: `on`/`off`
-countdown: `save`/`check`/`list`/`delete` — "¿cuánto falta para X?"
-notifications: `read`/`clear`
-        """.trimIndent())
-
-        // ── Soul/personalidad ─────────────────────────────────────────────────
-        soul.trim().takeIf { it.isNotEmpty() }?.let {
-            parts.add("""
-## Personalidad
-$it
-            """.trimIndent())
-        }
-
-        // ── Memoria personal ──────────────────────────────────────────────────
-        val hasMemoryTool = toolRegistry.getTool("memory_personal_upsert") != null
-        if (personalMemory.isNotBlank() || hasMemoryTool) {
-            parts.add("""
-## Memoria del usuario
-${if (hasMemoryTool) "Detectas un hecho personal nuevo en el mensaje → llama `memory_personal_upsert` primero.\n" else ""}${personalMemory.ifBlank { "(Sin datos aún.)" }}
-            """.trimIndent())
-        }
-
-        // ── Herramientas ──────────────────────────────────────────────────────
-        val toolSummaries = toolRegistry.getSummaries()
-        if (toolSummaries.isNotEmpty()) {
-            parts.add("""
-## Herramientas disponibles
-${toolSummaries.joinToString("\n")}
-            """.trimIndent())
-        }
-
-        // ── Skills ────────────────────────────────────────────────────────────
-        val skillsSummary = skillLoader.buildSkillsSummary(enabledSkillNames)
-        if (skillsSummary.isNotEmpty()) {
-            parts.add("""
-## Skills
-OBLIGATORIO: identifica skill → llama `skill_detail` con su nombre → luego ejecuta.
-NUNCA uses una skill sin llamar `skill_detail` primero.
-$skillsSummary
-            """.trimIndent())
-        }
-
-        return parts.joinToString("\n\n---\n\n")
-    }
-
-    // ── Prompt mínimo para comandos simples (TRIVIAL/SIMPLE) ──────────────────
-    // Ahorra ~800-1500 tokens por llamada en el 70% de los casos.
-    fun buildMinimal(language: String, soul: String, toolSummaries: List<String>): String {
-        val lang = resolveLanguageName(language)
         return buildString {
-            append("Eres Doey, asistente Android. Idioma: $lang.\n")
-            append("PARSER PURO: petición de acción = herramienta inmediata. Sin texto antes de actuar.\n")
-            append("Respuesta final: máximo 1 oración corta. Sin JSON ni tecnicismos.\n")
-            if (soul.isNotBlank()) append("Tono: ${soul.take(150)}\n")
-            if (toolSummaries.isNotEmpty()) {
-                append("\nHerramientas:\n")
-                append(toolSummaries.joinToString("\n"))
+            // Identidad + fecha (esencial para alarmas/timers)
+            append("Doey — asistente Android.")
+            if (userName.isNotBlank()) append(" Usuario:$userName.")
+            append(" Idioma:$lang. Fecha:$today TZ:$tz.\n")
+
+            // Modo
+            if (drivingMode) append("CONDUCCIÓN:respuestas de 1 frase. Sin Markdown.\n")
+
+            // Regla de oro — ultra-compacta
+            append("PARSER PURO:petición de acción=herramienta inmediata.\n")
+            append("NUNCA texto antes de actuar. NUNCA JSON crudo al usuario.\n")
+            append("Respuesta final:máx 1 oración en $lang.\n")
+            append("Fallo→intenta alternativa(intent→accessibility). No rendirse.\n")
+            append("Comandos encadenados:uno por uno,verificar antes de siguiente.\n")
+
+            // Memoria personal (si existe)
+            if (personalMemory.isNotBlank()) {
+                append("Memoria usuario:\n${personalMemory.take(400)}\n")
+            }
+
+            // Herramientas — solo nombres y descripción en 1 línea
+            val summaries = toolRegistry.getSummaries()
+            if (summaries.isNotEmpty()) {
+                append("Herramientas disponibles:\n")
+                append(summaries.joinToString("\n"))
+                append("\n")
             }
         }
     }
 
-    private fun resolveLanguageName(lang: String): String {
-        val tag = lang.lowercase()
+    // ── Alias para buildMini — MotorConversacion lo llama así ────────────────
+    fun buildMinimal(language: String, soul: String, toolSummaries: List<String>): String =
+        buildMini(language, soul)
+
+    private fun resolveLangName(lang: String): String {
+        val t = lang.lowercase()
         return when {
-            tag == "system" -> resolveSystemLanguage()
-            tag.startsWith("de") -> "Alemán"
-            tag.startsWith("en") -> "Inglés"
-            tag.startsWith("fr") -> "Francés"
-            tag.startsWith("es") -> "Español"
-            tag.startsWith("it") -> "Italiano"
-            tag.startsWith("pt") -> "Portugués"
+            t == "system" -> resolveLangName(Locale.getDefault().toLanguageTag())
+            t.startsWith("es") -> "Español"
+            t.startsWith("en") -> "English"
+            t.startsWith("fr") -> "Français"
+            t.startsWith("de") -> "Deutsch"
+            t.startsWith("pt") -> "Português"
+            t.startsWith("it") -> "Italiano"
             else -> lang
         }
     }
-
-    private fun resolveSystemLanguage(): String =
-        resolveLanguageName(Locale.getDefault().toLanguageTag())
 }

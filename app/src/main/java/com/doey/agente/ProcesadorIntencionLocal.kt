@@ -261,6 +261,9 @@ object LocalIntentProcessor {
             ?: matchDeviceMaintenance(lo)
             ?: matchQuickApps(lo)
             ?: matchShopping(lo)
+            ?: matchShare(lo)
+            ?: matchRingtoneVolume(lo)
+            ?: matchAlarmVolume(lo)
             ?: matchOpenApp(lo)
 
     // ─── Saludos ─────────────────────────────────────────────────────────────
@@ -1143,4 +1146,42 @@ object LocalIntentProcessor {
 
         return null
     }
+
+    // ─── NUEVOS PATRONES v4 — antes requerían skills o IA ────────────────────
+
+    // ─── Compartir contenido ─────────────────────────────────────────────────
+    // "comparte esto", "comparte la pantalla", "comparte esta publicación con X"
+    private fun matchShare(lo: String): LocalAction? {
+        val shareRegex = Regex(
+            "^(?:comparte|compartir|share|manda|envia)\\s+" +
+            "(?:esto|esta publicacion|este post|esta foto|esta imagen|el link|el enlace|" +
+            "lo que estoy viendo|la pantalla|esto que veo)\\s*" +
+            "(?:con\\s+(.+))?$",
+            RegexOption.IGNORE_CASE
+        )
+        shareRegex.find(lo)?.let { m ->
+            val contact = m.groupValues[1].trim()
+            return LocalAction.ShareText(contact.ifBlank { "" })
+        }
+        // "comparte con X" sin especificar qué
+        Regex("^(?:comparte|share)\\s+con\\s+(.+)$", RegexOption.IGNORE_CASE).find(lo)?.let { m ->
+            return LocalAction.ShareText(m.groupValues[1].trim())
+        }
+        return null
+    }
+
+    // ─── Control de volumen de timbre y alarma ───────────────────────────────
+    private fun matchRingtoneVolume(lo: String): LocalAction? {
+        // "sube el timbre", "volumen de la alarma a 80"
+        Regex("\\b(sube|baja|pon|ajusta)\\b.*(timbre|ringtone|tono de llamada)").containsMatchIn(lo).let { if (!it) return null }
+        val level = Regex("\\b(\\d{1,3})\\b").find(lo)?.groupValues?.get(1)?.toIntOrNull()
+        return if (level != null) LocalAction.SetRingtoneVolume(level.coerceIn(0, 100)) else null
+    }
+
+    private fun matchAlarmVolume(lo: String): LocalAction? {
+        Regex("\\b(sube|baja|pon|ajusta)\\b.*(alarma|alarm).*\\b(volumen|vol)\\b|\\b(volumen|vol)\\b.*(alarma|alarm)").containsMatchIn(lo).let { if (!it) return null }
+        val level = Regex("\\b(\\d{1,3})\\b").find(lo)?.groupValues?.get(1)?.toIntOrNull()
+        return if (level != null) LocalAction.SetAlarmVolume(level.coerceIn(0, 100)) else null
+    }
+
 }
