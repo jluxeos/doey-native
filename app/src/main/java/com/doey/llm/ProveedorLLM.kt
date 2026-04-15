@@ -466,6 +466,10 @@ class FallbackProvider(
                 try {
                     android.util.Log.w("FallbackProvider",
                         "Gemini no disponible (${primaryError.message}), usando Groq como fallback")
+                    com.doey.agente.DoeyLogger.info(
+                        "Fallback → Groq",
+                        "Gemini falló: ${primaryError.message?.take(120)}"
+                    )
                     val result = fallback!!.chat(messages, tools, options)
                     lastUsed = fallback
                     result
@@ -473,6 +477,10 @@ class FallbackProvider(
                     lastUsed = primary
                     android.util.Log.e("FallbackProvider",
                         "Groq también falló: ${fallbackError.message}")
+                    com.doey.agente.DoeyLogger.error(
+                        "FallbackProvider",
+                        "Groq también falló: ${fallbackError.message?.take(120)}"
+                    )
                     throw primaryError  // relanzar el error original
                 }
             } else {

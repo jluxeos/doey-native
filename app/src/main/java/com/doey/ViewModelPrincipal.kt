@@ -10,6 +10,7 @@ import android.view.KeyEvent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.doey.agente.ConversationPipeline
+import com.doey.agente.DoeyLogger
 import com.doey.agente.LocalIntentProcessor
 import com.doey.agente.PipelineState
 import com.doey.agente.SettingsStore
@@ -244,6 +245,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         if (text.isBlank()) return
         val p = pipeline ?: return
         viewModelScope.launch {
+            // ── Log entrada del usuario ───────────────────────────────────────────
+            DoeyLogger.userInput(text)
+
             // ── Procesador local de intenciones (ahorra tokens de IA) ─────────────
             val intent = LocalIntentProcessor.classify(text)
             when (intent) {
@@ -251,6 +255,10 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     // Caso especial: SearchAndPlaySpotify usa accesibilidad → delegar a IA con prompt compacto
                     if (intent.action is LocalIntentProcessor.LocalAction.SearchAndPlaySpotify) {
                         val query = (intent.action as LocalIntentProcessor.LocalAction.SearchAndPlaySpotify).query
+                        DoeyLogger.info(
+                            "IRIS → delega a IA (SearchAndPlaySpotify)",
+                            "query=$query"
+                        )
                         val spotifyPrompt = "TAREA:abre Spotify→busca '$query'→accessibility get_tree→click primer resultado musical→confirma reproducción"
                         p.processUtterance(userText = spotifyPrompt,
                             onSpeak = if (voiceEnabled) { t, lang -> DoeyTTSEngine.speakAndWait(t, lang) } else null)
@@ -258,8 +266,13 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         return@launch
                     }
                     // Ejecutar localmente sin gastar tokens
+                    DoeyLogger.info(
+                        "IRIS → acción local: ${intent.action::class.simpleName}",
+                        intent.action.toString()
+                    )
                     val result = executeLocalAction(intent.action)
                     if (result.isNotBlank()) {
+                        DoeyLogger.info("IRIS → respuesta local", result.take(200))
                         _uiState.update { s ->
                             val newList = s.messages +
                                 ChatMessage(role = "user",      text = text) +
@@ -270,10 +283,15 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         return@launch
                     }
                     // Si falla la ejecución local, delegar a IA
+                    DoeyLogger.info("IRIS → acción local sin resultado, delegando a IA")
                 }
                 is LocalIntentProcessor.IntentClass.Complex -> {
                     // Comando encadenado: prompt compacto para que la IA solo ejecute herramientas
                     // sin gastar tokens en texto innecesario
+                    DoeyLogger.info(
+                        "IRIS → comando complejo (${intent.subtasks.size} subtareas)",
+                        intent.subtasks.joinToString(" | ")
+                    )
                     val optimizedText = LocalIntentProcessor.buildOptimizedPrompt(intent.subtasks, text)
                     val aiResponse = p.processUtterance(
                         userText = optimizedText,
@@ -290,7 +308,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     if (_uiState.value.isDrivingMode && voiceEnabled) { delay(500); startDrivingListen() }
                     return@launch
                 }
-                is LocalIntentProcessor.IntentClass.Delegate -> { /* Delegar a IA normalmente */ }
+                is LocalIntentProcessor.IntentClass.Delegate -> {
+                    DoeyLogger.info("IRIS → delega a IA", text.take(100))
+                }
             }
             // ── Delegar a IA ─────────────────────────────────────────────────────
             p.processUtterance(

@@ -38,6 +38,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     // ── Estado de todos los ajustes ───────────────────────────────────────────
     val provider         = "gemini"
     var apiKey           by remember { mutableStateOf("") }
+    var groqApiKey       by remember { mutableStateOf("") }
     var model            by remember { mutableStateOf("") }
     var theme            by remember { mutableStateOf("DeepSeaBlue") }
     var maxIterations    by remember { mutableStateOf(10) }
@@ -57,6 +58,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     // Cargar todos los ajustes al iniciar
     LaunchedEffect(Unit) {
         apiKey          = settings.getApiKey("gemini")
+        groqApiKey      = settings.getApiKey("groq")
         model           = settings.getModel()
         theme           = settings.getTheme()
         maxIterations   = settings.getMaxIterations()
@@ -128,6 +130,41 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                         }
                     }, modifier = Modifier.fillMaxWidth()) {
                         Text(if (showApiSaved) "¡GUARDADO!" else "GUARDAR API KEY", fontWeight = FontWeight.Bold)
+                    }
+
+                    Spacer(Modifier.height(20.dp))
+
+                    // ── Fallback: Groq ────────────────────────────────────────────
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                        Icon(CustomIcons.Refresh, null, tint = TauAccent, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text("Fallback: Groq (opcional)", fontWeight = FontWeight.Bold, color = TauAccent)
+                            Text("Si Gemini falla, Doey usará Groq automáticamente", fontSize = 12.sp, color = TauText3)
+                        }
+                    }
+
+                    DoeyTextField(
+                        value = groqApiKey,
+                        onValueChange = { groqApiKey = it },
+                        label = "API Key de Groq",
+                        placeholder = "Obtén tu key gratis en console.groq.com"
+                    )
+                    Text(
+                        "llama-3.3-70b-versatile — gratuito y rápido como respaldo",
+                        fontSize = 11.sp, color = TauText3, modifier = Modifier.padding(top = 4.dp)
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+                    GlassButton(onClick = {
+                        scope.launch {
+                            settings.setApiKey("groq", groqApiKey)
+                            showApiSaved = true
+                            delay(2000)
+                            showApiSaved = false
+                        }
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (showApiSaved) "¡GUARDADO!" else "GUARDAR API KEY FALLBACK", fontWeight = FontWeight.Bold)
                     }
                 }
 
