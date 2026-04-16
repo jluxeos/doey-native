@@ -33,9 +33,7 @@ object SystemPromptBuilder {
     // Incluye fecha, memoria del usuario, reglas de encadenamiento y herramientas resumidas.
     // Sigue siendo 10x más pequeño que el system prompt anterior (~2000 tokens).
     fun build(
-        skillLoader: SkillLoader,       // Ignorado — skills eliminadas en v4
         toolRegistry: ToolRegistry,
-        enabledSkillNames: List<String>, // Ignorado
         drivingMode: Boolean,
         language: String = "es",
         soul: String = "",
@@ -73,9 +71,7 @@ object SystemPromptBuilder {
         }
     }
 
-    // Alias — toolSummaries ignorado: las tools van en el parámetro tools[] de la API
-    fun buildMinimal(language: String, soul: String, toolSummaries: List<String>): String =
-        buildMini(language, soul)
+    fun buildMinimal(language: String, soul: String): String = buildMini(language, soul)
 
     private fun resolveLangName(lang: String): String {
         val t = lang.lowercase()

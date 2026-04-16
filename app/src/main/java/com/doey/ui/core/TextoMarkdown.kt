@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun MarkdownText(
     text: String,
-    color: Color = Label1Light,
+    color: Color = DeltaText1,
     fontSize: TextUnit = 14.sp,
     lineHeight: TextUnit = 20.sp,
     modifier: Modifier = Modifier

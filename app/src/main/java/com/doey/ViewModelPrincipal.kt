@@ -21,8 +21,6 @@ import com.doey.servicios.basico.NowPlayingRepository
 import com.doey.servicios.comun.DoeySpeechEvents
 import com.doey.servicios.comun.DoeySpeechRecognizer
 import com.doey.servicios.comun.DoeyTTSEngine
-// NowPlayingInfo ya importado desde com.doey.servicios.basico
-// NowPlayingRepository ya importado desde com.doey.servicios.basico
 import com.doey.servicios.comun.WakeWordService
 import com.doey.herramientas.comun.ToolRegistry
 import com.doey.herramientas.comun.JournalTool
@@ -61,7 +59,11 @@ import com.doey.herramientas.comun.QuickNoteTool
 import com.doey.herramientas.comun.WifiBluetoothTool
 import com.doey.herramientas.comun.FlashlightTool
 import com.doey.herramientas.comun.CountdownTool
+import com.doey.llm.LLMProviderFactory
+import android.accessibilityservice.AccessibilityService
+import com.doey.servicios.basico.DoeyAccessibilityService
 import com.doey.servicios.basico.DoeyOverlayService
+import com.doey.servicios.comun.AlarmReceiver
 
 data class ChatMessage(
     val id: String = java.util.UUID.randomUUID().toString(),
@@ -124,7 +126,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
         // Proveedor activo — usa el factory para respetar provider/model guardados
         // y activa fallback automático a Groq si hay API key configurada
-        val activeProvider = com.doey.llm.LLMProviderFactory.create(
+        val activeProvider = LLMProviderFactory.create(
             provider   = provider,
             apiKey     = settings.getApiKey(provider),
             model      = model,
@@ -439,18 +441,18 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 is LocalIntentProcessor.LocalAction.BackButton -> {
-                    com.doey.servicios.basico.DoeyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+                    DoeyAccessibilityService.instance?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
                     "⬅️ Atrás"
                 }
 
                 is LocalIntentProcessor.LocalAction.ShowRecentApps -> {
-                    com.doey.servicios.basico.DoeyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS)
+                    DoeyAccessibilityService.instance?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
                     "📱 Mostrando aplicaciones recientes"
                 }
 
                 // ── Mantenimiento ───────────────────────────────────────────────────
                 is LocalIntentProcessor.LocalAction.ClearNotifications -> {
-                    com.doey.servicios.basico.DoeyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
+                    DoeyAccessibilityService.instance?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
                     "🔔 Abriendo panel de notificaciones"
                 }
 
@@ -1507,7 +1509,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 is LocalIntentProcessor.LocalAction.QuickReminder -> {
                     try {
                         val alarmMgr = app.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
-                        val intent = android.content.Intent(app, com.doey.servicios.comun.AlarmReceiver::class.java).apply {
+                        val intent = android.content.Intent(app, AlarmReceiver::class.java).apply {
                             putExtra("label", action.text)
                         }
                         val pi = android.app.PendingIntent.getBroadcast(

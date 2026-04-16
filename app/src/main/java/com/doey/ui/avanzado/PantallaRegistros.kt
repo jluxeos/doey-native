@@ -1,7 +1,5 @@
 package com.doey.ui.avanzado
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -60,18 +58,18 @@ fun LogScreen() {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Registro de Actividad", color = Label1Light, fontWeight = FontWeight.Bold)
-                        Text("${filtered.size} entradas", color = Label3Light, fontSize = 11.sp)
+                        Text("Registro de Actividad", color = DeltaText1, fontWeight = FontWeight.Bold)
+                        Text("${filtered.size} entradas", color = DeltaText3, fontSize = 11.sp)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = DeltaSurface1),
                 actions = {
                     // Toggle auto-scroll
                     IconButton(onClick = { autoScroll = !autoScroll }) {
                         Icon(
                             if (autoScroll) CustomIcons.VerticalAlignBottom else CustomIcons.VerticalAlignCenter,
                             contentDescription = "Auto-scroll",
-                            tint = if (autoScroll) Purple else Label3Light
+                            tint = if (autoScroll) Purple else DeltaText3
                         )
                     }
                     // Exportar logs
@@ -86,16 +84,16 @@ fun LogScreen() {
                         }
                         context.startActivity(Intent.createChooser(intent, "Exportar Logs"))
                     }) {
-                        Icon(CustomIcons.FileDownload, contentDescription = "Exportar", tint = Label3Light)
+                        Icon(CustomIcons.FileDownload, contentDescription = "Exportar", tint = DeltaText3)
                     }
                     // Limpiar logs
                     IconButton(onClick = { DoeyLogger.clear() }) {
-                        Icon(CustomIcons.DeleteSweep, contentDescription = "Limpiar", tint = Label3Light)
+                        Icon(CustomIcons.DeleteSweep, contentDescription = "Limpiar", tint = DeltaText3)
                     }
                 }
             )
         },
-        containerColor = Surface0Light
+        containerColor = DeltaBg
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
             // ── Filtros de tipo ───────────────────────────────────────────────
@@ -104,17 +102,17 @@ fun LogScreen() {
                 onSelect = { filterType = if (filterType == it) null else it }
             )
 
-            HorizontalDivider(color = Surface2Light)
+            HorizontalDivider(color = DeltaSurface2)
 
             if (filtered.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(CustomIcons.Terminal, null, tint = Label3Light,
+                        Icon(CustomIcons.Terminal, null, tint = DeltaText3,
                             modifier = Modifier.size(48.dp))
                         Spacer(Modifier.height(8.dp))
-                        Text("Sin registros aún", color = Label3Light, fontSize = 14.sp)
+                        Text("Sin registros aún", color = DeltaText3, fontSize = 14.sp)
                         Text("Los eventos aparecerán aquí cuando uses Doey",
-                            color = Label3Light, fontSize = 12.sp)
+                            color = DeltaText3, fontSize = 12.sp)
                     }
                 }
             } else {
@@ -182,7 +180,7 @@ private fun FilterChipsRow(
                     enabled = true,
                     selected = isSelected,
                     selectedBorderColor = chipColor,
-                    borderColor = Label3Light.copy(alpha = 0.3f)
+                    borderColor = DeltaText3.copy(alpha = 0.3f)
                 )
             )
         }
@@ -200,7 +198,7 @@ private fun LogEntryCard(
 
     Surface(
         shape    = RoundedCornerShape(8.dp),
-        color    = Surface1Light,
+        color    = DeltaSurface1,
         modifier = Modifier
             .fillMaxWidth()
             .then(if (hasDetail) Modifier.clickable { onToggle() } else Modifier)
@@ -228,7 +226,7 @@ private fun LogEntryCard(
                 // Título
                 Text(
                     entry.title,
-                    color    = Label1Light,
+                    color    = DeltaText1,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
@@ -239,7 +237,7 @@ private fun LogEntryCard(
                 // Timestamp
                 Text(
                     entry.formattedTime,
-                    color    = Label3Light,
+                    color    = DeltaText3,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
@@ -247,7 +245,7 @@ private fun LogEntryCard(
                     Icon(
                         if (isExpanded) CustomIcons.ExpandLess else CustomIcons.ExpandMore,
                         contentDescription = null,
-                        tint = Label3Light,
+                        tint = DeltaText3,
                         modifier = Modifier.size(16.dp).padding(start = 2.dp)
                     )
                 }
@@ -260,7 +258,7 @@ private fun LogEntryCard(
             ) {
                 Column {
                     Spacer(Modifier.height(6.dp))
-                    HorizontalDivider(color = Surface2Light, thickness = 0.5.dp)
+                    HorizontalDivider(color = DeltaSurface2, thickness = 0.5.dp)
                     Spacer(Modifier.height(6.dp))
                     Surface(
                         shape = RoundedCornerShape(4.dp),
@@ -268,7 +266,7 @@ private fun LogEntryCard(
                     ) {
                         Text(
                             entry.detail,
-                            color      = Label2Light,
+                            color      = DeltaText2,
                             fontSize   = 11.sp,
                             fontFamily = FontFamily.Monospace,
                             lineHeight = 16.sp,
@@ -281,7 +279,7 @@ private fun LogEntryCard(
             if (!isExpanded && hasDetail) {
                 Text(
                     entry.detail,
-                    color    = Label3Light,
+                    color    = DeltaText3,
                     fontSize = 10.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

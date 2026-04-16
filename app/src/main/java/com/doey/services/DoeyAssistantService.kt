@@ -30,7 +30,7 @@ class DoeyAssistantService : VoiceInteractionSessionService() {
     }
 }
 
-// FIX BUG-6: usar ctx en lugar de context para evitar ambigüedad con VoiceInteractionSession.context
+
 class DoeyVoiceSession(private val ctx: android.content.Context) : VoiceInteractionSession(ctx) {
 
     override fun onShow(args: Bundle?, showFlags: Int) {

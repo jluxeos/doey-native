@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">Doey</string>
+    <string name="app_name">Doey Delta</string>
     <string name="accessibility_service_description">Doey needs accessibility access to read and interact with other apps on your behalf – for example to automatically send a WhatsApp message without you having to tap Send yourself.</string>
 </resources>

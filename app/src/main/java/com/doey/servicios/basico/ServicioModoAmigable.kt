@@ -2,8 +2,6 @@ package com.doey.servicios.basico
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.*
-import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import android.app.NotificationChannel
@@ -107,7 +105,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
         val FriendlyGreen       = Color(0xFF4CAF50)
         val FriendlyGreenLight  = Color(0xFF81C784)
         val FriendlyGreenDark   = Color(0xFF2E7D32)
-        // FIX translucidez: alpha F7 (~97%) para fondo prácticamente sólido
+        // alpha 97% para fondo prácticamente sólido
         val FriendlyBg          = Color(0xF71B3A1F)
         val FriendlyBubble      = Color(0xFF1E4620)
         val FriendlyText        = Color(0xFFE8F5E9)
@@ -265,7 +263,7 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         contextAppState.value = contextApp
 
-        // FIX TECLADO: iniciar con FLAG_NOT_FOCUSABLE; se cambia dinámicamente
+        // iniciar con FLAG_NOT_FOCUSABLE; se cambia dinámicamente al enfocar el campo
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -616,7 +614,7 @@ private fun FriendlyBar(
                 Spacer(Modifier.width(6.dp))
             }
 
-            // FIX BOTONES: ControlButton usa Box+clip(CircleShape) en lugar de
+            // ControlButton usa Box+clip(CircleShape) —
             // IconButton{ Surface{ Icon } } que causaba deformaciones hexagonales.
 
             ControlButton(onClick = onExpand, backgroundColor = surfaceColor, size = 26) {
@@ -629,7 +627,7 @@ private fun FriendlyBar(
             }
             Spacer(Modifier.width(6.dp))
 
-            // FIX PAUSA: color naranja correcto, icono correcto segun estado
+            // color naranja cuando en pausa, verde cuando activo
             ControlButton(
                 onClick = onPause,
                 backgroundColor = if (isPaused) Color(0xFFE65100) else Color(0xFFBF360C).copy(alpha = 0.85f),
@@ -644,7 +642,7 @@ private fun FriendlyBar(
             }
             Spacer(Modifier.width(6.dp))
 
-            // FIX CERRAR: Box circular limpio, no se deforma en mini-barra
+            // Box circular — no se deforma en mini-barra
             ControlButton(onClick = onClose, backgroundColor = Color(0xFFB71C1C), size = 30) {
                 Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(15.dp))
             }
@@ -756,7 +754,7 @@ private fun FriendlyBar(
 
                     Spacer(Modifier.width(8.dp))
 
-                    // FIX TECLADO: onFocusChanged notifica al servicio para cambiar flags del overlay
+                    // onFocusChanged notifica al servicio para cambiar flags del overlay
                     OutlinedTextField(
                         value = inputText,
                         onValueChange = onInputChange,

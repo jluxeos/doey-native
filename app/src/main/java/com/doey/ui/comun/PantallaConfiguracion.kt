@@ -51,9 +51,7 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
     var showApiSaved     by remember { mutableStateOf(false) }
     var showSettingsSaved by remember { mutableStateOf(false) }
     
-    // Glass Controls
-    var currentGlassOpacity by remember { mutableStateOf(GlassOpacity) }
-    var currentGlassBlur    by remember { mutableStateOf(GlassBlur) }
+    // (Glass controls eliminados en Delta — sin glassmorphism)
 
     // Cargar todos los ajustes al iniciar
     LaunchedEffect(Unit) {
@@ -68,9 +66,6 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
         promptCache     = settings.getSystemPromptCacheEnabled()
         historyCompress = settings.getHistoryCompressionEnabled()
         debugMode       = settings.getDebugMode()
-        
-        currentGlassOpacity = settings.getGlassOpacity()
-        currentGlassBlur = settings.getGlassBlur()
         
         updateGlassTheme(theme)
     }
@@ -217,19 +212,19 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                     }
                 }
 
-                // ── 3. Apariencia (Glass & Temas) ──────────────────────────────────
+                // ── 3. Apariencia — Tema Delta ──────────────────────────────────────
                 TauSettingsSection(title = "Apariencia", icon = CustomIcons.Palette) {
-                    Text("Temas Glass (Base Blanca)", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
+                    Text("Color de acento", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        val themeList = listOf("DeepSeaBlue", "NebulaPurple", "AuroraGreen", "SolarOrange", "CrimsonVoid")
+                        val themeList = listOf("NebulaPurple", "AuroraGreen", "SolarOrange", "CrimsonVoid", "OceanBlue")
                         themeList.forEach { name ->
                             val color = when(name) {
-                                "NebulaPurple" -> GlassThemes.NebulaPurple
-                                "AuroraGreen"  -> GlassThemes.AuroraGreen
-                                "SolarOrange"  -> GlassThemes.SolarOrange
-                                "CrimsonVoid"  -> GlassThemes.CrimsonVoid
-                                else           -> GlassThemes.DeepSeaBlue
+                                "NebulaPurple" -> DeltaColors.VioletPrimary
+                                "AuroraGreen"  -> DeltaColors.EmeraldAccent
+                                "SolarOrange"  -> DeltaColors.SunsetAccent
+                                "CrimsonVoid"  -> DeltaColors.RoseAccent
+                                else           -> DeltaColors.OceanAccent
                             }
                             val isSelected = theme == name
                             Box(
@@ -237,9 +232,10 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                                     .size(44.dp)
                                     .clip(CircleShape)
                                     .background(color)
-                                    .clickable { 
+                                    .clickable {
                                         theme = name
                                         updateGlassTheme(name)
+                                        scope.launch { settings.setTheme(name) }
                                     }
                                     .border(if (isSelected) 3.dp else 0.dp, TauText1, CircleShape),
                                 contentAlignment = Alignment.Center
@@ -247,38 +243,6 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                                 if (isSelected) Icon(CustomIcons.Check, null, tint = Color.White, modifier = Modifier.size(20.dp))
                             }
                         }
-                    }
-
-                    Spacer(Modifier.height(24.dp))
-                    Text("Configuración de Vidrio", fontWeight = FontWeight.Bold, color = TauText1, fontSize = 14.sp)
-                    
-                    Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Opacidad: ${(currentGlassOpacity * 100).toInt()}%", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
-                        Slider(
-                            value = currentGlassOpacity,
-                            onValueChange = { 
-                                currentGlassOpacity = it
-                                GlassOpacity = it 
-                                scope.launch { settings.setGlassOpacity(it) }
-                            },
-                            valueRange = 0.1f..1f,
-                            modifier = Modifier.width(140.dp)
-                        )
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Desenfoque: ${currentGlassBlur.toInt()}dp", modifier = Modifier.weight(1f), color = TauText1, fontSize = 14.sp)
-                        Slider(
-                            value = currentGlassBlur,
-                            onValueChange = { 
-                                currentGlassBlur = it
-                                GlassBlur = it
-                                scope.launch { settings.setGlassBlur(it) }
-                            },
-                            valueRange = 0f..50f,
-                            modifier = Modifier.width(140.dp)
-                        )
-                    }
                     }
                 }
 

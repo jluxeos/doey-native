@@ -1,8 +1,6 @@
 package com.doey.ui.comun
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.gestures.*
-import androidx.compose.foundation.lazy.*
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -31,15 +29,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.doey.ui.core.*
 
-// ── Colores del Onboarding — delegados al tema global ─────────────────────────
-private val OBGradientStart get() = Color(0xFFF0F2F7)
-private val OBGradientEnd   get() = Color(0xFFE8ECF4)
-private val OBAccent        get() = TauAccent
-private val OBAccentLight   get() = TauAccentLight
-private val OBText          get() = TauText1
-private val OBTextSub       get() = TauText3
-private val OBCard          = Color(0x0F000000)
-private val OBCardBorder    = Color(0x18000000)
+// ── Colores del Onboarding — tema Delta ──────────────────────────────────────
+private val OBGradientStart get() = DeltaBg
+private val OBGradientEnd   get() = DeltaSurface1
+private val OBAccent        get() = DeltaAccent
+private val OBAccentLight   get() = DeltaAccentGlow
+private val OBText          get() = DeltaText1
+private val OBTextSub       get() = DeltaText3
+private val OBCard          get() = DeltaSurface2
+private val OBCardBorder    get() = DeltaSeparator
 
 enum class OnboardingStep {
     WELCOME,
@@ -226,32 +224,28 @@ private fun WelcomeStep(onNext: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Logo animado con Glassmorphism
+        // Logo Delta
         Box(
             Modifier
                 .size(120.dp)
                 .scale(scale)
                 .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        listOf(OBAccent.copy(alpha = 0.2f), OBAccent.copy(alpha = 0.05f))
-                    )
-                )
-                .border(1.dp, OBAccent.copy(alpha = 0.3f), CircleShape),
+                .background(OBAccent.copy(alpha = 0.10f))
+                .border(1.5.dp, OBAccent.copy(alpha = 0.35f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                CustomIcons.SmartToy,
-                contentDescription = null,
-                tint = OBAccent,
-                modifier = Modifier.size(64.dp)
+            Text(
+                "δ",
+                fontSize = 52.sp,
+                fontWeight = FontWeight.Bold,
+                color = OBAccent
             )
         }
 
         Spacer(Modifier.height(40.dp))
 
         Text(
-            "Hola, soy Doey",
+            "Doey Delta",
             fontSize = 36.sp,
             fontWeight = FontWeight.ExtraBold,
             color = OBText,
@@ -261,7 +255,7 @@ private fun WelcomeStep(onNext: () -> Unit) {
         Spacer(Modifier.height(16.dp))
 
         Text(
-            "Tu asistente personal inteligente.\nPuedo hacer casi cualquier cosa en tu teléfono por ti.",
+            "Tu asistente Android inteligente.\nPuedo hacer casi cualquier cosa en tu teléfono por ti.",
             fontSize = 16.sp,
             color = OBTextSub,
             textAlign = TextAlign.Center,

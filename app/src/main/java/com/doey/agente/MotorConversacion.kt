@@ -17,7 +17,7 @@ class ConversationPipeline(
     private val ctx: android.content.Context,
     private var provider: LLMProvider,
     private val tools: ToolRegistry,
-    private val skillLoader: SkillLoader,          // Mantenido para compatibilidad, no se usa
+    private val skillLoader: SkillLoader
     private var drivingMode: Boolean = false,
     private var language: String = "es",
     private var soul: String = "",
@@ -209,9 +209,7 @@ class ConversationPipeline(
     private fun getOrBuildFull(): String {
         if (promptCacheEnabled && !promptsDirty && cachedFull.isNotBlank()) return cachedFull
         cachedFull = SystemPromptBuilder.build(
-            skillLoader        = skillLoader,
             toolRegistry       = tools,
-            enabledSkillNames  = emptyList(),
             drivingMode        = drivingMode,
             language           = language,
             soul               = soul,

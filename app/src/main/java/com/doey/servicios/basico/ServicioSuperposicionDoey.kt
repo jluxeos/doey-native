@@ -2,7 +2,6 @@ package com.doey.servicios.basico
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.*
-import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import android.app.Notification
@@ -101,7 +100,7 @@ class DoeyOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
     private var isExpanded      = mutableStateOf(false)
-    private var isBubbleVisible = mutableStateOf(true)   // FIX BUG-2: controla visibilidad sin destruir la vista
+    private var isBubbleVisible = mutableStateOf(true)   // visibilidad controlada sin destruir la vista
     private var statusState     = mutableStateOf(OverlayStatus.IDLE)
     private var messageState    = mutableStateOf("Doey listo")
     private var nextActionState = mutableStateOf("")
@@ -181,7 +180,7 @@ class DoeyOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
             setViewTreeLifecycleOwner(this@DoeyOverlayService)
             setViewTreeSavedStateRegistryOwner(this@DoeyOverlayService)
             setContent {
-                // FIX BUG-2: AnimatedVisibility controla la burbuja sin destruir el servicio
+                // AnimatedVisibility controla visibilidad sin destruir el servicio
                     AnimatedVisibility(
                         visible = isBubbleVisible.value,
                         enter   = scaleIn() + fadeIn(),
@@ -199,7 +198,7 @@ class DoeyOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
                                 }
                                 startActivity(i)
                             },
-                            // FIX BUG-2: cerrar solo colapsa, no destruye
+                            // cerrar solo colapsa, no destruye el servicio
                             onClose    = { isBubbleVisible.value = false },
                             onDismiss  = { dismissOverlay() }
                         )
@@ -241,7 +240,7 @@ class DoeyOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
         windowManager?.addView(composeView, params)
     }
 
-    // FIX BUG-2: hideOverlay ahora solo colapsa la burbuja (no destruye el servicio)
+    // hideOverlay solo colapsa la burbuja, no destruye el servicio
     private fun hideOverlay() {
         isBubbleVisible.value = false
         isExpanded.value = false
@@ -308,7 +307,7 @@ private fun DoeyBubble(
     onToggleExpand: () -> Unit,
     onOpenApp: () -> Unit,
     onClose: () -> Unit,
-    onDismiss: () -> Unit = onClose  // FIX BUG-2: onDismiss para cierre completo
+    onDismiss: () -> Unit = onClose
 ) {
     val bubbleColor = when (status) {
         DoeyOverlayService.OverlayStatus.IDLE -> Color(0xFF1E1E2E)
@@ -437,7 +436,7 @@ private fun DoeyBubble(
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
-                            // FIX BUG-2: este botón minimiza (no destruye)
+                            // este botón minimiza, no destruye el servicio
                             IconButton(
                                 onClick = onClose,
                                 modifier = Modifier.size(28.dp)

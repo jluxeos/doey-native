@@ -1,13 +1,10 @@
 package com.doey.ui.comun
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.*
-import androidx.compose.foundation.lazy.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import android.content.Intent
 import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,179 +27,142 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.doey.ui.core.*
 import com.doey.MainViewModel
 import com.doey.agente.FlowModeEngine
 import com.doey.agente.FlowNode
 import com.doey.agente.FlowOption
+import com.doey.agente.PipelineState
 import com.doey.servicios.basico.FriendlyModeService
-import android.content.Intent
-
+import com.doey.ui.core.*
 
 @Composable
 fun HomeScreen(vm: MainViewModel, nav: NavController) {
     val state     by vm.uiState.collectAsState()
-    val listState = rememberLazyListState()
-    var input     by remember { mutableStateOf("") }
-    val scope     = rememberCoroutineScope()
-    val settings  = remember { vm.getSettings() }
-    var theme     by remember { mutableStateOf("DeepSeaBlue") }
-    val ctx       = LocalContext.current
+    val listState  = rememberLazyListState()
+    var input      by remember { mutableStateOf("") }
+    val scope      = rememberCoroutineScope()
+    val settings   = remember { vm.getSettings() }
+    val ctx        = LocalContext.current
 
-    // ── Estado del carrusel de acciones rápidas ────────────────────────────────
-    var flowExpanded      by remember { mutableStateOf(false) }
-    var currentNode       by remember { mutableStateOf<FlowNode?>(null) }
-    var currentParams     by remember { mutableStateOf(mapOf<String, String>()) }
-    var flowFeedback      by remember { mutableStateOf<String?>(null) }
+    var flowExpanded  by remember { mutableStateOf(false) }
+    var currentNode   by remember { mutableStateOf<FlowNode?>(null) }
+    var currentParams by remember { mutableStateOf(mapOf<String, String>()) }
+    var flowFeedback  by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        theme = settings.getTheme()
+        val theme = settings.getTheme()
         updateGlassTheme(theme)
     }
 
     LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.size - 1)
+        if (state.messages.isNotEmpty())
+            listState.animateScrollToItem(state.messages.size - 1)
     }
 
-    // Ocultar feedback tras 2 segundos
     LaunchedEffect(flowFeedback) {
-        if (flowFeedback != null) {
-            delay(2000)
-            flowFeedback = null
-        }
+        if (flowFeedback != null) { delay(2500); flowFeedback = null }
     }
 
     Box(Modifier.fillMaxSize()) {
-        GlassBackground(accentColor = TauAccent)
+        DeltaBackground()
 
         Column(Modifier.fillMaxSize()) {
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(8.dp))
 
-            // ── Chat ──────────────────────────────────────────────────────────
+            // ── Chat ─────────────────────────────────────────────────
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp),
-                state = listState,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(vertical = 16.dp)
+                modifier         = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp),
+                state            = listState,
+                verticalArrangement  = Arrangement.spacedBy(12.dp),
+                contentPadding   = PaddingValues(vertical = 12.dp)
             ) {
+                if (state.messages.isEmpty()) {
+                    item { DeltaEmptyState() }
+                }
                 items(state.messages) { msg ->
-                    val isUser = msg.role == "user"
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
-                        ) {
-                            GlassCard(
-                                modifier = Modifier.widthIn(max = 280.dp),
-                                opacity = if (isUser) GlassOpacity else GlassOpacity * 0.5f,
-                                blur = GlassBlur
-                            ) {
-                                Text(
-                                    text = msg.text,
-                                    color = TauText1,
-                                    fontSize = 15.sp,
-                                    lineHeight = 20.sp
-                                )
-                            }
-                        }
-                        if (!isUser && msg.respondedBy != null) {
-                            val label = if (msg.respondedBy == "IRIS")
-                                "⚡ Respondió: IRIS (sin IA)"
-                            else
-                                "🤖 Respondió: ${msg.respondedBy}"
-                            Text(
-                                text = label,
-                                color = TauText3,
-                                fontSize = 11.sp,
-                                modifier = Modifier.padding(start = 6.dp, top = 3.dp)
-                            )
-                        }
-                    }
+                    DeltaChatBubble(msg)
                 }
             }
 
-            // ── Feedback de acción rápida ─────────────────────────────────────
+            // ── Feedback de acción rápida ─────────────────────────────
             AnimatedVisibility(
                 visible = flowFeedback != null,
-                enter = fadeIn() + slideInVertically(),
-                exit  = fadeOut() + slideOutVertically()
+                enter   = fadeIn(tween(200)) + slideInVertically { it / 2 },
+                exit    = fadeOut(tween(150)) + slideOutVertically { it / 2 }
             ) {
                 Box(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(TauAccent.copy(alpha = 0.15f))
-                        .border(1.dp, TauAccent.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                        .background(DeltaAccent.copy(alpha = 0.12f))
+                        .border(1.dp, DeltaAccent.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
                     Text(
-                        text = flowFeedback ?: "",
-                        color = TauAccent,
-                        fontSize = 13.sp,
+                        text       = flowFeedback ?: "",
+                        color      = DeltaAccentSoft,
+                        fontSize   = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
             }
 
-            // ── Carrusel de acciones rápidas (Modo Flujo integrado) ────────────
+            // ── Modo Flujo — carrusel ────────────────────────────────
             AnimatedVisibility(
                 visible = flowExpanded,
-                enter = fadeIn() + expandVertically(),
-                exit  = fadeOut() + shrinkVertically()
+                enter   = fadeIn(tween(200)) + expandVertically(),
+                exit    = fadeOut(tween(150)) + shrinkVertically()
             ) {
-                Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-
-                    // Migas de pan + botón cerrar
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(DeltaSurface1)
+                        .border(
+                            width  = 1.dp,
+                            color  = DeltaSeparator,
+                            shape  = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                        )
+                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
                     Row(
-                        Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                        Modifier.fillMaxWidth().padding(bottom = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment     = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (currentNode != null) {
-                                Text(
-                                    "⚡ ",
-                                    fontSize = 13.sp,
-                                    color = TauText3,
-                                    modifier = Modifier.clickable {
-                                        currentNode = null
-                                        currentParams = emptyMap()
-                                    }
-                                )
-                            }
+                            Box(
+                                Modifier.size(6.dp).clip(CircleShape).background(DeltaAccent)
+                            )
+                            Spacer(Modifier.width(8.dp))
                             Text(
-                                text = currentNode?.label ?: "Acciones rápidas",
-                                color = TauText2,
-                                fontSize = 13.sp,
+                                text       = currentNode?.label ?: "Acciones rápidas",
+                                color      = DeltaText2,
+                                fontSize   = 13.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
                         Text(
                             "✕",
-                            color = TauText3,
+                            color    = DeltaText3,
                             fontSize = 16.sp,
                             modifier = Modifier.clickable {
-                                flowExpanded = false
-                                currentNode  = null
+                                flowExpanded  = false
+                                currentNode   = null
                                 currentParams = emptyMap()
                             }
                         )
                     }
 
-                    // Chips de opciones
                     val options = currentNode?.options ?: FlowModeEngine.getRootOptions()
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(horizontal = 4.dp)
+                        contentPadding        = PaddingValues(horizontal = 4.dp)
                     ) {
                         items(options) { opt ->
-                            FlowChip(opt) {
+                            DeltaFlowChip(opt) {
                                 when {
-                                    // Navegar a sub-nodo
                                     opt.nextNodeId != null -> {
                                         val merged = currentParams + opt.params
                                         scope.launch {
@@ -210,7 +170,6 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                                             currentParams = merged
                                         }
                                     }
-                                    // Ejecutar comando directo
                                     opt.command != null -> {
                                         scope.launch {
                                             val result = FlowModeEngine.executeCommand(ctx, opt.command)
@@ -227,103 +186,245 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                 }
             }
 
-            // ── Input area ────────────────────────────────────────────────────
-            Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp).imePadding()) {
-                GlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    opacity = GlassOpacity,
-                    blur = GlassBlur
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-
-                        // Botón ⚡ para abrir/cerrar el carrusel
-                        IconButton(
-                            onClick = {
-                                flowExpanded  = !flowExpanded
-                                currentNode   = null
-                                currentParams = emptyMap()
-                            }
-                        ) {
-                            Text(
-                                text = if (flowExpanded) "✕" else "⚡",
-                                fontSize = 18.sp,
-                                color = if (flowExpanded) TauText3 else TauAccent
-                            )
-                        }
-
-                        // Botón 🌿 Modo Friendly
-                        IconButton(
-                            onClick = {
-                                val intent = Intent(ctx, FriendlyModeService::class.java).apply {
-                                    action = FriendlyModeService.ACTION_SHOW
-                                    putExtra(FriendlyModeService.EXTRA_CONTEXT_APP, "Inicio")
-                                }
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                    ctx.startForegroundService(intent)
-                                } else {
-                                    ctx.startService(intent)
-                                }
-                            }
-                        ) {
-                            Text("🌿", fontSize = 18.sp)
-                        }
-
-                        TextField(
-                            value = input,
-                            onValueChange = { input = it },
-                            placeholder = { Text("Escribe algo...", color = TauText3) },
-                            modifier = Modifier.weight(1f),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                focusedTextColor = TauText1,
-                                unfocusedTextColor = TauText1
-                            )
-                        )
-                        IconButton(
-                            onClick = {
-                                if (input.isNotBlank()) {
-                                    vm.sendMessage(input)
-                                    input = ""
-                                }
-                            },
-                            modifier = Modifier.clip(CircleShape).background(TauAccent)
-                        ) {
-                            Icon(CustomIcons.Send, null, tint = Color.White, modifier = Modifier.size(20.dp))
-                        }
+            // ── Barra de entrada ─────────────────────────────────────
+            DeltaInputBar(
+                input        = input,
+                onInputChange = { input = it },
+                state        = state.pipelineState,
+                flowExpanded = flowExpanded,
+                onFlowToggle = {
+                    flowExpanded  = !flowExpanded
+                    currentNode   = null
+                    currentParams = emptyMap()
+                },
+                onFriendlyMode = {
+                    val intent = Intent(ctx, FriendlyModeService::class.java).apply {
+                        action = FriendlyModeService.ACTION_SHOW
+                        putExtra(FriendlyModeService.EXTRA_CONTEXT_APP, "Inicio")
+                    }
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+                        ctx.startForegroundService(intent)
+                    else
+                        ctx.startService(intent)
+                },
+                onMic  = { vm.startListening() },
+                onSend = {
+                    if (input.isNotBlank()) {
+                        vm.sendMessage(input)
+                        input = ""
                     }
                 }
-            }
-            Spacer(Modifier.height(16.dp))
+            )
         }
     }
 }
 
-// ── Chip individual de acción rápida ──────────────────────────────────────────
+// ── Chat bubble ──────────────────────────────────────────────────
 @Composable
-private fun FlowChip(opt: FlowOption, onClick: () -> Unit) {
+private fun DeltaChatBubble(msg: com.doey.ChatMessage) {
+    val isUser = msg.role == "user"
+    Column(
+        modifier            = Modifier.fillMaxWidth(),
+        horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
+    ) {
+        Row(
+            modifier              = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+        ) {
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 290.dp)
+                    .clip(
+                        RoundedCornerShape(
+                            topStart    = 18.dp,
+                            topEnd      = 18.dp,
+                            bottomStart = if (isUser) 18.dp else 4.dp,
+                            bottomEnd   = if (isUser) 4.dp else 18.dp
+                        )
+                    )
+                    .background(
+                        if (isUser) DeltaAccent.copy(alpha = 0.18f)
+                        else        DeltaSurface2
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = if (isUser) DeltaAccent.copy(alpha = 0.30f) else DeltaSeparator,
+                        shape = RoundedCornerShape(
+                            topStart    = 18.dp,
+                            topEnd      = 18.dp,
+                            bottomStart = if (isUser) 18.dp else 4.dp,
+                            bottomEnd   = if (isUser) 4.dp else 18.dp
+                        )
+                    )
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
+                MarkdownText(
+                    text  = msg.text,
+                    color = DeltaText1
+                )
+            }
+        }
+        if (!isUser && msg.respondedBy != null) {
+            val label = if (msg.respondedBy == "IRIS") "⚡ IRIS" else "🤖 ${msg.respondedBy}"
+            Text(
+                text     = label,
+                color    = DeltaText3,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(start = 6.dp, top = 3.dp)
+            )
+        }
+    }
+}
+
+// ── Estado vacío ─────────────────────────────────────────────────
+@Composable
+private fun DeltaEmptyState() {
+    Box(
+        Modifier.fillMaxWidth().padding(vertical = 40.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(DeltaAccent.copy(alpha = 0.08f))
+                    .border(1.dp, DeltaAccent.copy(alpha = 0.15f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("δ", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = DeltaAccent)
+            }
+            Spacer(Modifier.height(16.dp))
+            Text("Doey Delta", style = DoeyTypography.titleLarge, color = DeltaText1)
+            Spacer(Modifier.height(6.dp))
+            Text("¿En qué te ayudo hoy?", style = DoeyTypography.bodyMedium, color = DeltaText3)
+        }
+    }
+}
+
+// ── Chip de modo flujo ───────────────────────────────────────────
+@Composable
+private fun DeltaFlowChip(opt: FlowOption, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(TauSurface1)
-            .border(1.dp, TauSeparator, RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .background(DeltaSurface2)
+            .border(1.dp, DeltaSeparator, RoundedCornerShape(20.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             if (opt.icon.isNotBlank()) {
-                Text(opt.icon, fontSize = 16.sp)
+                Text(opt.icon, fontSize = 14.sp)
+                Spacer(Modifier.width(6.dp))
             }
-            Text(
-                text = opt.label,
-                color = TauText1,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
-            )
-            if (opt.nextNodeId != null) {
-                Text("›", color = TauText3, fontSize = 14.sp)
+            Text(opt.label, color = DeltaText1, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+// También exportar con el alias viejo por si algún archivo lo usa
+@Composable
+fun FlowChip(opt: FlowOption, onClick: () -> Unit) = DeltaFlowChip(opt, onClick)
+
+// ── Barra de input ───────────────────────────────────────────────
+@Composable
+private fun DeltaInputBar(
+    input: String,
+    onInputChange: (String) -> Unit,
+    state: PipelineState,
+    flowExpanded: Boolean,
+    onFlowToggle: () -> Unit,
+    onFriendlyMode: () -> Unit,
+    onMic: () -> Unit,
+    onSend: () -> Unit
+) {
+    val isProcessing = state == PipelineState.PROCESSING || state == PipelineState.SPEAKING
+    val isListening  = state == PipelineState.LISTENING
+
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .background(DeltaSurface1)
+            .border(1.dp, DeltaSeparator, RoundedCornerShape(0.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .imePadding()
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+
+            // Botón modo flujo
+            IconButton(onClick = onFlowToggle) {
+                Text(
+                    text     = if (flowExpanded) "✕" else "⚡",
+                    fontSize = 18.sp,
+                    color    = if (flowExpanded) DeltaText3 else DeltaAccent
+                )
+            }
+
+            // Botón modo amigable
+            IconButton(onClick = onFriendlyMode) {
+                Text("🌿", fontSize = 18.sp)
+            }
+
+            // Campo de texto
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(DeltaSurface2)
+                    .border(1.dp, DeltaSeparator, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
+                if (input.isEmpty() && !isListening && !isProcessing) {
+                    Text(
+                        text     = if (isProcessing) "Procesando..." else "Escribe o habla con Doey...",
+                        color    = DeltaText3,
+                        fontSize = 14.sp
+                    )
+                }
+                if (isListening) {
+                    Text("🎙 Escuchando...", color = DeltaAccent, fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium)
+                } else if (isProcessing) {
+                    Text("⏳ Procesando...", color = DeltaText3, fontSize = 14.sp)
+                } else {
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = input,
+                        onValueChange = onInputChange,
+                        textStyle = DoeyTypography.bodyMedium.copy(color = DeltaText1),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(DeltaAccent),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            // Botón mic
+            IconButton(onClick = onMic) {
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Micrófono",
+                    tint = if (isListening) DeltaAccent else DeltaText3,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            // Botón enviar
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(if (input.isNotBlank()) DeltaAccent else DeltaSurface3)
+                    .clickable(enabled = input.isNotBlank()) { onSend() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Send,
+                    contentDescription = "Enviar",
+                    tint = if (input.isNotBlank()) Color.White else DeltaText3,
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }

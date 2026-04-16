@@ -23,6 +23,7 @@ import com.doey.ui.comun.MemoryEntry
 import com.doey.ui.comun.parseMemoryEntries
 import com.doey.ui.comun.toJson
 import com.doey.servicios.basico.DoeyAccessibilityService
+import com.doey.servicios.comun.AlarmScheduler
 import com.doey.servicios.comun.DoeyTTSEngine
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.Dispatchers
@@ -888,7 +889,7 @@ class AlarmTool : Tool {
                     val hour = (args["hour"] as? Number)?.toInt() ?: return errorResult("hour required")
                     val minute = (args["minute"] as? Number)?.toInt() ?: 0
                     val recurring = args["recurring"] as? Boolean ?: false
-                    com.doey.servicios.comun.AlarmScheduler.scheduleAlarmAtTime(alarmId, title, desc, hour, minute, recurring)
+                    AlarmScheduler.scheduleAlarmAtTime(alarmId, title, desc, hour, minute, recurring)
                     
                     // Persistir alarma para la UI de Reloj
                     val prefs = ctx.getSharedPreferences("doey_alarms_store", 0)
@@ -906,13 +907,13 @@ class AlarmTool : Tool {
                 }
                 "timer" -> {
                     val delayMin = (args["delay_minutes"] as? Number)?.toInt() ?: return errorResult("delay_minutes required")
-                    com.doey.servicios.comun.AlarmScheduler.scheduleAlarmInMinutes(alarmId, title, desc, delayMin)
+                    AlarmScheduler.scheduleAlarmInMinutes(alarmId, title, desc, delayMin)
                     successResult("Temporizador de $delayMin minutos iniciado")
                 }
                 "reminder" -> {
                     val hour = (args["hour"] as? Number)?.toInt() ?: return errorResult("hour required")
                     val minute = (args["minute"] as? Number)?.toInt() ?: 0
-                    com.doey.servicios.comun.AlarmScheduler.scheduleAlarmAtTime(alarmId, title, desc, hour, minute, false)
+                    AlarmScheduler.scheduleAlarmAtTime(alarmId, title, desc, hour, minute, false)
                     successResult("Recordatorio programado para las ${String.format("%02d:%02d", hour, minute)}")
                 }
                 else -> errorResult("Unknown alarm type: $type")

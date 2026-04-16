@@ -259,11 +259,11 @@ fun MemoriesScreen(vm: MainViewModel) {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Mis Memorias", color = Label1Light, fontWeight = FontWeight.Bold)
-                        Text("${entries.size} datos guardados", color = Label3Light, fontSize = 11.sp)
+                        Text("Mis Memorias", color = DeltaText1, fontWeight = FontWeight.Bold)
+                        Text("${entries.size} datos guardados", color = DeltaText3, fontSize = 11.sp)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1Light),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = DeltaSurface1),
                 actions = {
                     if (isSaved) {
                         Icon(
@@ -280,7 +280,7 @@ fun MemoriesScreen(vm: MainViewModel) {
                         }
                         context.startActivity(Intent.createChooser(intent, "Exportar Memorias"))
                     }) {
-                        Icon(CustomIcons.Share, "Compartir", tint = Label3Light)
+                        Icon(CustomIcons.Share, "Compartir", tint = DeltaText3)
                     }
                     IconButton(onClick = { showAddDialog = true }) {
                         Icon(CustomIcons.Add, "Agregar", tint = Purple)
@@ -288,12 +288,12 @@ fun MemoriesScreen(vm: MainViewModel) {
                 }
             )
         },
-        containerColor = Surface0Light,
+        containerColor = DeltaBg,
         floatingActionButton = {
             FloatingActionButton(
                 onClick        = { showAddDialog = true },
                 containerColor = Purple,
-                contentColor   = OnPurple
+                contentColor   = Color.White
             ) {
                 Icon(CustomIcons.Add, "Agregar memoria")
             }
@@ -309,13 +309,13 @@ fun MemoriesScreen(vm: MainViewModel) {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.padding(32.dp)
                 ) {
-                    Icon(CustomIcons.Psychology, null, tint = Label3Light,
+                    Icon(CustomIcons.Psychology, null, tint = DeltaText3,
                         modifier = Modifier.size(64.dp))
                     Text("Sin memorias guardadas", fontWeight = FontWeight.Bold,
-                        color = Label1Light, fontSize = 18.sp)
+                        color = DeltaText1, fontSize = 18.sp)
                     Text(
                         "Toca el botón + para agregar información sobre ti. Doey la usará para conocerte mejor y ayudarte de forma personalizada.",
-                        color = Label3Light, fontSize = 13.sp,
+                        color = DeltaText3, fontSize = 13.sp,
                         textAlign = TextAlign.Center
                     )
                     Spacer(Modifier.height(8.dp))
@@ -323,9 +323,9 @@ fun MemoriesScreen(vm: MainViewModel) {
                         onClick = { showAddDialog = true },
                         colors  = ButtonDefaults.buttonColors(containerColor = Purple)
                     ) {
-                        Icon(CustomIcons.Add, null, tint = OnPurple)
+                        Icon(CustomIcons.Add, null, tint = Color.White)
                         Spacer(Modifier.width(8.dp))
-                        Text("Agregar mi primera memoria", color = OnPurple)
+                        Text("Agregar mi primera memoria", color = Color.White)
                     }
                 }
             }
@@ -412,7 +412,7 @@ private fun CategorySection(
 ) {
     Surface(
         shape    = RoundedCornerShape(12.dp),
-        color    = Surface1Light,
+        color    = DeltaSurface1,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column {
@@ -436,15 +436,15 @@ private fun CategorySection(
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(category.label, fontWeight = FontWeight.Bold,
-                        color = Label1Light, fontSize = 14.sp)
+                        color = DeltaText1, fontSize = 14.sp)
                     Text(
                         "${entries.size} ${if (entries.size == 1) "elemento" else "elementos"}",
-                        color = Label3Light, fontSize = 11.sp
+                        color = DeltaText3, fontSize = 11.sp
                     )
                 }
                 Icon(
                     if (isExpanded) CustomIcons.ExpandLess else CustomIcons.ExpandMore,
-                    null, tint = Label3Light
+                    null, tint = DeltaText3
                 )
             }
 
@@ -457,12 +457,12 @@ private fun CategorySection(
                     modifier = Modifier.padding(horizontal = 12.dp).padding(bottom = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    HorizontalDivider(color = Surface2Light)
+                    HorizontalDivider(color = DeltaSurface2)
                     Spacer(Modifier.height(4.dp))
                     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
-                        Text("Variable", color = Label3Light, fontSize = 10.sp,
+                        Text("Variable", color = DeltaText3, fontSize = 10.sp,
                             fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                        Text("Definición", color = Label3Light, fontSize = 10.sp,
+                        Text("Definición", color = DeltaText3, fontSize = 10.sp,
                             fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.5f))
                         Spacer(Modifier.width(56.dp))
                     }
@@ -502,14 +502,14 @@ private fun MemoryEntryRow(
         ) {
             Text(
                 entry.variable,
-                color      = Label1Light,
+                color      = DeltaText1,
                 fontSize   = 13.sp,
                 fontWeight = FontWeight.Medium,
                 modifier   = Modifier.weight(1f)
             )
             Text(
                 entry.definition,
-                color    = Label2Light,
+                color    = DeltaText2,
                 fontSize = 12.sp,
                 modifier = Modifier.weight(1.5f)
             )
@@ -562,7 +562,7 @@ private fun AddEditMemoryDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape    = RoundedCornerShape(16.dp),
-            color    = Surface0Light,
+            color    = DeltaBg,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -572,7 +572,7 @@ private fun AddEditMemoryDialog(
                 Text(
                     if (isEditing) "Editar memoria" else "Nueva memoria",
                     fontWeight = FontWeight.Bold,
-                    color      = Label1Light,
+                    color      = DeltaText1,
                     fontSize   = 18.sp
                 )
 
@@ -750,7 +750,7 @@ private fun AddEditMemoryDialog(
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 "- [${selectedCat.id}] $variable${if (definition.isNotBlank()) ": $definition" else ""}",
-                                color    = Label2Light,
+                                color    = DeltaText2,
                                 fontSize = 11.sp
                             )
                         }
@@ -765,7 +765,7 @@ private fun AddEditMemoryDialog(
                     OutlinedButton(
                         onClick  = onDismiss,
                         modifier = Modifier.weight(1f),
-                        colors   = ButtonDefaults.outlinedButtonColors(contentColor = Label2Light)
+                        colors   = ButtonDefaults.outlinedButtonColors(contentColor = DeltaText2)
                     ) { Text("Cancelar") }
 
                     Button(
@@ -785,9 +785,9 @@ private fun AddEditMemoryDialog(
                         modifier = Modifier.weight(1f),
                         colors   = ButtonDefaults.buttonColors(containerColor = Purple)
                     ) {
-                        Icon(CustomIcons.Save, null, tint = OnPurple)
+                        Icon(CustomIcons.Save, null, tint = Color.White)
                         Spacer(Modifier.width(6.dp))
-                        Text(if (isEditing) "Actualizar" else "Guardar", color = OnPurple)
+                        Text(if (isEditing) "Actualizar" else "Guardar", color = Color.White)
                     }
                 }
             }
