@@ -771,11 +771,116 @@ class SkillDetailTool(private val skillLoader: SkillLoader) : Tool {
 
 class PersonalMemoryTool : Tool {
     private val store get() = AplicacionDoey.instance.settingsStore
-    override fun name()        = "memory_personal_upsert"
-    override fun description() = "Store personal facts about the user for future context."
-    override fun systemHint()  = "Call FIRST when you detect any stable personal fact in the user's message."
+    override fun name()        = "memory_personal"
+    override fun description() = "Read, write, edit, or delete personal facts about the user stored in long-term memory."
+    override fun systemHint()  = "Use 'upsert' when you detect stable personal facts. Use 'delete_fact' when the user corrects or removes info. Use 'read' to check current memories before editing."
 
     override fun parameters() = mapOf<String, Any?>(
+        "type" to "object",
+        "properties" to mapOf(
+            "action" to mapOf(
+                "type" to "string",
+                "enum" to listOf("upsert", "read", "delete_fact", "clear_category"),
+                "description" to "'upsert' adds/updates facts, 'read' returns all memories, 'delete_fact' removes a specific variable, 'clear_category' deletes all facts in a category."
+            ),
+            "facts" to mapOf("type" to "array",
+                "description" to "List of facts to add/update. Each fact: {fact: 'variable:value', category: 'cat'}",
+                "items" to mapOf("type" to "object",
+                    "properties" to mapOf(
+                        "fact"     to mapOf("type" to "string"),
+                        "category" to mapOf("type" to "string")
+                    ),
+                    "required" to listOf("fact"))),
+            "variable" to mapOf("type" to "string",
+                "description" to "Variable name to delete (for 'delete_fact')."),
+            "category" to mapOf("type" to "string",
+                "description" to "Category to filter delete_fact or clear_category.")
+        ),
+        "required" to listOf("action")
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        val action   = args["action"] as? String ?: "upsert"
+        val existing = store.getPersonalMemory()
+        val entries  = parseMemoryEntries(existing).toMutableList()
+
+        return when (action) {
+
+            // ── Leer todas las memorias ───────────────────────────────────────
+            "read" -> {
+                if (entries.isEmpty()) {
+                    successResult("No hay memorias guardadas todavía.")
+                } else {
+                    val sb = StringBuilder()
+                    entries.groupBy { it.category }.forEach { (cat, items) ->
+                        sb.append("[$cat]\n")
+                        items.forEach { e ->
+                            sb.append("  ${e.variable}${if (e.definition.isNotBlank()) ": ${e.definition}" else ""}\n")
+                        }
+                    }
+                    successResult(sb.toString().trimEnd())
+                }
+            }
+
+            // ── Agregar / actualizar hechos ───────────────────────────────────
+            "upsert" -> {
+                @Suppress("UNCHECKED_CAST")
+                val facts = args["facts"] as? List<Map<String, String>>
+                    ?: return errorResult("facts required for upsert")
+                facts.forEach { f ->
+                    val fact = f["fact"] ?: return@forEach
+                    val cat  = f["category"] ?: "otro"
+                    val colonIdx = fact.indexOf(':')
+                    val variable   = if (colonIdx != -1) fact.substring(0, colonIdx).trim() else fact.trim()
+                    val definition = if (colonIdx != -1) fact.substring(colonIdx + 1).trim() else ""
+                    val idx = entries.indexOfFirst {
+                        it.category == cat && it.variable.equals(variable, ignoreCase = true)
+                    }
+                    if (idx >= 0) entries[idx] = entries[idx].copy(definition = definition)
+                    else entries.add(MemoryEntry(category = cat, variable = variable, definition = definition))
+                }
+                store.setPersonalMemory((entries as List<MemoryEntry>).toJson())
+                successResult("${facts.size} hecho(s) guardado(s) en memoria.")
+            }
+
+            // ── Eliminar una variable específica ─────────────────────────────
+            "delete_fact" -> {
+                val variable = args["variable"] as? String
+                    ?: return errorResult("variable required for delete_fact")
+                val category = args["category"] as? String
+                val before   = entries.size
+                val kept = entries.filter { e ->
+                    val matchVar = e.variable.equals(variable, ignoreCase = true)
+                    val matchCat = category == null || e.category.equals(category, ignoreCase = true)
+                    !(matchVar && matchCat)
+                }
+                if (kept.size == before) return errorResult("No se encontró '$variable' en memorias.")
+                store.setPersonalMemory(kept.toJson())
+                successResult("Hecho '$variable' eliminado de la memoria.")
+            }
+
+            // ── Limpiar categoría completa ────────────────────────────────────
+            "clear_category" -> {
+                val category = args["category"] as? String
+                    ?: return errorResult("category required for clear_category")
+                val kept = entries.filter { !it.category.equals(category, ignoreCase = true) }
+                store.setPersonalMemory(kept.toJson())
+                successResult("Categoría '$category' eliminada de la memoria.")
+            }
+
+            else -> errorResult("Acción desconocida: $action")
+        }
+    }
+}
+
+// Alias legacy — mantiene compatibilidad con el nombre antiguo en el system prompt
+// Si el modelo llama a "memory_personal_upsert", redirige a PersonalMemoryTool con action=upsert
+class PersonalMemoryUpsertAlias : Tool {
+    private val delegate = PersonalMemoryTool()
+    override fun name()        = "memory_personal_upsert"
+    override fun description() = delegate.description()
+    override fun systemHint()  = delegate.systemHint()
+    override fun parameters()  = mapOf<String, Any?>(
         "type" to "object",
         "properties" to mapOf(
             "facts" to mapOf("type" to "array",
@@ -788,33 +893,8 @@ class PersonalMemoryTool : Tool {
         ),
         "required" to listOf("facts")
     )
-
-    override suspend fun execute(args: Map<String, Any?>): ToolResult {
-        @Suppress("UNCHECKED_CAST")
-        val facts    = args["facts"] as? List<Map<String, String>> ?: return errorResult("facts required")
-        val existing = store.getPersonalMemory()
-        // Parsear entradas existentes (JSON o Markdown legacy)
-        val entries  = parseMemoryEntries(existing).toMutableList()
-        facts.forEach { f ->
-            val fact = f["fact"] ?: return@forEach
-            val cat  = f["category"] ?: "otro"
-            // Separar variable:definicion si viene con :
-            val colonIdx = fact.indexOf(':')
-            val variable   = if (colonIdx != -1) fact.substring(0, colonIdx).trim() else fact.trim()
-            val definition = if (colonIdx != -1) fact.substring(colonIdx + 1).trim() else ""
-            // Actualizar si ya existe la misma variable en la misma categoría
-            val idx = entries.indexOfFirst {
-                it.category == cat && it.variable.equals(variable, ignoreCase = true)
-            }
-            if (idx >= 0) {
-                entries[idx] = entries[idx].copy(definition = definition)
-            } else {
-                entries.add(MemoryEntry(category = cat, variable = variable, definition = definition))
-            }
-        }
-        store.setPersonalMemory((entries as List<MemoryEntry>).toJson())
-        return successResult("Stored ${facts.size} fact(s)")
-    }
+    override suspend fun execute(args: Map<String, Any?>): ToolResult =
+        delegate.execute(args + mapOf("action" to "upsert"))
 }
 
 // ── FileStorageTool ───────────────────────────────────────────────────────────

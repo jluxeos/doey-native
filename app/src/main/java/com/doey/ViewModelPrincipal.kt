@@ -49,6 +49,7 @@ import com.doey.herramientas.comun.AccessibilityTool
 import com.doey.herramientas.comun.AppSearchTool
 import com.doey.herramientas.comun.SkillDetailTool
 import com.doey.herramientas.comun.PersonalMemoryTool
+import com.doey.herramientas.comun.PersonalMemoryUpsertAlias
 import com.doey.herramientas.comun.FileStorageTool
 import com.doey.herramientas.comun.AlarmTool
 import com.doey.herramientas.comun.AppSearchAndLaunchTool
@@ -179,6 +180,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 val newList = s.messages + ChatMessage(role = role, text = text, respondedBy = respondedBy)
                 s.copy(messages = newList.takeLast(50))
             }
+            // Persistir historial tras cada mensaje
+            settings.saveChatHistory(_uiState.value.messages)
         }
         p.onError = { error -> _uiState.update { it.copy(errorMessage = error) } }
 
@@ -191,6 +194,12 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
         pipeline = p
         _uiState.update { it.copy(isDrivingMode = drivingMode, isExpertMode = expertMode) }
+
+        // Restaurar historial guardado
+        val saved = settings.loadChatHistory()
+        if (saved.isNotEmpty()) {
+            _uiState.update { it.copy(messages = saved) }
+        }
 
         // Iniciar WakeWord si está habilitado en settings
         viewModelScope.launch {
@@ -215,6 +224,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         register(AppSearchTool())
         register(FileStorageTool())
         register(PersonalMemoryTool())
+        register(PersonalMemoryUpsertAlias())
         register(JournalTool())
         register(TimerTool())
         register(SchedulerTool())
@@ -281,6 +291,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                                 ChatMessage(role = "assistant", text = result, respondedBy = "IRIS")
                             s.copy(messages = newList.takeLast(50))
                         }
+                        settings.saveChatHistory(_uiState.value.messages)
                         if (voiceEnabled) DoeyTTSEngine.speakAndWait(result, resolveLanguage(settings.getLanguage()))
                         return@launch
                     }
@@ -1643,7 +1654,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun stopListening()  { speechRecognizer?.stop(); pipeline?.stopListening() }
     fun stopSpeaking()   { DoeyTTSEngine.stop(); pipeline?.setIdle() }
-    fun clearHistory()   { pipeline?.clearHistory(); _uiState.update { it.copy(messages = emptyList()) } }
+    fun clearHistory()   { pipeline?.clearHistory(); _uiState.update { it.copy(messages = emptyList()) }; viewModelScope.launch { settings.clearChatHistory() } }
     fun clearError()     { _uiState.update { it.copy(errorMessage = null) } }
 
     fun toggleDrivingMode() {
@@ -1724,6 +1735,12 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun getSettings() = settings
+
+    /** Permite a la UI guardar memorias directamente (por si la IA las edita y la UI necesita refrescar). */
+    fun saveMemoryFromUi(json: String) = viewModelScope.launch {
+        settings.setPersonalMemory(json)
+        pipeline?.setPersonalMemory(json)
+    }
 
     // ── FIX: toggleOverlay mejorado ───────────────────────────────────────────
     fun toggleOverlay(enabled: Boolean) = viewModelScope.launch {

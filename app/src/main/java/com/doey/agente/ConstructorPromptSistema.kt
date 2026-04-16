@@ -60,6 +60,11 @@ object SystemPromptBuilder {
             append("Respuesta final:máx 1 oración en $lang.\n")
             append("Fallo→intenta alternativa(intent→accessibility). No rendirse.\n")
             append("Comandos encadenados:uno por uno,verificar antes de siguiente.\n")
+            append("MEMORIAS:usa memory_personal(action=upsert) para guardar hechos. ")
+            append("Usa memory_personal(action=delete_fact) para borrar/corregir. ")
+            append("Si el usuario pide editar/borrar/corregir una memoria, usa delete_fact+upsert.\n")
+            append("DIARIO:usa journal(action=add) para anotar. action=update para editar entradas. ")
+            append("Confirma siempre al usuario que se guardó la entrada.\n")
 
             // Memoria personal (si existe)
             if (personalMemory.isNotBlank()) {

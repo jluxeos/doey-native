@@ -45,6 +45,45 @@ class SettingsStore(private val context: Context) {
     private val KEY_GLASS_OPACITY         = floatPreferencesKey("glass_opacity")
     private val KEY_GLASS_BLUR            = floatPreferencesKey("glass_blur")
 
+    // ── Chat history (SharedPreferences — JSON, no DataStore para evitar límite de tamaño) ──
+    private val chatPrefs by lazy { context.getSharedPreferences("doey_chat_history", Context.MODE_PRIVATE) }
+    private val MAX_SAVED_MESSAGES = 100
+
+    fun saveChatHistory(messages: List<com.doey.ChatMessage>) {
+        val arr = org.json.JSONArray()
+        messages.takeLast(MAX_SAVED_MESSAGES).forEach { m ->
+            arr.put(org.json.JSONObject().apply {
+                put("id",          m.id)
+                put("role",        m.role)
+                put("text",        m.text)
+                put("timestamp",   m.timestamp)
+                put("respondedBy", m.respondedBy ?: "")
+            })
+        }
+        chatPrefs.edit().putString("messages", arr.toString()).apply()
+    }
+
+    fun loadChatHistory(): List<com.doey.ChatMessage> {
+        val raw = chatPrefs.getString("messages", "[]") ?: "[]"
+        return try {
+            val arr = org.json.JSONArray(raw)
+            (0 until arr.length()).map { i ->
+                val o = arr.getJSONObject(i)
+                com.doey.ChatMessage(
+                    id          = o.optString("id",  java.util.UUID.randomUUID().toString()),
+                    role        = o.getString("role"),
+                    text        = o.getString("text"),
+                    timestamp   = o.optLong("timestamp", System.currentTimeMillis()),
+                    respondedBy = o.optString("respondedBy").ifBlank { null }
+                )
+            }
+        } catch (_: Exception) { emptyList() }
+    }
+
+    fun clearChatHistory() {
+        chatPrefs.edit().remove("messages").apply()
+    }
+
     // ── Encrypted SharedPreferences (API keys, secrets) ───────────────────────
     private val encPrefs: SharedPreferences by lazy {
         val masterKey = MasterKey.Builder(context)

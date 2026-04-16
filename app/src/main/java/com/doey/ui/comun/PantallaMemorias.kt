@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.distinctUntilChanged
 import org.json.JSONArray
 import org.json.JSONObject
 import com.doey.ui.core.*
@@ -231,7 +231,6 @@ fun parseMemoryEntries(raw: String): List<MemoryEntry> {
 @Composable
 fun MemoriesScreen(vm: MainViewModel) {
     val settings = vm.getSettings()
-    val scope    = rememberCoroutineScope()
 
     var entries       by remember { mutableStateOf(listOf<MemoryEntry>()) }
     var expandedCats  by remember { mutableStateOf(setOf<String>()) }
@@ -239,19 +238,27 @@ fun MemoriesScreen(vm: MainViewModel) {
     var editingEntry  by remember { mutableStateOf<MemoryEntry?>(null) }
     var selectedCatId by remember { mutableStateOf("contacto") }
     var isSaved       by remember { mutableStateOf(true) }
+    // Flag para evitar ciclo: Flow→entries→save→Flow
+    val updatingFromFlow = remember { androidx.compose.runtime.mutableStateOf(false) }
 
-    // Cargar desde settings al iniciar
+    // Suscribirse al Flow — se actualiza cuando la IA edita memorias
     LaunchedEffect(Unit) {
-        val raw = settings.getPersonalMemory()
-        entries = parseMemoryEntries(raw)
+        settings.personalMemory.collect { raw ->
+            val parsed = parseMemoryEntries(raw)
+            if (parsed != entries) {
+                updatingFromFlow.value = true
+                entries = parsed
+            }
+        }
     }
 
-    // Guardar automáticamente cuando cambian las entradas
+    // Guardar automáticamente cuando cambian las entradas (solo si el cambio viene de la UI)
     LaunchedEffect(entries) {
-        scope.launch {
-            settings.setPersonalMemory(entries.toJson())
-            isSaved = true
+        if (!updatingFromFlow.value && entries.isNotEmpty()) {
+            vm.saveMemoryFromUi(entries.toJson())
         }
+        updatingFromFlow.value = false
+        isSaved = true
     }
 
     Scaffold(
