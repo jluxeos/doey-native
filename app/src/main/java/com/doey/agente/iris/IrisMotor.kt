@@ -661,18 +661,19 @@ object IrisMotor {
         }
 
         Regex(
-            "^(?:$V_PLAY)\\s+['\"]?(.+?)['\"]?\\s+en\\s+(spotify|youtube music|yt music|youtube|yt|apple music|deezer|soundcloud)\\s*$",
+            "^(?:$V_PLAY)\\s+['\"]?(.+?)['\"]?\\s+en\\s+([\\w\\s]{2,30})\\s*$",
             RegexOption.IGNORE_CASE
         ).find(lo)?.let { m ->
-            val q = m.groupValues[1].trim(); val app = resolveApp(m.groupValues[2])
+            val q = m.groupValues[1].trim(); val app = resolveApp(m.groupValues[2].trim())
             if (q.isNotBlank() && blacklist.none { q.contains(it) }) return LocalAction.PlayMusic(q, app)
         }
 
         Regex(
-            "^(?:$V_OPEN|$V_PLAY)\\s+(?:musica\\s+)?(?:en\\s+)?(spotify|youtube music|yt music|youtube|yt|apple music|deezer|soundcloud)\\s*$",
+            "^(?:$V_OPEN|$V_PLAY)\\s+(?:musica\\s+)?(?:en\\s+)?([\\w\\s]{2,30})\\s*$",
             RegexOption.IGNORE_CASE
         ).find(lo)?.let { m ->
-            return LocalAction.PlayMusic("", resolveApp(m.groupValues[1]))
+            val candidate = m.groupValues[1].trim()
+            if (blacklist.none { candidate.contains(it) }) return LocalAction.PlayMusic("", resolveApp(candidate))
         }
 
         Regex(
@@ -688,10 +689,13 @@ object IrisMotor {
     fun resolveApp(raw: String): String = when {
         raw == "youtube" || raw == "yt" -> "youtube"
         raw.contains("youtube music", ignoreCase = true) || raw.contains("yt music", ignoreCase = true) -> "youtube music"
-        raw.contains("apple",    ignoreCase = true) -> "apple music"
-        raw.contains("deezer",   ignoreCase = true) -> "deezer"
+        raw.contains("apple",      ignoreCase = true) -> "apple music"
+        raw.contains("deezer",     ignoreCase = true) -> "deezer"
         raw.contains("soundcloud", ignoreCase = true) -> "soundcloud"
-        else -> "spotify"
+        raw.contains("metrolist",  ignoreCase = true) -> "metrolist"
+        raw.contains("spotify",    ignoreCase = true) -> "spotify"
+        raw.isBlank() -> "spotify"
+        else -> raw.trim().lowercase() // app desconocida: pasar el nombre tal cual
     }
 
     // ══════════════════════════════════════════════════════════════════════════

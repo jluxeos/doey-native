@@ -1193,14 +1193,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                             } catch (e: Exception) { "⚠️ No se pudo abrir YouTube Music" }
                         }
 
-                        // ── Otras plataformas ─────────────────────────────────────────
-                        else -> {
-                            val pkg = when (action.app) {
-                                "apple music" -> "com.apple.android.music"
-                                "deezer"      -> "deezer.android.app"
-                                "soundcloud"  -> "com.soundcloud.android"
-                                else          -> "com.spotify.music"
-                            }
+                        // ── Metrolist ─────────────────────────────────────────────────
+                        "metrolist" -> {
+                            val pkg = "com.metrolist.music"
                             val intent = if (action.query.isBlank()) {
                                 app.packageManager.getLaunchIntentForPackage(pkg)
                                     ?.apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
@@ -1214,10 +1209,45 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                             try {
                                 if (intent != null) {
                                     app.startActivity(intent)
-                                    if (action.query.isBlank()) "🎵 Abriendo ${action.app}"
-                                    else "🎵 Poniendo \"${action.query}\" en ${action.app}"
-                                } else "⚠️ ${action.app} no está instalado"
-                            } catch (e: Exception) { "" }
+                                    if (action.query.isBlank()) "🎵 Abriendo Metrolist"
+                                    else "🎵 Buscando \"${action.query}\" en Metrolist"
+                                } else "⚠️ Metrolist no está instalado"
+                            } catch (e: Exception) { "⚠️ No se pudo abrir Metrolist" }
+                        }
+
+                        // ── Otras plataformas (búsqueda dinámica por nombre) ──────────
+                        else -> {
+                            val knownPkg = when (action.app) {
+                                "apple music" -> "com.apple.android.music"
+                                "deezer"      -> "deezer.android.app"
+                                "soundcloud"  -> "com.soundcloud.android"
+                                else          -> null
+                            }
+                            val pm = app.packageManager
+                            val resolvedPkg = knownPkg ?: pm.getInstalledPackages(0).firstOrNull { pkg ->
+                                val label = try { pm.getApplicationLabel(pm.getApplicationInfo(pkg.packageName, 0)).toString() } catch (e: Exception) { "" }
+                                label.equals(action.app, ignoreCase = true) || label.lowercase().contains(action.app.lowercase())
+                            }?.packageName
+                            if (resolvedPkg == null) {
+                                "⚠️ No encontré ninguna app llamada \"${action.app}\" instalada"
+                            } else {
+                                val intent = if (action.query.isBlank()) {
+                                    pm.getLaunchIntentForPackage(resolvedPkg)?.apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                                } else {
+                                    android.content.Intent(android.content.Intent.ACTION_SEARCH).apply {
+                                        setPackage(resolvedPkg); putExtra("query", action.query)
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                }
+                                try {
+                                    if (intent != null) { app.startActivity(intent)
+                                        if (action.query.isBlank()) "🎵 Abriendo ${action.app}" else "🎵 Poniendo \"${action.query}\" en ${action.app}"
+                                    } else "⚠️ No se pudo lanzar ${action.app}"
+                                } catch (e: Exception) {
+                                    val launch = pm.getLaunchIntentForPackage(resolvedPkg)?.apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                                    if (launch != null) { app.startActivity(launch); "🎵 Abriendo ${action.app}" } else "⚠️ No se pudo abrir ${action.app}"
+                                }
+                            }
                         }
                     }
                 }
