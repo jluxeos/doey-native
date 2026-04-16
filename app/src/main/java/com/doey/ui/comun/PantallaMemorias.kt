@@ -283,7 +283,7 @@ fun MemoriesScreen(vm: MainViewModel) {
                         Icon(CustomIcons.Share, "Compartir", tint = DeltaText3)
                     }
                     IconButton(onClick = { showAddDialog = true }) {
-                        Icon(CustomIcons.Add, "Agregar", tint = Purple)
+                        Icon(CustomIcons.Add, "Agregar", tint = DeltaAccent)
                     }
                 }
             )
@@ -292,7 +292,7 @@ fun MemoriesScreen(vm: MainViewModel) {
         floatingActionButton = {
             FloatingActionButton(
                 onClick        = { showAddDialog = true },
-                containerColor = Purple,
+                containerColor = DeltaAccent,
                 contentColor   = Color.White
             ) {
                 Icon(CustomIcons.Add, "Agregar memoria")
@@ -321,7 +321,7 @@ fun MemoriesScreen(vm: MainViewModel) {
                     Spacer(Modifier.height(8.dp))
                     Button(
                         onClick = { showAddDialog = true },
-                        colors  = ButtonDefaults.buttonColors(containerColor = Purple)
+                        colors  = ButtonDefaults.buttonColors(containerColor = DeltaAccent)
                     ) {
                         Icon(CustomIcons.Add, null, tint = Color.White)
                         Spacer(Modifier.width(8.dp))
@@ -578,7 +578,7 @@ private fun AddEditMemoryDialog(
 
                 // Paso 1: Categoría
                 Text("1. ¿De qué categoría es?",
-                    color = Purple, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    color = DeltaAccent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 ExposedDropdownMenuBox(
                     expanded         = catExpanded,
                     onExpandedChange = { catExpanded = !catExpanded }
@@ -623,7 +623,7 @@ private fun AddEditMemoryDialog(
                 // Paso 2: Variable
                 Text(
                     "2. ${selectedCat.variableHint.ifBlank { "Variable / nombre" }}",
-                    color = Purple, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                    color = DeltaAccent, fontWeight = FontWeight.Bold, fontSize = 13.sp
                 )
                 if (selectedCat.variableOptions.isNotEmpty()) {
                     ExposedDropdownMenuBox(
@@ -698,7 +698,7 @@ private fun AddEditMemoryDialog(
                 // Paso 3: Definición
                 Text(
                     "3. ${selectedCat.definitionHint.ifBlank { "Definición / valor" }}",
-                    color = Purple, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                    color = DeltaAccent, fontWeight = FontWeight.Bold, fontSize = 13.sp
                 )
                 if (selectedCat.definitionOptions.isNotEmpty()) {
                     ExposedDropdownMenuBox(
@@ -783,7 +783,7 @@ private fun AddEditMemoryDialog(
                         },
                         enabled  = variable.isNotBlank(),
                         modifier = Modifier.weight(1f),
-                        colors   = ButtonDefaults.buttonColors(containerColor = Purple)
+                        colors   = ButtonDefaults.buttonColors(containerColor = DeltaAccent)
                     ) {
                         Icon(CustomIcons.Save, null, tint = Color.White)
                         Spacer(Modifier.width(6.dp))

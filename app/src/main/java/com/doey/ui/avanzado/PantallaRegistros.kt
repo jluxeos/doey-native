@@ -69,7 +69,7 @@ fun LogScreen() {
                         Icon(
                             if (autoScroll) CustomIcons.VerticalAlignBottom else CustomIcons.VerticalAlignCenter,
                             contentDescription = "Auto-scroll",
-                            tint = if (autoScroll) Purple else DeltaText3
+                            tint = if (autoScroll) DeltaAccent else DeltaText3
                         )
                     }
                     // Exportar logs
