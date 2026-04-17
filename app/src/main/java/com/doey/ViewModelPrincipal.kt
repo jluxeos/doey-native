@@ -60,6 +60,8 @@ import com.doey.herramientas.comun.QuickNoteTool
 import com.doey.herramientas.comun.WifiBluetoothTool
 import com.doey.herramientas.comun.FlashlightTool
 import com.doey.herramientas.comun.CountdownTool
+import com.doey.herramientas.comun.HerramientaControlUI
+import com.doey.herramientas.comun.HerramientaShell
 import com.doey.llm.LLMProviderFactory
 import android.accessibilityservice.AccessibilityService
 import com.doey.servicios.basico.DoeyAccessibilityService
@@ -238,6 +240,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         register(WifiBluetoothTool())
         register(FlashlightTool())
         register(CountdownTool())
+        register(HerramientaControlUI())
+        register(HerramientaShell())
 
     }
 

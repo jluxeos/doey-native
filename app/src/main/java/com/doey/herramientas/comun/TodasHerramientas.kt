@@ -599,16 +599,16 @@ class TTSTool : Tool {
 
 class AccessibilityTool : Tool {
     override fun name()        = "accessibility"
-    override fun description() = "Read and control any app's UI. Get screen content, click, type, scroll, swipe."
-    override fun systemHint()  = "Use to automate UI tasks in other apps when no direct API is available."
+    override fun description() = "Lee y controla la UI de cualquier app. Obtén contenido de pantalla, haz click, escribe, desliza. PREFIERE ui_control para tareas de UI modernas — es más eficiente."
+    override fun systemHint()  = "Para ahorrar tokens usa ui_control(get_interactive) en vez de accessibility(get_tree). Usa ui_control(find_and_tap) en vez de get_tree+click. Reserva accessibility para casos donde ui_control falle."
 
     override fun parameters() = mapOf<String, Any?>(
         "type" to "object",
         "properties" to mapOf(
             "action"       to mapOf("type" to "string",
-                "enum" to listOf("get_tree","click","long_click","type","scroll","swipe","wait_for_app","is_running","back","home","paste","clipboard_set","clipboard_get")),
+                "enum" to listOf("get_tree","find_node","click","long_click","type","scroll","swipe","wait_for_app","is_running","back","home","recents","screenshot","paste","clipboard_set","clipboard_get")),
             "node_id"      to mapOf("type" to "string"),
-            "text"         to mapOf("type" to "string"),
+            "text"         to mapOf("type" to "string", "description" to "Para find_node: texto a buscar. Para type: texto a escribir."),
             "package_name" to mapOf("type" to "string"),
             "direction"    to mapOf("type" to "string", "enum" to listOf("up","down","left","right")),
             "x1"           to mapOf("type" to "number"),
@@ -635,7 +635,34 @@ class AccessibilityTool : Tool {
             "get_tree"   -> withContext(Dispatchers.Main) {
                 val pkg  = args["package_name"] as? String
                 val tree = svc.buildAccessibilityTree(pkg)
-                successResult(tree.ifBlank { "Screen is empty or not readable" })
+                val compressed = com.doey.agente.TokenOptimizer.compressAccessibilityTree(
+                    tree.ifBlank { "Screen is empty or not readable" }
+                )
+                successResult(compressed)
+            }
+            "find_node"  -> withContext(Dispatchers.Main) {
+                // Búsqueda rápida de nodo por texto sin leer todo el árbol
+                val text = args["text"] as? String ?: return@withContext errorResult("text required for find_node")
+                val root = svc.rootInActiveWindow
+                    ?: return@withContext errorResult("No active window")
+                val results = root.findAccessibilityNodeInfosByText(text)
+                root.recycle()
+                if (results.isNullOrEmpty())
+                    return@withContext errorResult("No node found with text: \"$text\"")
+                val node = results.first()
+                val rect = android.graphics.Rect(); node.getBoundsInScreen(rect)
+                val info = buildString {
+                    val t = node.text?.toString()
+                    val d = node.contentDescription?.toString()
+                    if (t != null) append("text=\"$t\" ")
+                    if (d != null && d != t) append("desc=\"$d\" ")
+                    append("class=${node.className?.toString()?.substringAfterLast('.')} ")
+                    append("bounds=[${rect.left},${rect.top},${rect.right},${rect.bottom}] ")
+                    append("clickable=${node.isClickable} editable=${node.isEditable} ")
+                    if (results.size > 1) append("(${results.size} matches)")
+                }
+                results.forEach { try { it.recycle() } catch (_: Exception) {} }
+                successResult(info)
             }
             "click"      -> {
                 val nodeId = args["node_id"] as? String ?: return errorResult("node_id required")
@@ -691,6 +718,11 @@ class AccessibilityTool : Tool {
             }
             "back"  -> withContext(Dispatchers.Main) { svc.performNodeAction("back",  null, null); successResult("Back pressed") }
             "home"  -> withContext(Dispatchers.Main) { svc.performNodeAction("home",  null, null); successResult("Home pressed") }
+            "recents" -> withContext(Dispatchers.Main) { svc.performNodeAction("recents", null, null); successResult("Recents opened") }
+            "screenshot" -> withContext(Dispatchers.Main) {
+                if (svc.performNodeAction("screenshot", null, null)) successResult("Screenshot taken")
+                else errorResult("Screenshot not available (requires Android 9+)")
+            }
             "paste" -> withContext(Dispatchers.Main) { svc.performNodeAction("paste", null, null); successResult("Paste executed") }
             "clipboard_set" -> {
                 val text = args["text"] as? String ?: return errorResult("text required")

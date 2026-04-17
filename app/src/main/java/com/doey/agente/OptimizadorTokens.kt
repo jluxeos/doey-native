@@ -95,6 +95,21 @@ object TokenOptimizer {
         Regex("""(?:activa|apaga|enciende|prende)\s+(?:wifi|bluetooth|linterna|flashlight|nfc|hotspot)""", RegexOption.IGNORE_CASE),
         Regex("""(?:toma|haz una?)\s+(?:captura|foto|screenshot)""", RegexOption.IGNORE_CASE),
         Regex("""(?:bloquea|lock)\s+(?:el\s+)?(?:tel|cel|pantalla|screen)""", RegexOption.IGNORE_CASE),
+        // Control de media
+        Regex("""(?:pausa|parar|detener|stop|pause)\s+(?:música|canción|video|reproductor)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:siguiente|anterior|next|prev)\s+(?:canción|pista|track)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:reproduce|play|pon)\s+(?:música|canción|radio)""", RegexOption.IGNORE_CASE),
+        // Temporizadores y alarmas simples
+        Regex("""(?:pon|activa|crea)\s+(?:una?\s+)?(?:alarma|alerta)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:pon|inicia)\s+(?:un?\s+)?(?:timer|temporizador|cronómetro)""", RegexOption.IGNORE_CASE),
+        // Pantalla y sistema
+        Regex("""(?:apaga|prende|enciende|activa)\s+(?:la\s+)?(?:pantalla|linterna|torch)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:sube|baja|aumenta|reduce)\s+(?:el\s+)?(?:brillo|brightness)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:activa|desactiva|modo)\s+(?:no molestar|vibración|silencio|dnd)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:ir a|ve al?|show)\s+(?:inicio|home|pantalla principal)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:atrás|volver|back|regresa)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:toca|presiona|haz click)\s+(?:en\s+)?\w+""", RegexOption.IGNORE_CASE),
+        Regex("""(?:escribe|write|type)\s+.{1,50}$""", RegexOption.IGNORE_CASE),
         // Recomendaciones / preguntas de info simple — respuesta 1 oración
         Regex("""(?:recomienda|sugiere|recomiéndame|sugiéreme|suggest)\s+\w+""", RegexOption.IGNORE_CASE),
         Regex("""(?:qué (?:canción|música|película|serie|libro|app|juego)|what (?:song|movie|show|book|game|app))""", RegexOption.IGNORE_CASE),
@@ -106,7 +121,8 @@ object TokenOptimizer {
 
     private val COMPLEX_INDICATORS = listOf(
         " y luego ", " después ", " también ", " además ", " mientras ",
-        " and then ", " while ", "busca en", "manda el enlace", "checa en"
+        " and then ", " while ", "busca en", "manda el enlace", "checa en",
+        " para que ", " cuando ", " después de ", " antes de "
     )
 
     fun classifyComplexity(input: String): CommandComplexity {
@@ -218,6 +234,44 @@ object TokenOptimizer {
         val includeSkills: Boolean,
         val includeTools: Boolean
     )
+
+    // ── Compresión de árbol de accesibilidad ──────────────────────────────────
+
+    /**
+     * Comprime un árbol de accesibilidad largo para reducir tokens.
+     * Estrategia:
+     *  - Si el árbol tiene < 60 líneas: devolver tal cual
+     *  - Si tiene 60-150 líneas: eliminar nodos sin atributos útiles
+     *  - Si tiene > 150 líneas: mantener solo nodos interactivos + primeras/últimas líneas
+     *
+     * Ahorra hasta 80% de tokens en apps con UIs densas (Instagram, TikTok, etc.)
+     */
+    fun compressAccessibilityTree(tree: String, maxLines: Int = 80): String {
+        val lines = tree.lines()
+        if (lines.size <= maxLines) return tree
+
+        // Filtrar: mantener líneas con atributos interesantes
+        val interestingLines = lines.filter { line ->
+            line.contains("clickable") || line.contains("editable") ||
+            line.contains("scrollable") || line.contains("text=") ||
+            line.contains("desc=") || line.contains("res-id=") ||
+            line.contains("checked") || line.contains("[node_")
+        }
+
+        return if (interestingLines.size <= maxLines) {
+            interestingLines.joinToString("\n") +
+            "\n[árbol comprimido: ${lines.size}→${interestingLines.size} nodos]"
+        } else {
+            // Demasiado incluso filtrado: mantener inicio y fin
+            val half = maxLines / 2
+            val head = interestingLines.take(half)
+            val tail = interestingLines.takeLast(half)
+            (head + listOf("...[${interestingLines.size - maxLines} nodos omitidos]...") + tail)
+                .joinToString("\n")
+        }
+    }
+
+    // ── Estrategias de optimización ──────────────────────────────────────────
 
     fun getStrategy(complexity: CommandComplexity, userMaxIterations: Int): OptimizationStrategy {
         return when (complexity) {

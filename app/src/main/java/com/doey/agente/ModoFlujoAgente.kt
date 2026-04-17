@@ -61,6 +61,9 @@ object FlowModeEngine {
         FlowOption("r_sistema",   "Sistema",       "⚙️", nextNodeId = "sistema"),
         FlowOption("r_apps",      "Mis Apps",      "🗂️", nextNodeId = "app_list"),
         FlowOption("r_contactos", "Contactos",     "👤", nextNodeId = "contactos_acciones"),
+        FlowOption("r_pantalla",  "Pantalla",       "📺", nextNodeId = "pantalla"),
+        FlowOption("r_apps_ctrl", "Controlar app",  "🤖", nextNodeId = "apps_ctrl"),
+        FlowOption("r_teclado",   "Teclado",        "⌨️", nextNodeId = "teclado"),
     )
 
     // ── Árbol estático de nodos ────────────────────────────────────────────────
@@ -220,7 +223,40 @@ object FlowModeEngine {
         else -> null
     }
 
-    // ── Helpers constructores de FlowCommand ──────────────────────────────────
+    fun getExtraNode(nodeId: String): FlowNode? = when (nodeId) {
+
+        "pantalla" -> FlowNode("pantalla", "Control de pantalla", options = listOf(
+            FlowOption("pan_screenshot",  "Captura de pantalla", "📸", command = FlowCommand("accessibility", mapOf("action" to "screenshot"))),
+            FlowOption("pan_recents",     "Apps recientes",      "📋", command = FlowCommand("accessibility", mapOf("action" to "recents"))),
+            FlowOption("pan_lock",        "Bloquear pantalla",   "🔒", command = FlowCommand("shell_action",  mapOf("action" to "lock_screen"))),
+            FlowOption("pan_notif",       "Notificaciones",      "🔔", command = FlowCommand("shell_action",  mapOf("action" to "notification_bar", "expand" to true))),
+            FlowOption("pan_size",        "Tamaño de pantalla",  "📐", command = FlowCommand("shell_action",  mapOf("action" to "get_screen_size"))),
+            FlowOption("pan_brillo_max",  "Brillo máximo",       "☀️", command = FlowCommand("device",        mapOf("action" to "set_brightness", "level" to 255))),
+            FlowOption("pan_brillo_min",  "Brillo mínimo",       "🌑", command = FlowCommand("device",        mapOf("action" to "set_brightness", "level" to 30))),
+        ))
+
+        "apps_ctrl" -> FlowNode("apps_ctrl", "Controlar app activa", options = listOf(
+            FlowOption("ctrl_tree",       "Ver pantalla",        "🔍", command = FlowCommand("ui_control",    mapOf("action" to "get_interactive"))),
+            FlowOption("ctrl_back",       "Atrás",               "◀️", command = FlowCommand("accessibility", mapOf("action" to "back"))),
+            FlowOption("ctrl_home",       "Inicio",              "🏠", command = FlowCommand("accessibility", mapOf("action" to "home"))),
+            FlowOption("ctrl_scroll_dn",  "Scroll abajo",        "⬇️", command = FlowCommand("accessibility", mapOf("action" to "swipe", "x1" to 540, "y1" to 1400, "x2" to 540, "y2" to 400, "duration_ms" to 300))),
+            FlowOption("ctrl_scroll_up",  "Scroll arriba",       "⬆️", command = FlowCommand("accessibility", mapOf("action" to "swipe", "x1" to 540, "y1" to 400, "x2" to 540, "y2" to 1400, "duration_ms" to 300))),
+            FlowOption("ctrl_settings",   "Ajustes de la app",   "⚙️", command = FlowCommand("shell_action",  mapOf("action" to "open_settings_page", "settings_action" to "android.settings.APPLICATION_DETAILS_SETTINGS"))),
+        ))
+
+        "teclado" -> FlowNode("teclado", "Acciones de teclado", options = listOf(
+            FlowOption("key_enter",  "ENTER / Buscar",  "↩️", command = FlowCommand("shell_action", mapOf("action" to "input_key", "keycode" to "ENTER"))),
+            FlowOption("key_back",   "Atrás",           "⬅️", command = FlowCommand("shell_action", mapOf("action" to "input_key", "keycode" to "BACK"))),
+            FlowOption("key_del",    "Borrar (DEL)",    "⌫",  command = FlowCommand("shell_action", mapOf("action" to "input_key", "keycode" to "DEL"))),
+            FlowOption("key_tab",    "TAB",             "⇥",  command = FlowCommand("shell_action", mapOf("action" to "input_key", "keycode" to "TAB"))),
+            FlowOption("key_search", "Buscar",          "🔍", command = FlowCommand("shell_action", mapOf("action" to "input_key", "keycode" to "SEARCH"))),
+            FlowOption("key_clear",  "Limpiar campo",   "🧹", command = FlowCommand("shell_action", mapOf("action" to "clear_focused"))),
+        ))
+
+        else -> null
+    }
+
+
 
     private fun launchPkg(pkg: String) =
         FlowCommand("intent", mapOf("action" to Intent.ACTION_MAIN, "package" to pkg))
@@ -352,7 +388,7 @@ object FlowModeEngine {
         when (nodeId) {
             "app_list"     -> getAppListNode(ctx)
             "contact_list" -> getContactListNode(ctx, params)
-            else           -> getStaticNode(nodeId)
+            else           -> getStaticNode(nodeId) ?: getExtraNode(nodeId)
         }
     }
 
