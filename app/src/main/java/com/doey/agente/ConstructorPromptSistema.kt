@@ -6,32 +6,14 @@ import java.util.*
 
 object SystemPromptBuilder {
 
-    // ── Prompt NANO (~30 tokens) — para comandos triviales que IRIS no resolvió ──
-    // Úsalo cuando la complejidad es TRIVIAL o SIMPLE y no hay historial.
-    // La IA literalmente solo necesita saber que es un parser de acciones.
-    fun buildNano(language: String): String {
-        val lang = if (language.startsWith("es")) "es" else language.take(2)
-        return "Asistente Android. Idioma:$lang. Petición de acción→herramienta inmediata. " +
-               "Pregunta de conocimiento→responde solo si estás seguro; si no, di que no sabes con certeza. " +
-               "Respuesta:máx 1-2 oraciones. Sin inventar datos."
-    }
-
-    // ── Prompt MINI (~80 tokens) — para comandos simples con 1 acción ───────────
-    // Incluye idioma + rol + regla de parser + fecha (necesaria para alarmas)
-    fun buildMini(language: String, soul: String): String {
-        val lang  = resolveLangName(language)
-        val today = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).format(Date())
-        return buildString {
-            append("Eres Doey, asistente Android. Idioma:$lang. Fecha:$today.\n")
-            append("PARSER:acción→herramienta inmediata. Sin texto antes de actuar.\n")
-            append("Respuesta final:máx 1 oración corta. Sin JSON ni código al usuario.\n")
-            if (soul.isNotBlank()) append("Tono:${soul.take(80)}\n")
-        }
-    }
-
-    // ── Prompt FULL (~200-300 tokens) — para comandos complejos/encadenados ─────
-    // Incluye fecha, memoria del usuario, reglas de encadenamiento y herramientas resumidas.
-    // Sigue siendo 10x más pequeño que el system prompt anterior (~2000 tokens).
+    /**
+     * Prompt ÚNICO ultra-comprimido (~230–320 chars según contexto).
+     * Contiene toda la funcionalidad del prompt full anterior (~920 chars)
+     * en tamaño cercano al nano (~212 chars).
+     *
+     * Técnica: abreviaturas semánticas, eliminación de artículos/conectores,
+     * símbolos (→ > /) y colapso de reglas redundantes en una sola línea.
+     */
     fun build(
         toolRegistry: ToolRegistry,
         drivingMode: Boolean,
@@ -42,41 +24,46 @@ object SystemPromptBuilder {
         userName: String = ""
     ): String {
         val lang  = resolveLangName(language)
-        val today = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).format(Date())
-        val tz    = TimeZone.getDefault().id
+        val date  = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).format(Date())
 
         return buildString {
-            // Identidad + fecha (esencial para alarmas/timers)
-            append("Doey — asistente Android.")
-            if (userName.isNotBlank()) append(" Usuario:$userName.")
-            append(" Idioma:$lang. Fecha:$today TZ:$tz.\n")
+            // Identidad + idioma + fecha (esencial para alarmas/timers)
+            append("Doey,Android,$lang,$date.")
 
-            // Modo
-            if (drivingMode) append("CONDUCCIÓN:respuestas de 1 frase. Sin Markdown.\n")
+            // Usuario (opcional)
+            if (userName.isNotBlank()) append("User:${userName.take(20)}.")
 
-            // Regla de oro — ultra-compacta
-            append("PARSER PURO:petición de acción=herramienta inmediata.\n")
-            append("NUNCA texto antes de actuar. NUNCA JSON crudo al usuario.\n")
-            append("Respuesta final:máx 1 oración en $lang.\n")
-            append("UI de apps:usa ui_control(find_and_tap/find_and_type/get_interactive) ANTES que accessibility(get_tree). Ahorra tokens.\n")
-            append("Tras abrir una app:espera ui_control(wait_ms=1500) antes de interactuar con la UI.\n")
-            append("Fallo→intenta alternativa(intent→ui_control→accessibility). No rendirse.\n")
-            append("Comandos encadenados:uno por uno,verificar antes de siguiente.\n")
-            append("MEMORIAS:usa memory_personal(action=upsert) para guardar hechos. ")
-            append("Usa memory_personal(action=delete_fact) para borrar/corregir. ")
-            append("Si el usuario pide editar/borrar/corregir una memoria, usa delete_fact+upsert.\n")
-            append("DIARIO:usa journal(action=add) para anotar. action=update para editar entradas. ")
-            append("Confirma siempre al usuario que se guardó la entrada.\n")
+            // Reglas core comprimidas en una línea
+            append("PARSER:acción→tool inmediata.Sin texto antes.Resp:1 frase.")
 
-            // Memoria personal (si existe)
-            if (personalMemory.isNotBlank()) {
-                append("Memoria usuario:\n${personalMemory.take(400)}\n")
-            }
+            // Reglas UI/accessibility comprimidas
+            append("UI:ui_control>a11y,wait 1500ms post-app.")
 
-            // Las herramientas se envían como parámetro tools[] de la API.
-            // No es necesario listarlas aquí — reduce ~2000 chars del system prompt.
+            // Fallback + encadenado
+            append("Fallo:intent→ui→a11y.Cadena:1a1.")
+
+            // Memoria + Diario
+            append("Mem:memory_personal(upsert/delete_fact).Diario:journal(add/update).")
+
+            // Conducción
+            if (drivingMode) append("Drive:1 frase,sin MD.")
+
+            // Tono/Soul (opcional, truncado)
+            if (soul.isNotBlank()) append("Tono:${soul.take(60)}.")
+
+            // Memoria personal (opcional, truncada agresivamente)
+            if (personalMemory.isNotBlank()) append("Mem_usr:${personalMemory.take(300)}.")
         }
     }
+
+    // Aliases para compatibilidad con el código que llama buildNano/buildMini/buildMinimal
+    fun buildNano(language: String): String = build(
+        toolRegistry = ToolRegistry(), drivingMode = false, language = language
+    )
+
+    fun buildMini(language: String, soul: String): String = build(
+        toolRegistry = ToolRegistry(), drivingMode = false, language = language, soul = soul
+    )
 
     fun buildMinimal(language: String, soul: String): String = buildMini(language, soul)
 

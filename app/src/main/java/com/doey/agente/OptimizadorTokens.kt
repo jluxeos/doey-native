@@ -1,6 +1,7 @@
 package com.doey.agente
 
 import com.doey.llm.Message
+import com.doey.herramientas.comun.ToolRegistry
 
 /**
  * TokenOptimizer — Doey 23.4.9 Ultra (Tau Version)
@@ -141,17 +142,15 @@ object TokenOptimizer {
         }
     }
 
-    // ── System prompt mínimo para comandos simples ─────────────────────────────
+    // ── System prompt mínimo — delega al builder unificado ─────────────────────
 
-    fun buildMinimalSystemPrompt(language: String, soul: String): String {
-        val lang = if (language.startsWith("es")) "Español" else language
-        return buildString {
-            append("Eres Doey, asistente Android. Idioma: $lang.\n")
-            append("PARSER PURO: acción solicitada = herramienta inmediata. Sin texto antes de actuar.\n")
-            append("Respuesta final: máximo 1 oración. Sin JSON ni tecnicismos.\n")
-            if (soul.isNotBlank()) append("Tono: ${soul.take(120)}\n")
-        }
-    }
+    fun buildMinimalSystemPrompt(language: String, soul: String): String =
+        SystemPromptBuilder.build(
+            toolRegistry = ToolRegistry(),
+            drivingMode  = false,
+            language     = language,
+            soul         = soul
+        )
 
     // ── Compresión de historial ────────────────────────────────────────────────
 

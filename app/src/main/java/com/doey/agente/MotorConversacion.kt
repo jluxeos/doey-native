@@ -39,10 +39,8 @@ class ConversationPipeline(
     var onTranscript: ((role: String, text: String) -> Unit)? = null
     var onError: ((error: String) -> Unit)? = null
 
-    // Cache de prompts — se invalidan solo cuando cambia configuración
-    private var cachedNano: String = ""
-    private var cachedMini: String = ""
-    private var cachedFull: String = ""
+    // Cache de prompt único — se invalida solo cuando cambia configuración
+    private var cachedPrompt: String = ""
     private var promptsDirty = true
 
     fun setEnabledSkills(names: List<String>) { enabledSkillNames = names }
@@ -94,15 +92,8 @@ class ConversationPipeline(
 
             val strategy = TokenOptimizer.getStrategy(complexity, maxIterations)
 
-            // ── System prompt según complejidad ───────────────────────────────
-            // TRIVIAL/SIMPLE  → nano (~30 tokens) o mini (~80 tokens)
-            // MODERATE/COMPLEX → full (~200-300 tokens)
-            val systemPrompt = when {
-                !tokenOptimizerEnabled -> getOrBuildFull()
-                complexity == TokenOptimizer.CommandComplexity.TRIVIAL -> getOrBuildNano()
-                strategy.useMinimalPrompt -> getOrBuildMini()
-                else -> getOrBuildFull()
-            }
+            // ── System prompt unificado ───────────────────────────────────────
+            val systemPrompt = getOrBuildPrompt()
 
             val userMsg = Message(role = "user", content = userText)
 
@@ -192,33 +183,21 @@ class ConversationPipeline(
         else -> "Algo salió mal. Intenta de nuevo."
     }
 
-    // ── Cache de prompts ──────────────────────────────────────────────────────
+    // ── Cache de prompt único ─────────────────────────────────────────────────
 
-    private fun getOrBuildNano(): String {
-        if (promptCacheEnabled && !promptsDirty && cachedNano.isNotBlank()) return cachedNano
-        cachedNano = SystemPromptBuilder.buildNano(language)
-        return cachedNano
-    }
-
-    private fun getOrBuildMini(): String {
-        if (promptCacheEnabled && !promptsDirty && cachedMini.isNotBlank()) return cachedMini
-        cachedMini = SystemPromptBuilder.buildMini(language, soul)
-        return cachedMini
-    }
-
-    private fun getOrBuildFull(): String {
-        if (promptCacheEnabled && !promptsDirty && cachedFull.isNotBlank()) return cachedFull
-        cachedFull = SystemPromptBuilder.build(
-            toolRegistry       = tools,
-            drivingMode        = drivingMode,
-            language           = language,
-            soul               = soul,
-            personalMemory     = personalMemory,
-            expertMode         = expertMode,
-            userName           = userName
+    private fun getOrBuildPrompt(): String {
+        if (promptCacheEnabled && !promptsDirty && cachedPrompt.isNotBlank()) return cachedPrompt
+        cachedPrompt = SystemPromptBuilder.build(
+            toolRegistry   = tools,
+            drivingMode    = drivingMode,
+            language       = language,
+            soul           = soul,
+            personalMemory = personalMemory,
+            expertMode     = expertMode,
+            userName       = userName
         )
         promptsDirty = false
-        return cachedFull
+        return cachedPrompt
     }
 
     private fun trimHistory() {
