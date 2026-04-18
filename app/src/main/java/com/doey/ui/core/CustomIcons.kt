@@ -865,6 +865,43 @@ object CustomIcons {
     val CodeIcon      = Code
     val MusicNoteIcon = MusicNote
 
+    // ── Iconos del sistema ─────────────────────────────────────────────────────
+    val VolumeUp = icon("VolumeUp") {
+        moveTo(3f, 9f); lineTo(7f, 9f); lineTo(12f, 5f); lineTo(12f, 19f); lineTo(7f, 15f); lineTo(3f, 15f); close()
+        moveTo(16f, 9f); curveTo(17.5f, 10.5f, 17.5f, 13.5f, 16f, 15f)
+        moveTo(19f, 7f); curveTo(21.7f, 9.7f, 21.7f, 14.3f, 19f, 17f)
+    }
+    val BrightnessHigh = icon("BrightnessHigh") {
+        moveTo(12f, 2f); lineTo(12f, 4f)
+        moveTo(12f, 20f); lineTo(12f, 22f)
+        moveTo(4.22f, 4.22f); lineTo(5.64f, 5.64f)
+        moveTo(18.36f, 18.36f); lineTo(19.78f, 19.78f)
+        moveTo(2f, 12f); lineTo(4f, 12f)
+        moveTo(20f, 12f); lineTo(22f, 12f)
+        moveTo(4.22f, 19.78f); lineTo(5.64f, 18.36f)
+        moveTo(18.36f, 5.64f); lineTo(19.78f, 4.22f)
+        moveTo(12f, 8f); arcTo(4f, 4f, 0f, false, true, 12f, 16f); arcTo(4f, 4f, 0f, false, true, 12f, 8f)
+    }
+    val Wifi = icon("Wifi") {
+        moveTo(5f, 12.55f); arcTo(11f, 11f, 0f, false, true, 19f, 12.55f)
+        moveTo(1.42f, 9f); arcTo(16f, 16f, 0f, false, true, 22.58f, 9f)
+        moveTo(8.53f, 16.11f); arcTo(6f, 6f, 0f, false, true, 15.47f, 16.11f)
+        moveTo(12f, 20f); lineTo(12f, 20f); arcTo(0.5f, 0.5f, 0f, false, true, 12f, 20f)
+    }
+    val Bluetooth = icon("Bluetooth") {
+        moveTo(6.5f, 6.5f); lineTo(17.5f, 17.5f); lineTo(12f, 23f); lineTo(12f, 1f); lineTo(17.5f, 6.5f); lineTo(6.5f, 17.5f)
+    }
+    val Battery = icon("Battery") {
+        moveTo(17f, 5f); lineTo(7f, 5f); arcTo(2f, 2f, 0f, false, false, 5f, 7f); lineTo(5f, 19f); arcTo(2f, 2f, 0f, false, false, 7f, 21f); lineTo(17f, 21f); arcTo(2f, 2f, 0f, false, false, 19f, 19f); lineTo(19f, 7f); arcTo(2f, 2f, 0f, false, false, 17f, 5f)
+        moveTo(17f, 4f); lineTo(17f, 3f); arcTo(1f, 1f, 0f, false, false, 16f, 2f); lineTo(8f, 2f); arcTo(1f, 1f, 0f, false, false, 7f, 3f); lineTo(7f, 4f)
+    }
+    val Language = icon("Language") {
+        moveTo(12f, 2f); arcTo(10f, 10f, 0f, false, true, 12f, 22f); arcTo(10f, 10f, 0f, false, true, 12f, 2f)
+        moveTo(2f, 12f); lineTo(22f, 12f)
+        moveTo(12f, 2f); curveTo(14.5f, 7f, 14.5f, 17f, 12f, 22f)
+        moveTo(12f, 2f); curveTo(9.5f, 7f, 9.5f, 17f, 12f, 22f)
+    }
+
     // ── Helper builder ─────────────────────────────────────────────────────────
 
     private fun icon(name: String, block: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit): ImageVector =

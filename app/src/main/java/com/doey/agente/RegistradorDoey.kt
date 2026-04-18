@@ -1,9 +1,13 @@
 package com.doey.agente
 
+import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -68,13 +72,21 @@ data class LogEntry(
 
 // ── Singleton de logger ───────────────────────────────────────────────────────
 object DoeyLogger {
-    private const val TAG = "DoeyLogger"
-    private const val MAX_ENTRIES = 500
+    private const val TAG          = "DoeyLogger"
+    private const val MAX_ENTRIES  = 2000          // más entradas en memoria
+    private const val LOG_FILENAME = "doey_log.json"
 
     private val _entries = MutableStateFlow<List<LogEntry>>(emptyList())
     val entries: StateFlow<List<LogEntry>> = _entries.asStateFlow()
 
     private val idCounter = AtomicLong(0)
+    private var appContext: Context? = null
+
+    /** Llamar una vez en Application.onCreate() para habilitar persistencia */
+    fun init(ctx: Context) {
+        appContext = ctx.applicationContext
+        loadFromDisk()
+    }
 
     fun log(type: LogType, title: String, detail: String = "") {
         val entry = LogEntry(
@@ -85,17 +97,113 @@ object DoeyLogger {
         )
         val current = _entries.value.toMutableList()
         current.add(entry)
-        // Mantener máximo de entradas
-        if (current.size > MAX_ENTRIES) {
-            current.removeAt(0)
-        }
+        if (current.size > MAX_ENTRIES) current.removeAt(0)
         _entries.value = current
-        // También loguear en Logcat para depuración
         Log.d(TAG, "[${entry.typeLabel}] $title${if (detail.isNotBlank()) " | $detail" else ""}")
+        saveToDiskAsync()
     }
 
     fun clear() {
         _entries.value = emptyList()
+        appContext?.let { File(it.filesDir, LOG_FILENAME).delete() }
+    }
+
+    // ── Exporta TODO el historial a un archivo .txt y devuelve su ruta ───────
+    fun exportToTxtFile(): File? {
+        val ctx = appContext ?: return null
+        return try {
+            val sdf  = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+            val text = buildString {
+                appendLine("=== DOEY LOG EXPORT ===")
+                appendLine("Generado: ${sdf.format(Date())}")
+                appendLine("Total entradas: ${_entries.value.size}")
+                appendLine("=".repeat(50))
+                appendLine()
+                _entries.value.forEach { e ->
+                    appendLine("[${e.typeLabel}] ${e.formattedTime}  ${e.title}")
+                    if (e.detail.isNotBlank()) {
+                        e.detail.lines().forEach { line -> appendLine("    $line") }
+                    }
+                    appendLine()
+                }
+            }
+            val file = File(ctx.getExternalFilesDir(null) ?: ctx.filesDir, "doey_log_${System.currentTimeMillis()}.txt")
+            file.writeText(text, Charsets.UTF_8)
+            file
+        } catch (e: Exception) {
+            Log.e(TAG, "exportToTxtFile error: ${e.message}")
+            null
+        }
+    }
+
+    private val saveDebounceMs = 1500L
+    private var lastSaveTime   = 0L
+    private var pendingSave    = false
+
+    private fun saveToDiskAsync() {
+        val now = System.currentTimeMillis()
+        // Debounce: guardar máximo cada 1.5 s para no martillar el disco en cascadas de logs
+        if (now - lastSaveTime < saveDebounceMs) {
+            if (!pendingSave) {
+                pendingSave = true
+                Thread {
+                    Thread.sleep(saveDebounceMs)
+                    pendingSave  = false
+                    lastSaveTime = System.currentTimeMillis()
+                    writeToDisk()
+                }.start()
+            }
+            return
+        }
+        lastSaveTime = now
+        Thread { writeToDisk() }.start()
+    }
+
+    private fun writeToDisk() {
+        val ctx  = appContext ?: return
+        val list = _entries.value
+        try {
+            val arr = JSONArray()
+            list.takeLast(MAX_ENTRIES).forEach { e ->
+                arr.put(JSONObject().apply {
+                    put("id",        e.id)
+                    put("timestamp", e.timestamp)
+                    put("type",      e.type.name)
+                    put("title",     e.title)
+                    put("detail",    e.detail)
+                })
+            }
+            File(ctx.filesDir, LOG_FILENAME).writeText(arr.toString())
+        } catch (_: Exception) {}
+    }
+
+    private fun loadFromDisk() {
+        val ctx = appContext ?: return
+        try {
+            val file = File(ctx.filesDir, LOG_FILENAME)
+            if (!file.exists()) return
+            val arr     = JSONArray(file.readText())
+            val loaded  = mutableListOf<LogEntry>()
+            var maxId   = 0L
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                val id  = obj.getLong("id")
+                if (id > maxId) maxId = id
+                loaded.add(
+                    LogEntry(
+                        id        = id,
+                        timestamp = obj.getLong("timestamp"),
+                        type      = runCatching { LogType.valueOf(obj.getString("type")) }.getOrDefault(LogType.INFO),
+                        title     = obj.getString("title"),
+                        detail    = obj.optString("detail", "")
+                    )
+                )
+            }
+            idCounter.set(maxId + 1)
+            _entries.value = loaded
+        } catch (e: Exception) {
+            Log.e(TAG, "loadFromDisk error: ${e.message}")
+        }
     }
 
     // ── Helpers de conveniencia ───────────────────────────────────────────────

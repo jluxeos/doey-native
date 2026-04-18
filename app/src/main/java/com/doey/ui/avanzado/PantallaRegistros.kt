@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
@@ -20,6 +21,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
+import android.widget.Toast
+import androidx.core.content.FileProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -72,19 +75,31 @@ fun LogScreen() {
                             tint = if (autoScroll) DeltaAccent else DeltaText3
                         )
                     }
-                    // Exportar logs
+                    // Exportar logs como .txt
                     val context = LocalContext.current
-                    IconButton(onClick = { 
-                        val logText = entries.joinToString("\n") { 
-                            "[${it.type.name}] ${it.formattedTime}: ${it.title} - ${it.detail}" 
+                    IconButton(onClick = {
+                        val file = DoeyLogger.exportToTxtFile()
+                        if (file != null) {
+                            try {
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.provider",
+                                    file
+                                )
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Exportar Log"))
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Log guardado en: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+                            }
+                        } else {
+                            Toast.makeText(context, "Error al exportar log", Toast.LENGTH_SHORT).show()
                         }
-                        val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, logText)
-                        }
-                        context.startActivity(Intent.createChooser(intent, "Exportar Logs"))
                     }) {
-                        Icon(CustomIcons.FileDownload, contentDescription = "Exportar", tint = DeltaText3)
+                        Icon(CustomIcons.FileDownload, contentDescription = "Exportar .txt", tint = DeltaText3)
                     }
                     // Limpiar logs
                     IconButton(onClick = { DoeyLogger.clear() }) {
@@ -253,8 +268,8 @@ private fun LogEntryCard(
             // Detalle expandible
             AnimatedVisibility(
                 visible = isExpanded && hasDetail,
-                enter   = expandVertically(),
-                exit    = shrinkVertically()
+                enter   = expandVertically(tween(120)),
+                exit    = shrinkVertically(tween(80))
             ) {
                 Column {
                     Spacer(Modifier.height(6.dp))

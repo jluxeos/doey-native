@@ -307,6 +307,11 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     DoeyLogger.info(
                         "IRIS → híbrido (${intent.localSteps.size} local, delega: ${intent.delegateText?.take(60) ?: "nada"})"
                     )
+                    // ── Mostrar mensaje del usuario primero ──
+                    _uiState.update { s ->
+                        val newList = s.messages + ChatMessage(role = "user", text = text)
+                        s.copy(messages = newList.takeLast(50))
+                    }
                     // 1. Ejecutar pasos locales de IRIS en orden (sin IA)
                     val localResults = mutableListOf<String>()
                     for (step in intent.localSteps) {
@@ -322,14 +327,16 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         }
                         if (voiceEnabled) DoeyTTSEngine.speakAndWait(localMsg, resolveLanguage(settings.getLanguage()))
                     }
-                    // 2. Si hay partes para delegar, enviarlas a la IA
+                    // 2. Si hay partes para delegar, enviarlas a la IA (silent=true: mensaje usuario ya está en UI)
                     if (intent.delegateText != null) {
                         preLaunchAppIfNeeded(intent.delegateText)
                         p.processUtterance(
                             userText = intent.delegateText,
+                            silent   = true,
                             onSpeak  = if (voiceEnabled) { t, lang -> DoeyTTSEngine.speakAndWait(t, lang) } else null
                         )
                     }
+                    settings.saveChatHistory(_uiState.value.messages)
                     if (_uiState.value.isDrivingMode && voiceEnabled) { delay(500); startDrivingListen() }
                     return@launch
                 }
@@ -340,21 +347,36 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         "IRIS → comando complejo (${intent.subtasks.size} subtareas)",
                         intent.subtasks.joinToString(" | ")
                     )
+                    // ── Mostrar mensaje del usuario con su texto ORIGINAL (no el prompt optimizado) ──
+                    _uiState.update { s ->
+                        val newList = s.messages + ChatMessage(role = "user", text = text)
+                        s.copy(messages = newList.takeLast(50))
+                    }
                     // ── Pre-ejecución: abrir app inmediatamente sin esperar a la IA ──
                     preLaunchAppIfNeeded(text)
                     val optimizedText = LocalIntentProcessor.buildOptimizedPrompt(intent.subtasks, text)
+                    // Usar silent=true para que processUtterance NO agregue el mensaje user
+                    // al chat de nuevo (ya lo agregamos arriba con el texto original)
                     val aiResponse = p.processUtterance(
                         userText = optimizedText,
+                        silent   = true,
                         onSpeak  = if (voiceEnabled) { t, lang -> DoeyTTSEngine.speakAndWait(t, lang) } else null
                     )
-                    // Si la IA no generó texto de respuesta, mostrar confirmación local
-                    if (aiResponse.isBlank()) {
-                        val localConfirm = "✅ Listo."
-                        _uiState.update { s ->
-                            val newList = s.messages + ChatMessage(role = "assistant", text = localConfirm, respondedBy = "Doey")
-                            s.copy(messages = newList.takeLast(50))
-                        }
+                    // Mostrar respuesta de la IA (o confirmación si no hay texto)
+                    val responseText = aiResponse.ifBlank { "✅ Listo." }
+                    val providerName = when (settings.getProvider()) {
+                        "gemini" -> "Gemini"; "groq" -> "Groq"; "openrouter" -> "OpenRouter"
+                        "pollinations" -> "Pollinations"; else -> "Doey"
                     }
+                    _uiState.update { s ->
+                        val newList = s.messages + ChatMessage(
+                            role        = "assistant",
+                            text        = responseText,
+                            respondedBy = if (aiResponse.isBlank()) "IRIS" else providerName
+                        )
+                        s.copy(messages = newList.takeLast(50))
+                    }
+                    settings.saveChatHistory(_uiState.value.messages)
                     if (_uiState.value.isDrivingMode && voiceEnabled) { delay(500); startDrivingListen() }
                     return@launch
                 }

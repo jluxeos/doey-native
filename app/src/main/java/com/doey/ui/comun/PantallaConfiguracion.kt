@@ -25,6 +25,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import android.content.Intent
+import android.media.AudioManager
+import android.os.Build
+import android.provider.Settings
 import com.doey.ui.core.*
 import com.doey.MainViewModel
 
@@ -268,8 +272,161 @@ fun SettingsScreen(vm: MainViewModel, onProfileChanged: () -> Unit = {}) {
                 }, modifier = Modifier.fillMaxWidth()) {
                     Text(if (showSettingsSaved) "¡TODO GUARDADO!" else "GUARDAR TODOS LOS AJUSTES", fontWeight = FontWeight.Bold)
                 }
-                
+
+                // ── 4. Ajustes del Sistema Android ───────────────────────────────
+                SystemSettingsSection()
+
                 Spacer(Modifier.height(40.dp))
+            }
+        }
+    }
+}
+
+// ── Sección de Ajustes del Sistema ───────────────────────────────────────────
+@Composable
+private fun SystemSettingsSection() {
+    val ctx   = LocalContext.current
+    val audio = remember { ctx.getSystemService(android.content.Context.AUDIO_SERVICE) as AudioManager }
+
+    // Estado de volumen multimedia (0..1 float)
+    val maxVol  = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
+    var volume  by remember {
+        mutableStateOf(audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVol)
+    }
+
+    // Estado de brillo (requiere WRITE_SETTINGS; detectamos si tenemos permiso)
+    val canWriteSettings = remember {
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            Settings.System.canWrite(ctx)
+    }
+    var brightness by remember {
+        mutableStateOf(
+            runCatching {
+                Settings.System.getInt(ctx.contentResolver, Settings.System.SCREEN_BRIGHTNESS) / 255f
+            }.getOrDefault(0.5f)
+        )
+    }
+
+    TauSettingsSection(title = "Ajustes del Sistema", icon = CustomIcons.Settings) {
+
+        // ── Volumen multimedia ────────────────────────────────────────────────
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
+            Icon(CustomIcons.VolumeUp, null, tint = TauAccent, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(10.dp))
+            Text("Volumen multimedia", color = TauText1, fontSize = 14.sp, modifier = Modifier.weight(1f))
+            Text("${(volume * 100).toInt()}%", color = TauText3, fontSize = 12.sp)
+        }
+        Slider(
+            value         = volume,
+            onValueChange = { v ->
+                volume = v
+                audio.setStreamVolume(
+                    AudioManager.STREAM_MUSIC,
+                    (v * maxVol).toInt(),
+                    0
+                )
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        // ── Brillo de pantalla ────────────────────────────────────────────────
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
+            Icon(CustomIcons.BrightnessHigh, null, tint = TauAccent, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(10.dp))
+            Text("Brillo de pantalla", color = TauText1, fontSize = 14.sp, modifier = Modifier.weight(1f))
+            Text("${(brightness * 100).toInt()}%", color = TauText3, fontSize = 12.sp)
+        }
+        if (canWriteSettings) {
+            Slider(
+                value         = brightness,
+                onValueChange = { v ->
+                    brightness = v
+                    runCatching {
+                        Settings.System.putInt(
+                            ctx.contentResolver,
+                            Settings.System.SCREEN_BRIGHTNESS,
+                            (v * 255).toInt().coerceIn(1, 255)
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else {
+            Text(
+                "Toca aquí para dar permiso de cambiar brillo",
+                color    = TauAccent,
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            ctx.startActivity(
+                                Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                                    data = android.net.Uri.parse("package:${ctx.packageName}")
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                            )
+                        }
+                    }
+                    .padding(vertical = 8.dp)
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // ── Accesos rápidos al sistema ────────────────────────────────────────
+        Text("Accesos rápidos", fontWeight = FontWeight.Bold, color = TauText2, fontSize = 13.sp)
+        Spacer(Modifier.height(10.dp))
+
+        val quickLinks = listOf(
+            Triple(CustomIcons.Wifi,                 "WiFi",             Settings.ACTION_WIFI_SETTINGS),
+            Triple(CustomIcons.Bluetooth,             "Bluetooth",        Settings.ACTION_BLUETOOTH_SETTINGS),
+            Triple(CustomIcons.NotificationsActive,   "Notificaciones",   Settings.ACTION_APP_NOTIFICATION_SETTINGS),
+            Triple(CustomIcons.Battery,               "Batería",          Settings.ACTION_BATTERY_SAVER_SETTINGS),
+            Triple(CustomIcons.Storage,               "Almacenamiento",   Settings.ACTION_INTERNAL_STORAGE_SETTINGS),
+            Triple(CustomIcons.Language,              "Idioma",           Settings.ACTION_LOCALE_SETTINGS)
+        )
+
+        // 2 columnas de botones
+        val rows = quickLinks.chunked(2)
+        rows.forEach { rowItems ->
+            Row(
+                modifier             = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowItems.forEach { (icon, label, action) ->
+                    Surface(
+                        shape    = RoundedCornerShape(12.dp),
+                        color    = TauSurface2,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                runCatching {
+                                    val intent = Intent(action).apply {
+                                        // Para notificaciones, apuntar a esta app
+                                        if (action == Settings.ACTION_APP_NOTIFICATION_SETTINGS) {
+                                            putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+                                        }
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    ctx.startActivity(intent)
+                                }
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(icon, null, tint = TauAccent, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(label, color = TauText1, fontSize = 13.sp)
+                        }
+                    }
+                    // Padding si es item impar en fila incompleta
+                    if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                }
             }
         }
     }

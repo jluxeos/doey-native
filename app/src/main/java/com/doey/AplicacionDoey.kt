@@ -1,6 +1,7 @@
 package com.doey
 
 import android.app.Application
+import com.doey.agente.DoeyLogger
 import com.doey.agente.SettingsStore
 import com.doey.agente.SkillLoader
 import com.doey.servicios.comun.DoeyTTSEngine
@@ -19,6 +20,7 @@ class AplicacionDoey : Application() {
         super.onCreate()
         instance = this
         CrashHandler.init(this)
+        DoeyLogger.init(this)   // carga historial de log desde disco
         skillLoader = SkillLoader(this)
         settingsStore = SettingsStore(this)
         DoeyTTSEngine.init(this)

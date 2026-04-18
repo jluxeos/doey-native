@@ -1,6 +1,8 @@
 package com.doey.ui.comun
 
 import android.content.Intent
+import android.os.Build
+import android.os.PowerManager
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -44,6 +46,17 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
     val settings   = remember { vm.getSettings() }
     val ctx        = LocalContext.current
 
+    // Detectar si el dispositivo está en modo ahorro de energía o tiene poca RAM
+    val isLowPower = remember {
+        val pm = ctx.getSystemService(android.content.Context.POWER_SERVICE) as? PowerManager
+        val isPowerSave = pm?.isPowerSaveMode ?: false
+        val ramMb = with(android.app.ActivityManager.MemoryInfo()) {
+            (ctx.getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager)
+                .getMemoryInfo(this); (totalMem / 1024 / 1024).toInt()
+        }
+        isPowerSave || ramMb <= 3000  // ≤3 GB RAM → modo ligero
+    }
+
     var flowExpanded  by remember { mutableStateOf(false) }
     var currentNode   by remember { mutableStateOf<FlowNode?>(null) }
     var currentParams by remember { mutableStateOf(mapOf<String, String>()) }
@@ -55,8 +68,12 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
     }
 
     LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty())
-            listState.animateScrollToItem(state.messages.size - 1)
+        if (state.messages.isNotEmpty()) {
+            if (isLowPower)
+                listState.scrollToItem(state.messages.size - 1)
+            else
+                listState.animateScrollToItem(state.messages.size - 1)
+        }
     }
 
     LaunchedEffect(flowFeedback) {
@@ -87,8 +104,8 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             // ── Feedback de acción rápida ─────────────────────────────
             AnimatedVisibility(
                 visible = flowFeedback != null,
-                enter   = fadeIn(tween(200)) + slideInVertically { it / 2 },
-                exit    = fadeOut(tween(150)) + slideOutVertically { it / 2 }
+                enter   = if (isLowPower) EnterTransition.None else fadeIn(tween(200)) + slideInVertically { it / 2 },
+                exit    = if (isLowPower) ExitTransition.None  else fadeOut(tween(150)) + slideOutVertically { it / 2 }
             ) {
                 Box(
                     Modifier
@@ -111,8 +128,8 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
             // ── Modo Flujo — carrusel ────────────────────────────────
             AnimatedVisibility(
                 visible = flowExpanded,
-                enter   = fadeIn(tween(200)) + expandVertically(),
-                exit    = fadeOut(tween(150)) + shrinkVertically()
+                enter   = if (isLowPower) EnterTransition.None else fadeIn(tween(200)) + expandVertically(),
+                exit    = if (isLowPower) ExitTransition.None  else fadeOut(tween(150)) + shrinkVertically()
             ) {
                 Column(
                     Modifier
