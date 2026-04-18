@@ -302,6 +302,37 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     // Si falla la ejecución local, delegar a IA
                     DoeyLogger.info("IRIS → acción local sin resultado, delegando a IA")
                 }
+                is LocalIntentProcessor.IntentClass.Hybrid -> {
+                    // Ejecución híbrida: IRIS corre sus pasos, luego delega el resto a la IA
+                    DoeyLogger.info(
+                        "IRIS → híbrido (${intent.localSteps.size} local, delega: ${intent.delegateText?.take(60) ?: "nada"})"
+                    )
+                    // 1. Ejecutar pasos locales de IRIS en orden (sin IA)
+                    val localResults = mutableListOf<String>()
+                    for (step in intent.localSteps) {
+                        val result = executeLocalAction(step)
+                        if (result.isNotBlank()) localResults.add(result)
+                    }
+                    // Mostrar confirmaciones locales mientras la IA trabaja
+                    if (localResults.isNotEmpty()) {
+                        val localMsg = localResults.joinToString(" • ")
+                        _uiState.update { s ->
+                            val newList = s.messages + ChatMessage(role = "assistant", text = localMsg, respondedBy = "IRIS")
+                            s.copy(messages = newList.takeLast(50))
+                        }
+                        if (voiceEnabled) DoeyTTSEngine.speakAndWait(localMsg, resolveLanguage(settings.getLanguage()))
+                    }
+                    // 2. Si hay partes para delegar, enviarlas a la IA
+                    if (intent.delegateText != null) {
+                        preLaunchAppIfNeeded(intent.delegateText)
+                        p.processUtterance(
+                            userText = intent.delegateText,
+                            onSpeak  = if (voiceEnabled) { t, lang -> DoeyTTSEngine.speakAndWait(t, lang) } else null
+                        )
+                    }
+                    if (_uiState.value.isDrivingMode && voiceEnabled) { delay(500); startDrivingListen() }
+                    return@launch
+                }
                 is LocalIntentProcessor.IntentClass.Complex -> {
                     // Comando encadenado: prompt compacto para que la IA solo ejecute herramientas
                     // sin gastar tokens en texto innecesario
@@ -309,6 +340,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         "IRIS → comando complejo (${intent.subtasks.size} subtareas)",
                         intent.subtasks.joinToString(" | ")
                     )
+                    // ── Pre-ejecución: abrir app inmediatamente sin esperar a la IA ──
+                    preLaunchAppIfNeeded(text)
                     val optimizedText = LocalIntentProcessor.buildOptimizedPrompt(intent.subtasks, text)
                     val aiResponse = p.processUtterance(
                         userText = optimizedText,
@@ -327,6 +360,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
                 is LocalIntentProcessor.IntentClass.Delegate -> {
                     DoeyLogger.info("IRIS → delega a IA", text.take(100))
+                    // ── Pre-ejecución: abrir app inmediatamente sin esperar a la IA ──
+                    preLaunchAppIfNeeded(text)
                 }
             }
             // ── Delegar a IA ─────────────────────────────────────────────────────
@@ -342,6 +377,34 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 startDrivingListen()
             }
         }
+    }
+
+    /**
+     * Pre-lanza una app si el comando empieza con "abre X / open X".
+     * Se llama ANTES de enviar a la IA para que la app ya esté cargando
+     * mientras el LLM procesa el resto del comando. Ahorra 2-3 segundos.
+     */
+    private suspend fun preLaunchAppIfNeeded(text: String) {
+        val lo = text.lowercase().trim()
+        val openRegex = Regex(
+            """^(?:abre?|open|lanza|inicia|pon|tira)\s+(?:la\s+app\s+(?:de\s+)?|la\s+aplicaci[oó]n\s+(?:de\s+)?)?([a-záéíóúüñ0-9 ]{2,25})""",
+            RegexOption.IGNORE_CASE
+        )
+        val appName = openRegex.find(lo)?.groupValues?.get(1)?.trim() ?: return
+        if (appName.isBlank()) return
+        try {
+            val pm = app.packageManager
+            val apps = pm.getInstalledApplications(android.content.pm.PackageManager.GET_META_DATA)
+            val target = apps.firstOrNull {
+                pm.getApplicationLabel(it).toString().equals(appName, ignoreCase = true)
+            } ?: apps.firstOrNull {
+                pm.getApplicationLabel(it).toString().lowercase().contains(appName)
+            } ?: return
+            val intent = pm.getLaunchIntentForPackage(target.packageName) ?: return
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            app.startActivity(intent)
+            DoeyLogger.info("PRE-LAUNCH: ${pm.getApplicationLabel(target)} lanzada antes de la IA")
+        } catch (_: Exception) {}
     }
 
     /**

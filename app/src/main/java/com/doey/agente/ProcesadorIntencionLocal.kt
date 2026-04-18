@@ -22,6 +22,10 @@ object LocalIntentProcessor {
         data class Local(val action: LocalAction)       : IntentClass()
         data class Complex(val subtasks: List<String>)  : IntentClass()
         object Delegate                                  : IntentClass()
+        data class Hybrid(
+            val localSteps: List<LocalAction>,
+            val delegateText: String?
+        ) : IntentClass()
     }
 
     sealed class LocalAction {
@@ -152,6 +156,11 @@ object LocalIntentProcessor {
             is IrisClasificador.IntentClass.Local    -> {
                 val mapped = mapAction(r.action) ?: return IntentClass.Delegate
                 IntentClass.Local(mapped)
+            }
+            is IrisClasificador.IntentClass.Hybrid   -> {
+                val mappedSteps = r.localSteps.mapNotNull { mapAction(it) }
+                if (mappedSteps.isEmpty()) IntentClass.Complex(listOf(input))
+                else IntentClass.Hybrid(mappedSteps, r.delegateText)
             }
         }
     }

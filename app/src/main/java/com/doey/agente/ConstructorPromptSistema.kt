@@ -59,6 +59,7 @@ object SystemPromptBuilder {
             append("NUNCA texto antes de actuar. NUNCA JSON crudo al usuario.\n")
             append("Respuesta final:máx 1 oración en $lang.\n")
             append("UI de apps:usa ui_control(find_and_tap/find_and_type/get_interactive) ANTES que accessibility(get_tree). Ahorra tokens.\n")
+            append("Tras abrir una app:espera ui_control(wait_ms=1500) antes de interactuar con la UI.\n")
             append("Fallo→intenta alternativa(intent→ui_control→accessibility). No rendirse.\n")
             append("Comandos encadenados:uno por uno,verificar antes de siguiente.\n")
             append("MEMORIAS:usa memory_personal(action=upsert) para guardar hechos. ")

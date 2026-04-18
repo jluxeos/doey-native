@@ -2,7 +2,10 @@ package com.doey.herramientas.comun
 
 import android.graphics.Rect
 import android.os.Build
+import android.util.DisplayMetrics
+import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
+import com.doey.AplicacionDoey
 import com.doey.servicios.basico.DoeyAccessibilityService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -42,7 +45,8 @@ class HerramientaControlUI : Tool {
                     "find_and_tap", "find_and_type", "find_and_scroll",
                     "tap_xy", "long_tap_xy", "double_tap",
                     "pinch", "spread", "drag",
-                    "find_node", "get_interactive", "scroll_to_text"
+                    "find_node", "get_interactive", "scroll_to_text",
+                    "wait_ms"
                 )
             ),
             "text"       to mapOf("type" to "string",  "description" to "Texto a buscar o escribir"),
@@ -135,16 +139,23 @@ class HerramientaControlUI : Tool {
                 val rect = Rect(); node.getBoundsInScreen(rect)
                 val cx   = (rect.left + rect.right) / 2
                 val cy   = (rect.top + rect.bottom) / 2
+                val label = text ?: hint ?: cls ?: "nodo"
+
+                // 1) Intentar ACTION_CLICK directo (más fiable en la mayoría de apps)
+                var ok = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                 nodes.forEach { try { it.recycle() } catch (_: Exception) {} }
 
+                if (ok) return@withContext successResult("Tocado '$label'")
+
+                // 2) Fallback: gesto de toque real en coordenadas
                 if (rect.width() > 0 && rect.height() > 0) {
-                    val ok = svc.performSwipe(cx.toFloat(), cy.toFloat(), cx.toFloat(), cy.toFloat(), 50)
-                    if (ok) successResult("Tocado '${text ?: hint ?: cls}' en ($cx,$cy)")
-                    else    errorResult("Gesto de toque falló en ($cx,$cy)")
+                    // Intentar con duración 100ms primero, luego 200ms
+                    ok = svc.performSwipe(cx.toFloat(), cy.toFloat(), cx.toFloat(), cy.toFloat(), 100)
+                    if (!ok) ok = svc.performSwipe(cx.toFloat(), cy.toFloat(), cx.toFloat(), cy.toFloat(), 200)
+                    if (ok) successResult("Tocado '$label' en ($cx,$cy) [gesto]")
+                    else    errorResult("Toque falló en '$label' ($cx,$cy) — app puede estar bloqueando gestos")
                 } else {
-                    val ok = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                    if (ok) successResult("Click en '${text ?: hint ?: cls}'")
-                    else    errorResult("Click falló en '${text ?: hint ?: cls}'")
+                    errorResult("No se pudo tocar '$label' — nodo sin coordenadas visibles")
                 }
             }
 
@@ -188,26 +199,56 @@ class HerramientaControlUI : Tool {
 
             "find_and_scroll" -> withContext(Dispatchers.Main) {
                 val text = args["text"] as? String
-                val dir  = when (args["hint"] as? String) {
-                    "up" -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
-                    else -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+                // "direction" es el parámetro correcto (hint era bug)
+                val dirStr = (args["direction"] as? String) ?: (args["hint"] as? String) ?: "down"
+                val actionScroll = when (dirStr.lowercase()) {
+                    "up"   -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+                    "left" -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+                    else   -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
                 }
-                val root  = svc.rootInActiveWindow
+                val root = svc.rootInActiveWindow
                     ?: return@withContext errorResult("No hay ventana activa")
-                val nodes = mutableListOf<AccessibilityNodeInfo>()
 
-                if (text != null) findNodes(root, text, null, null, nodes)
-                if (nodes.isEmpty()) {
-                    // Buscar cualquier nodo scrollable
-                    findScrollableNodes(root, nodes)
-                }
+                // Si se pasa text, buscar nodo scrollable que CONTENGA ese texto
+                // Si no, buscar el primer nodo scrollable disponible
+                val scrollNodes = mutableListOf<AccessibilityNodeInfo>()
+                findScrollableNodes(root, scrollNodes)
                 root.recycle()
 
-                if (nodes.isEmpty()) return@withContext errorResult("No hay nodo scrollable visible")
-                val ok = nodes.first().performAction(dir)
-                nodes.forEach { try { it.recycle() } catch (_: Exception) {} }
-                if (ok) successResult("Scroll realizado")
-                else    errorResult("Scroll falló")
+                if (scrollNodes.isEmpty()) {
+                    // Último recurso: swipe en el centro de la pantalla
+                    val wm = AplicacionDoey.instance.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
+                    val metrics = android.util.DisplayMetrics()
+                    @Suppress("DEPRECATION") wm.defaultDisplay.getRealMetrics(metrics)
+                    val cx = metrics.widthPixels / 2f
+                    val cy = metrics.heightPixels / 2f
+                    val (y1, y2) = if (dirStr == "up") Pair(cy - 300f, cy + 300f) else Pair(cy + 300f, cy - 300f)
+                    val ok = svc.performSwipe(cx, y1, cx, y2, 400)
+                    return@withContext if (ok) successResult("Scroll $dirStr (gesto pantalla)")
+                    else errorResult("No hay nodo scrollable y el gesto también falló")
+                }
+
+                // Intentar ACTION_SCROLL en el nodo más grande (normalmente el RecyclerView principal)
+                val best = scrollNodes.maxByOrNull {
+                    val r = Rect(); it.getBoundsInScreen(r); r.width() * r.height()
+                } ?: scrollNodes.first()
+
+                var ok = best.performAction(actionScroll)
+                scrollNodes.forEach { try { it.recycle() } catch (_: Exception) {} }
+
+                if (!ok) {
+                    // Fallback: swipe gesture en el centro de pantalla
+                    val wm = AplicacionDoey.instance.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
+                    val metrics = android.util.DisplayMetrics()
+                    @Suppress("DEPRECATION") wm.defaultDisplay.getRealMetrics(metrics)
+                    val cx = metrics.widthPixels / 2f
+                    val cy = metrics.heightPixels / 2f
+                    val (y1, y2) = if (dirStr == "up") Pair(cy - 400f, cy + 400f) else Pair(cy + 400f, cy - 400f)
+                    ok = svc.performSwipe(cx, y1, cx, y2, 400)
+                }
+
+                if (ok) successResult("Scroll $dirStr realizado")
+                else    errorResult("Scroll $dirStr falló en todos los intentos")
             }
 
             "tap_xy" -> withContext(Dispatchers.Main) {
@@ -317,6 +358,12 @@ class HerramientaControlUI : Tool {
                 }
                 if (found) successResult("Texto '$target' encontrado en pantalla")
                 else errorResult("No se encontró '$target' después de $maxTries scrolls")
+            }
+
+            "wait_ms" -> {
+                val ms = (args["duration_ms"] as? Number)?.toLong()?.coerceIn(100, 5000) ?: 1500L
+                withContext(Dispatchers.IO) { Thread.sleep(ms) }
+                successResult("Esperado ${ms}ms")
             }
 
             else -> errorResult("Acción desconocida: $action")

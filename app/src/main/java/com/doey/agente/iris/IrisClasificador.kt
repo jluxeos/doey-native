@@ -35,6 +35,16 @@ object IrisClasificador {
         data class Local(val action: LocalAction)       : IntentClass()
         data class Complex(val subtasks: List<String>)  : IntentClass()
         object Delegate                                  : IntentClass()
+        /**
+         * Ejecución híbrida: IRIS resuelve lo que puede, delega el resto a la IA.
+         * - [localSteps]   → acciones que IRIS ejecuta directamente (en orden)
+         * - [delegateText] → texto reducido que se manda a la IA (sin las partes ya resueltas)
+         *                    null si IRIS resolvió TODO y no hay nada que delegar
+         */
+        data class Hybrid(
+            val localSteps: List<LocalAction>,
+            val delegateText: String?
+        ) : IntentClass()
     }
 
     sealed class LocalAction {
@@ -235,13 +245,50 @@ object IrisClasificador {
         if (QUESTION_PREFIXES.containsMatchIn(lo)) return IntentClass.Delegate
         if (EXTERNAL_CONTEXT.containsMatchIn(lo))  return IntentClass.Delegate
 
+        // Comando con múltiples subtareas → intentar resolución híbrida
         if (MULTI_TASK.containsMatchIn(lo)) {
             val parts = splitSubtasks(input)
-            if (parts.size >= 2) return IntentClass.Complex(parts)
+            if (parts.size >= 2) return classifyHybrid(parts)
         }
 
         tryLocal(lo)?.let { return IntentClass.Local(it) }
         return IntentClass.Delegate
+    }
+
+    /**
+     * Para un comando multi-paso, clasifica cada subtarea individualmente:
+     *  - Las que IRIS puede resolver → [Hybrid.localSteps]
+     *  - Las que no puede → se juntan en [Hybrid.delegateText] para la IA
+     *
+     * Si IRIS puede resolver TODAS → Hybrid(localSteps, delegateText=null)
+     * Si IRIS no puede resolver NINGUNA → Complex(parts) (comportamiento anterior)
+     * Si resuelve ALGUNAS → Hybrid(localSteps, delegateText)
+     */
+    private fun classifyHybrid(parts: List<String>): IntentClass {
+        val localSteps   = mutableListOf<LocalAction>()
+        val delegateParts = mutableListOf<String>()
+
+        for (part in parts) {
+            val lo = normalize(part).lowercase()
+            val action = tryLocal(lo)
+            if (action != null) {
+                localSteps.add(action)
+            } else {
+                delegateParts.add(part)
+            }
+        }
+
+        return when {
+            // IRIS resuelve todo — no hay nada que delegar
+            delegateParts.isEmpty() -> IntentClass.Hybrid(localSteps, null)
+            // IRIS no resuelve nada — comportamiento anterior (todo a la IA)
+            localSteps.isEmpty()    -> IntentClass.Complex(parts)
+            // IRIS resuelve algunas, delega el resto — el caso nuevo
+            else -> IntentClass.Hybrid(
+                localSteps   = localSteps,
+                delegateText = delegateParts.joinToString(" y luego ")
+            )
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════════
