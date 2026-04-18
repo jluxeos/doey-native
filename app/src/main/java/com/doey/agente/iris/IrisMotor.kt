@@ -589,6 +589,34 @@ object IrisMotor {
         return LocalAction.SearchWeb(query)
     }
 
+    /**
+     * Detecta preguntas de conocimiento general y las abre en Google directamente,
+     * sin gastar tokens en la IA para cosas que igual acabarían en una busqueda.
+     * Solo actua para preguntas que claramente necesitan busqueda (quien es, que es,
+     * como se hace, cuanto cuesta, cuando fue, etc.) con un sujeto concreto.
+     */
+    fun matchKnowledgeSearch(lo: String): LocalAction? {
+        val rx = Regex(
+            "^(?:quien\\s+(?:es|fue|era|son|fueron)|" +
+            "que\\s+(?:es|son|fue|significa|quiere\\s+decir)|" +
+            "como\\s+(?:se\\s+hace|funciona|se\\s+usa|se\\s+llama|se\\s+dice|se\\s+escribe)|" +
+            "cuanto\\s+(?:cuesta|vale|pesa|mide|tarda)|" +
+            "cuantos\\s+(?:hay|son|existen)|" +
+            "cuando\\s+(?:fue|es|nacio|murio|salio|sale|llega)|" +
+            "donde\\s+(?:nacio|vive|queda|esta|se\\s+encuentra|se\\s+ubica|fue)|" +
+            "por\\s+que\\s+(?:es|se|los|las|hay|ocurre|pasa)|" +
+            "para\\s+que\\s+(?:sirve|es)|" +
+            "cual\\s+es\\s+(?:el|la|los|las))\\s+(.{3,80})$",
+            RegexOption.IGNORE_CASE
+        )
+        val m = rx.find(lo) ?: return null
+        val subject = m.groupValues[m.groupValues.size - 1].trim()
+        if (subject.isBlank()) return null
+        // Extraer la pregunta completa como query
+        val query = lo.trim()
+        return LocalAction.SearchWeb(query)
+    }
+
     fun matchMapsSearch(lo: String): LocalAction? {
         val m = Regex(
             "^(?:busca(?:r)?\\s+en\\s+(?:maps|google\\s+maps)|" +

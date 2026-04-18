@@ -343,6 +343,7 @@ object IrisClasificador {
         ?: matchShopping(lo)
         ?: matchShare(lo)
         ?: matchQuickApps(lo)
+        ?: matchKnowledgeSearch(lo)   // preguntas generales → Google directo
         ?: matchOpenApp(lo)               // siempre al final — captura genérica
     }
 
