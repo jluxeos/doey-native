@@ -230,7 +230,8 @@ fun HomeScreen(vm: MainViewModel, nav: NavController) {
                         vm.sendMessage(input)
                         input = ""
                     }
-                }
+                },
+                onStop = { vm.stopAll() }
             )
         }
     }
@@ -354,7 +355,8 @@ private fun DeltaInputBar(
     onFlowToggle: () -> Unit,
     onFriendlyMode: () -> Unit,
     onMic: () -> Unit,
-    onSend: () -> Unit
+    onSend: () -> Unit,
+    onStop: () -> Unit = {}
 ) {
     val isProcessing = state == PipelineState.PROCESSING || state == PipelineState.SPEAKING
     val isListening  = state == PipelineState.LISTENING
@@ -417,31 +419,51 @@ private fun DeltaInputBar(
 
             Spacer(Modifier.width(8.dp))
 
-            // Botón mic
-            IconButton(onClick = onMic) {
-                Icon(
-                    imageVector = Icons.Default.Mic,
-                    contentDescription = "Micrófono",
-                    tint = if (isListening) DeltaAccent else DeltaText3,
-                    modifier = Modifier.size(22.dp)
-                )
+            // Botón mic (oculto mientras procesa)
+            if (!isProcessing) {
+                IconButton(onClick = onMic) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "Micrófono",
+                        tint = if (isListening) DeltaAccent else DeltaText3,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
 
-            // Botón enviar
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(if (input.isNotBlank()) DeltaAccent else DeltaSurface3)
-                    .clickable(enabled = input.isNotBlank()) { onSend() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Send,
-                    contentDescription = "Enviar",
-                    tint = if (input.isNotBlank()) Color.White else DeltaText3,
-                    modifier = Modifier.size(18.dp)
-                )
+            // Botón Stop (durante procesamiento) o Enviar
+            if (isProcessing) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE53935))
+                        .clickable { onStop() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Stop,
+                        contentDescription = "Detener",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (input.isNotBlank()) DeltaAccent else DeltaSurface3)
+                        .clickable(enabled = input.isNotBlank()) { onSend() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Send,
+                        contentDescription = "Enviar",
+                        tint = if (input.isNotBlank()) Color.White else DeltaText3,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }

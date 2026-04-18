@@ -182,8 +182,8 @@ object IrisMotor {
     fun matchQuickReminder(lo: String): LocalAction? {
         val rx = Regex(
             "^(?:recuerdame|avisame|notificame|reminder|recuerda|avisa|" +
-            "ponme un recordatorio|recordatorio)\\s+(.+?)\\s+" +
-            "(?:en|dentro de)\\s+(\\d+)\\s+(minuto|minutos|hora|horas|segundo|segundos)$",
+            "ponme\\s+un\\s+recordatorio|recordatorio|recuerdame\\s+que|avisame\\s+que)\\s+(.+?)\\s+" +
+            "(?:en|dentro\\s+de|en\\s+unos?)\\s+(\\d+)\\s+(minuto|minutos|min|hora|horas|h|segundo|segundos|seg)$",
             RegexOption.IGNORE_CASE
         )
         val m = rx.find(lo) ?: return null
@@ -191,9 +191,9 @@ object IrisMotor {
         val value = m.groupValues[2].toIntOrNull() ?: return null
         val unit  = m.groupValues[3].lowercase()
         val minutes = when {
-            unit.startsWith("hora") -> value * 60
-            unit.startsWith("seg")  -> maxOf(1, value / 60)
-            else                    -> value
+            unit.startsWith("hora") || unit == "h" -> value * 60
+            unit.startsWith("seg")                 -> maxOf(1, value / 60)
+            else                                   -> value
         }
         return LocalAction.QuickReminder(text, minutes)
     }
@@ -473,11 +473,11 @@ object IrisMotor {
 
     fun matchCall(lo: String): LocalAction? {
         val m = Regex(
-            "^(?:llama(r)?( a| le a)?|marca(r)?( a| le a)?|call|llamar a|" +
-            "comunica(r)?me con|comunicate con|contacta a)\\s+(?:a\\s+)?(.+?)\\s*$",
+            "^(?:llama(?:r)?(?:\\s+a|\\s+le\\s+a)?|marca(?:r)?(?:\\s+a|\\s+le\\s+a)?|call|llamar\\s+a|" +
+            "comunicarme\\s+con|comunicate\\s+con|contacta\\s+a)\\s+(?:a\\s+)?(.+?)\\s*$",
             RegexOption.IGNORE_CASE
         ).find(lo) ?: return null
-        val contact = (m.groupValues[5].ifBlank { m.groupValues[6] }).trim()
+        val contact = m.groupValues[1].trim()
         if (contact.isBlank() || contact.length > 40) return null
         return LocalAction.Call(contact)
     }
@@ -578,23 +578,29 @@ object IrisMotor {
 
     fun matchWebSearch(lo: String): LocalAction? {
         val m = Regex(
-            "^(?:busca en google|googlea|busca en internet|search|busca en la web|" +
-            "busca online|busca en bing|busca en el buscador|haz una busqueda de)\\s+" +
-            "(?:sobre\\s+|acerca de\\s+)?(.+)$",
+            "^(?:busca(?:r)?\\s+(?:en\\s+)?(?:google|internet|la\\s+web|web|bing|online)|" +
+            "googlea(?:r)?|search(?:\\s+for)?|haz\\s+una\\s+busqueda\\s+de|" +
+            "busca(?:r)?\\s+informacion\\s+(?:sobre|de|acerca\\s+de))\\s+" +
+            "(?:sobre\\s+|acerca\\s+de\\s+|informacion\\s+de\\s+)?(.+)$",
             RegexOption.IGNORE_CASE
         ).find(lo) ?: return null
-        return LocalAction.SearchWeb(m.groupValues[1].trim())
+        val query = m.groupValues[1].trim()
+        if (query.isBlank() || query.length > 200) return null
+        return LocalAction.SearchWeb(query)
     }
 
     fun matchMapsSearch(lo: String): LocalAction? {
         val m = Regex(
-            "^(?:busca en maps|busca en google maps|donde esta|donde hay|" +
-            "encuentra en el mapa|busca en el mapa|find)\\s+(.+?)" +
-            "\\s*(?:cerca|en el mapa|en maps|near me|nearby|en google maps)?$",
+            "^(?:busca(?:r)?\\s+en\\s+(?:maps|google\\s+maps)|" +
+            "donde\\s+(?:esta|hay|queda|se\\s+encuentra)|" +
+            "encuentra(?:me)?\\s+(?:en\\s+el\\s+mapa\\s+)?|" +
+            "busca(?:r)?\\s+en\\s+el\\s+mapa|" +
+            "hay\\s+(?:un|una|algun|alguna)\\s+)(.+?)" +
+            "\\s*(?:cerca(?:\\s+de\\s+mi)?|en\\s+el\\s+mapa|en\\s+maps|near(?:\\s+me)?|cerca\\s+de\\s+aqui)?$",
             RegexOption.IGNORE_CASE
         ).find(lo) ?: return null
         val q = m.groupValues[1].trim()
-        if (q.length < 3 || q.length > 80) return null
+        if (q.length < 2 || q.length > 100) return null
         return LocalAction.SearchMaps(q)
     }
 
@@ -629,17 +635,17 @@ object IrisMotor {
     }
 
     fun matchMediaControl(lo: String): LocalAction? = when {
-        Regex("^(pausa(r)?|pause|deten la musica|para la musica|stop music|pausalo|pausala)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
+        Regex("^(pausa(r)?|pause|deten\\s+la\\s+musica|para\\s+la\\s+musica|stop\\s+music|pausalo|pausala)$|\\b(pausa|pause)\\s+(la\\s+)?musica\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.PauseMusic()
-        Regex("^(resume|reanuda(r)?|continua(r)? musica|sigue la musica|play again|dale play|dale|sigue|unpause)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
+        Regex("^(resume|reanuda(r)?|continua(r)?\\s+musica|sigue\\s+la\\s+musica|play\\s+again|dale\\s+play|dale|sigue|unpause)$|\\b(dale\\s+play|reanuda|continua)\\s+(la\\s+)?musica\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.ResumeMusic()
-        Regex("^(siguiente|proxima cancion|next|salta(r)?|skip|la que sigue|cambia la cancion|otra cancion)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
+        Regex("^(siguiente|proxima\\s+cancion|next|salta(r)?|skip|la\\s+que\\s+sigue|cambia\\s+la\\s+cancion|otra\\s+cancion)$|\\b(siguiente|skip|next)\\s+cancion\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.NextTrack()
-        Regex("^(anterior|cancion anterior|prev(ia)?|back|la de antes|regresar cancion|regresa la cancion)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
+        Regex("^(anterior|cancion\\s+anterior|prev(ia)?|back|la\\s+de\\s+antes|regresar\\s+cancion|regresa\\s+la\\s+cancion)$|\\b(anterior|cancion\\s+anterior)\\b", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.PrevTrack()
-        Regex("^(aleatoria|shuffle|modo aleatorio|random|mezclar|mezcla|pon en aleatorio)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
+        Regex("^(aleatoria|shuffle|modo\\s+aleatorio|random|mezclar|mezcla|pon\\s+en\\s+aleatorio)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.ShuffleMusic()
-        Regex("^(repite|repeat|repetir|loop|en loop|pon en loop)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
+        Regex("^(repite|repeat|repetir|loop|en\\s+loop|pon\\s+en\\s+loop)$", RegexOption.IGNORE_CASE).containsMatchIn(lo)
             -> LocalAction.RepeatToggle()
         else -> null
     }

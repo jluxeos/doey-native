@@ -158,7 +158,7 @@ class ConversationPipeline(
 
             if (assistantText.isNotBlank()) onTranscript?.invoke("assistant", assistantText)
 
-            if (drivingMode && onSpeak != null && assistantText.isNotBlank()) {
+            if (onSpeak != null && assistantText.isNotBlank()) {
                 _state.value = PipelineState.SPEAKING
                 try { onSpeak(assistantText, language.ifBlank { "es-MX" }) }
                 catch (e: Exception) { Log.e(TAG, "TTS: ${e.message}") }

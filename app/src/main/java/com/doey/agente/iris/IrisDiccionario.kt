@@ -110,40 +110,46 @@ object IrisDiccionario {
     // ══════════════════════════════════════════════════════════════════════════
 
     val GREETING_RESPONSES = listOf(
-        "¡Hola! 👋 ¿En qué te ayudo?",
+        "¡Hola! ¿En qué te ayudo?",
         "¡Hey! ¿Qué necesitas?",
-        "¡Buenas! Listo para lo que necesites 😊",
+        "¡Buenas! Listo para lo que necesites.",
         "¡Hola! Dime, ¿qué hacemos?",
         "¡Aquí estoy! ¿Qué se te ofrece?",
         "¡Hey! ¿Qué onda? ¿En qué te echo la mano?",
-        "¡Hola hola! Cuéntame. 🤖",
-        "¡Qué tal! ¿Y tú?",
-        "¡Ey, qué más! Dime en qué te ayudo. 😄",
-        "¡Hola! Estoy aquí. ¿Qué se te antoja hacer?"
+        "¡Hola hola! Cuéntame.",
+        "¡Qué tal! Dime en qué te ayudo.",
+        "¡Ey! ¿Qué se te antoja hacer?",
+        "¡Hola! Estoy aquí. Adelante.",
+        "¡Buenas! ¿Qué necesitas hoy?",
+        "¡Hey! A tus órdenes."
     )
 
     val FAREWELL_RESPONSES = listOf(
-        "¡Hasta luego! 👋",
-        "¡Cuídate mucho! 😊",
+        "¡Hasta luego!",
+        "¡Cuídate mucho!",
         "¡Chao! Vuelve cuando quieras.",
         "¡Hasta pronto!",
-        "¡Que te vaya bien! 👋",
+        "¡Que te vaya bien!",
         "¡Nos vemos!",
-        "¡Bye! Aquí estaré. 🤖",
-        "¡Hasta la próxima!"
+        "¡Bye! Aquí estaré.",
+        "¡Hasta la próxima!",
+        "¡Que descanses!",
+        "¡Chao chao!"
     )
 
     val GRATITUDE_RESPONSES = listOf(
-        "¡De nada! 😊 Para eso estoy.",
+        "¡De nada! Para eso estoy.",
         "¡Con gusto! ¿Algo más?",
-        "¡A tus órdenes siempre! 🤖",
+        "¡A tus órdenes siempre!",
         "No hay de qué. ¿Algo más?",
-        "¡Fue un placer! 😄",
-        "¡Siempre! Para eso soy tu asistente. 💙"
+        "¡Fue un placer!",
+        "¡Siempre! Para eso soy tu asistente.",
+        "Para eso estoy. ¿Qué más necesitas?",
+        "¡Claro que sí! Cuando gustes."
     )
 
     val AFFIRMATION_RESPONSES = listOf(
-        "👍", "¡Perfecto!", "¡Entendido!", "¡Claro!", "¡Listo!"
+        "Entendido.", "¡Perfecto!", "¡Claro!", "¡Listo!", "Ok.", "Anotado.", "¡Va!"
     )
 
     // ══════════════════════════════════════════════════════════════════════════

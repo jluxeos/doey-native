@@ -242,6 +242,10 @@ object IrisClasificador {
     fun classify(input: String): IntentClass {
         val lo = normalize(input).lowercase()
 
+        // Intentar operaciones locales que pueden tener prefijos de pregunta
+        // (ej: "cuánto es 5+5", "qué hora es", "cuánta batería")
+        tryLocal(lo)?.let { return IntentClass.Local(it) }
+
         if (QUESTION_PREFIXES.containsMatchIn(lo)) return IntentClass.Delegate
         if (EXTERNAL_CONTEXT.containsMatchIn(lo))  return IntentClass.Delegate
 
@@ -251,7 +255,6 @@ object IrisClasificador {
             if (parts.size >= 2) return classifyHybrid(parts)
         }
 
-        tryLocal(lo)?.let { return IntentClass.Local(it) }
         return IntentClass.Delegate
     }
 

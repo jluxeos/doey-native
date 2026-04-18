@@ -100,6 +100,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private var speechRecognizer: DoeySpeechRecognizer? = null
     private var driveListenJob: Job? = null
     private var pipelineStateJob: Job? = null
+    private var activeMessageJob: Job? = null
 
     init {
         initPipeline()
@@ -260,7 +261,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     fun sendMessage(text: String, voiceEnabled: Boolean = true) {
         if (text.isBlank()) return
         val p = pipeline ?: return
-        viewModelScope.launch {
+        activeMessageJob = viewModelScope.launch {
             // ── Log entrada del usuario ───────────────────────────────────────────
             DoeyLogger.userInput(text)
 
@@ -1773,6 +1774,13 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun stopListening()  { speechRecognizer?.stop(); pipeline?.stopListening() }
     fun stopSpeaking()   { DoeyTTSEngine.stop(); pipeline?.setIdle() }
+    fun stopAll() {
+        activeMessageJob?.cancel()
+        activeMessageJob = null
+        DoeyTTSEngine.stop()
+        pipeline?.setIdle()
+        speechRecognizer?.stop()
+    }
     fun clearHistory()   { pipeline?.clearHistory(); _uiState.update { it.copy(messages = emptyList()) }; viewModelScope.launch { settings.clearChatHistory() } }
     fun clearError()     { _uiState.update { it.copy(errorMessage = null) } }
 
