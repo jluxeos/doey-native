@@ -393,6 +393,25 @@ class FriendlyModeService : Service(), LifecycleOwner, SavedStateRegistryOwner {
                         statusState.value   = FriendlyStatus.SUCCESS
                         responseState.value = response
                     }
+                    is LocalIntentProcessor.IntentClass.Hybrid -> {
+                        // Ejecutar pasos locales primero, delegar el resto a la IA
+                        statusState.value = FriendlyStatus.ACTING
+                        val localResults = mutableListOf<String>()
+                        for (step in intentClass.localSteps) {
+                            val r = executeLocalAction(step)
+                            if (r.isNotBlank()) localResults.add(r)
+                        }
+                        if (localResults.isNotEmpty()) {
+                            responseState.value = localResults.joinToString(" • ")
+                        }
+                        if (intentClass.delegateText != null) {
+                            val response = pipeline?.processUtterance(intentClass.delegateText) ?: "Pipeline no disponible."
+                            statusState.value   = FriendlyStatus.SUCCESS
+                            responseState.value = response
+                        } else {
+                            statusState.value = FriendlyStatus.SUCCESS
+                        }
+                    }
                     is LocalIntentProcessor.IntentClass.Delegate -> {
                         val screenCtx   = DoeyAccessibilityService.instance?.buildAccessibilityTree() ?: ""
                         val ctxPrefix   = if (screenCtx.isNotBlank() && contextAppState.value.isNotBlank())
