@@ -2,7 +2,7 @@ package com.doey
 
 import android.app.Application
 import com.doey.NEXUS.DoeyLogger
-import com.doey.NEXUS.SettingsStore
+import com.doey.VAULT.SettingsStore
 import com.doey.NEXUS.SkillLoader
 import com.doey.ECHO.DoeyTTSEngine
 import kotlinx.coroutines.CoroutineScope
