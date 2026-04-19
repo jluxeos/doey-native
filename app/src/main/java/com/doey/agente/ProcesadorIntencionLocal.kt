@@ -3,42 +3,31 @@ package com.doey.agente
 import android.content.Context
 import com.doey.agente.iris.IrisClasificador
 
+// ── Alias de paquete ─────────────────────────────────────────────────────────
+// Permiten que ViewModelPrincipal y ServicioModoAmigable sigan usando
+// LocalIntentProcessor.LocalAction, .IntentClass, etc. sin cambios.
+typealias LocalAction  = IrisClasificador.LocalAction
+typealias IntentClass  = IrisClasificador.IntentClass
+typealias VolumeStream = IrisClasificador.VolumeStream
+typealias SilentMode   = IrisClasificador.SilentMode
+typealias InfoType     = IrisClasificador.InfoType
+
 /**
  * ProcesadorIntencionLocal — Puente transparente hacia IRIS
  *
- * ╔══════════════════════════════════════════════════════════════════════╗
- * ║  Este archivo YA NO duplica los tipos de Iris.                      ║
- * ║  Todos los tipos (LocalAction, IntentClass, etc.) viven en          ║
- * ║  IrisClasificador.kt y se usan directamente aquí.                   ║
- * ║                                                                      ║
- * ║  Cuando añades una acción nueva en Iris, NO tienes que tocar        ║
- * ║  nada en este archivo. Solo edita los 3 archivos de la carpeta      ║
- * ║  iris/ y listo.                                                      ║
- * ╚══════════════════════════════════════════════════════════════════════╝
- *
- * El resto del proyecto (ViewModelPrincipal, ServicioModoAmigable, etc.)
- * llama a este objeto igual que antes — la API pública no cambió.
+ * Ya no duplica tipos ni tiene mapeador. Todo vive en IrisClasificador.
+ * Cuando añades una acción nueva en Iris, NO hay que tocar este archivo.
  */
 object LocalIntentProcessor {
 
-    // Alias de tipos — el resto del proyecto puede seguir usando
-    // LocalIntentProcessor.LocalAction, .IntentClass, etc. sin cambios.
-    typealias LocalAction  = IrisClasificador.LocalAction
-    typealias IntentClass  = IrisClasificador.IntentClass
-    typealias VolumeStream = IrisClasificador.VolumeStream
-    typealias SilentMode   = IrisClasificador.SilentMode
-    typealias InfoType     = IrisClasificador.InfoType
+    fun classify(input: String): IrisClasificador.IntentClass =
+        IrisClasificador.classify(input)
 
-    // ── Clasificador principal ────────────────────────────────────────────────
-    fun classify(input: String): IntentClass = IrisClasificador.classify(input)
-
-    // ── Respuestas sociales ───────────────────────────────────────────────────
     fun greetingResponse(): String    = IrisClasificador.greetingResponse()
     fun farewellResponse(): String    = IrisClasificador.farewellResponse()
     fun gratitudeResponse(): String   = IrisClasificador.gratitudeResponse()
     fun affirmationResponse(): String = IrisClasificador.affirmationResponse()
 
-    // ── Contactos y utilidades ────────────────────────────────────────────────
     fun resolveContactNumber(context: Context, nameOrNumber: String): String? =
         IrisClasificador.resolveContactNumber(context, nameOrNumber)
 
