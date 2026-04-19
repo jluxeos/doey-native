@@ -1,10 +1,10 @@
 package com.doey
 
 import android.app.Application
-import com.doey.agente.DoeyLogger
-import com.doey.agente.SettingsStore
-import com.doey.agente.SkillLoader
-import com.doey.servicios.comun.DoeyTTSEngine
+import com.doey.NEXUS.DoeyLogger
+import com.doey.NEXUS.SettingsStore
+import com.doey.NEXUS.SkillLoader
+import com.doey.ECHO.DoeyTTSEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

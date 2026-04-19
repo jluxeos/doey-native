@@ -9,24 +9,24 @@ import android.speech.SpeechRecognizer
 import android.view.KeyEvent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.doey.agente.ConversationPipeline
-import com.doey.agente.DoeyLogger
-import com.doey.agente.LocalIntentProcessor
-import com.doey.agente.PipelineState
-import com.doey.agente.SettingsStore
-import com.doey.agente.SkillLoader
-import com.doey.agente.ProfileStore
-import com.doey.servicios.basico.NowPlayingInfo
-import com.doey.servicios.basico.NowPlayingRepository
-import com.doey.servicios.comun.DoeySpeechEvents
-import com.doey.servicios.comun.DoeySpeechRecognizer
-import com.doey.servicios.comun.DoeyTTSEngine
-import com.doey.servicios.comun.WakeWordService
-import com.doey.herramientas.comun.ToolRegistry
-import com.doey.herramientas.comun.JournalTool
-import com.doey.herramientas.comun.NotificationListenerTool
-import com.doey.herramientas.comun.SchedulerTool
-import com.doey.herramientas.comun.TimerTool
+import com.doey.NEXUS.ConversationPipeline
+import com.doey.NEXUS.DoeyLogger
+import com.doey.NEXUS.LocalIntentProcessor
+import com.doey.NEXUS.PipelineState
+import com.doey.VAULT.SettingsStore
+import com.doey.NEXUS.SkillLoader
+import com.doey.VAULT.ProfileStore
+import com.doey.VEIL.NowPlayingInfo
+import com.doey.VEIL.NowPlayingRepository
+import com.doey.ECHO.DoeySpeechEvents
+import com.doey.ECHO.DoeySpeechRecognizer
+import com.doey.ECHO.DoeyTTSEngine
+import com.doey.ECHO.WakeWordService
+import com.doey.FORGE.ToolRegistry
+import com.doey.FORGE.JournalTool
+import com.doey.FORGE.NotificationListenerTool
+import com.doey.FORGE.SchedulerTool
+import com.doey.FORGE.TimerTool
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -35,38 +35,41 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.doey.herramientas.comun.IntentTool
-import com.doey.herramientas.comun.SmsTool
-import com.doey.herramientas.comun.BeepTool
-import com.doey.herramientas.comun.DateTimeTool
-import com.doey.herramientas.comun.DeviceTool
-import com.doey.herramientas.comun.QueryContactsTool
-import com.doey.herramientas.comun.QuerySmsTool
-import com.doey.herramientas.comun.QueryCallLogTool
-import com.doey.herramientas.comun.HttpTool
-import com.doey.herramientas.comun.TTSTool
-import com.doey.herramientas.comun.AccessibilityTool
-import com.doey.herramientas.comun.AppSearchTool
-import com.doey.herramientas.comun.SkillDetailTool
-import com.doey.herramientas.comun.PersonalMemoryTool
-import com.doey.herramientas.comun.PersonalMemoryUpsertAlias
-import com.doey.herramientas.comun.FileStorageTool
-import com.doey.herramientas.comun.AlarmTool
-import com.doey.herramientas.comun.AppSearchAndLaunchTool
-import com.doey.herramientas.comun.ClipboardTool
-import com.doey.herramientas.comun.ShoppingListTool
-import com.doey.herramientas.comun.VolumeTool
-import com.doey.herramientas.comun.QuickNoteTool
-import com.doey.herramientas.comun.WifiBluetoothTool
-import com.doey.herramientas.comun.FlashlightTool
-import com.doey.herramientas.comun.CountdownTool
-import com.doey.herramientas.comun.HerramientaControlUI
-import com.doey.herramientas.comun.HerramientaShell
-import com.doey.llm.LLMProviderFactory
+import com.doey.FORGE.IntentTool
+import com.doey.FORGE.SmsTool
+import com.doey.FORGE.BeepTool
+import com.doey.FORGE.DateTimeTool
+import com.doey.FORGE.DeviceTool
+import com.doey.FORGE.QueryContactsTool
+import com.doey.FORGE.QuerySmsTool
+import com.doey.FORGE.QueryCallLogTool
+import com.doey.FORGE.HttpTool
+import com.doey.FORGE.TTSTool
+import com.doey.FORGE.AccessibilityTool
+import com.doey.FORGE.AppSearchTool
+import com.doey.FORGE.SkillDetailTool
+import com.doey.FORGE.PersonalMemoryTool
+import com.doey.FORGE.PersonalMemoryUpsertAlias
+import com.doey.FORGE.FileStorageTool
+import com.doey.FORGE.AlarmTool
+import com.doey.FORGE.AppSearchAndLaunchTool
+import com.doey.FORGE.ClipboardTool
+import com.doey.FORGE.ShoppingListTool
+import com.doey.FORGE.VolumeTool
+import com.doey.FORGE.QuickNoteTool
+import com.doey.FORGE.WifiBluetoothTool
+import com.doey.FORGE.FlashlightTool
+import com.doey.FORGE.CountdownTool
+import com.doey.FORGE.HerramientaControlUI
+import com.doey.FORGE.HerramientaShell
+import com.doey.ORACLE.LLMProviderFactory
 import android.accessibilityservice.AccessibilityService
-import com.doey.servicios.basico.DoeyAccessibilityService
-import com.doey.servicios.basico.DoeyOverlayService
-import com.doey.servicios.comun.AlarmReceiver
+import com.doey.VEIL.DoeyAccessibilityService
+import com.doey.VEIL.DoeyOverlayService
+import com.doey.ECHO.AlarmReceiver
+import com.doey.NEXUS.IntentClass
+import com.doey.NEXUS.LocalAction
+import com.doey.NEXUS.InfoType
 
 data class ChatMessage(
     val id: String = java.util.UUID.randomUUID().toString(),
@@ -268,10 +271,10 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             // ── Procesador local de intenciones (ahorra tokens de IA) ─────────────
             val intent = LocalIntentProcessor.classify(text)
             when (intent) {
-                is LocalIntentProcessor.IntentClass.Local -> {
+                is IntentClass.Local -> {
                     // Caso especial: SearchAndPlaySpotify usa accesibilidad → delegar a IA con prompt compacto
-                    if (intent.action is LocalIntentProcessor.LocalAction.SearchAndPlaySpotify) {
-                        val query = (intent.action as LocalIntentProcessor.LocalAction.SearchAndPlaySpotify).query
+                    if (intent.action is LocalAction.SearchAndPlaySpotify) {
+                        val query = (intent.action as LocalAction.SearchAndPlaySpotify).query
                         DoeyLogger.info(
                             "IRIS → delega a IA (SearchAndPlaySpotify)",
                             "query=$query"
@@ -303,7 +306,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     // Si falla la ejecución local, delegar a IA
                     DoeyLogger.info("IRIS → acción local sin resultado, delegando a IA")
                 }
-                is LocalIntentProcessor.IntentClass.Hybrid -> {
+                is IntentClass.Hybrid -> {
                     // Ejecución híbrida: IRIS corre sus pasos, luego delega el resto a la IA
                     DoeyLogger.info(
                         "IRIS → híbrido (${intent.localSteps.size} local, delega: ${intent.delegateText?.take(60) ?: "nada"})"
@@ -341,7 +344,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     if (_uiState.value.isDrivingMode && voiceEnabled) { delay(500); startDrivingListen() }
                     return@launch
                 }
-                is LocalIntentProcessor.IntentClass.Complex -> {
+                is IntentClass.Complex -> {
                     // Comando encadenado: prompt compacto para que la IA solo ejecute herramientas
                     // sin gastar tokens en texto innecesario
                     DoeyLogger.info(
@@ -381,7 +384,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     if (_uiState.value.isDrivingMode && voiceEnabled) { delay(500); startDrivingListen() }
                     return@launch
                 }
-                is LocalIntentProcessor.IntentClass.Delegate -> {
+                is IntentClass.Delegate -> {
                     DoeyLogger.info("IRIS → delega a IA", text.take(100))
                     // ── Pre-ejecución: abrir app inmediatamente sin esperar a la IA ──
                     preLaunchAppIfNeeded(text)
@@ -435,19 +438,19 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
      * Retorna un texto de respuesta o blank si no se pudo ejecutar.
      */
     @Suppress("DEPRECATION")
-    private suspend fun executeLocalAction(action: LocalIntentProcessor.LocalAction): String {
+    private suspend fun executeLocalAction(action: LocalAction): String {
         return try {
             when (action) {
 
                 // ── Consultas del sistema ────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.QueryInfo -> when (action.type) {
-                    LocalIntentProcessor.InfoType.TIME -> {
+                is LocalAction.QueryInfo -> when (action.type) {
+                    InfoType.TIME -> {
                         val now = java.util.Calendar.getInstance()
                         val h = now.get(java.util.Calendar.HOUR_OF_DAY)
                         val m = String.format("%02d", now.get(java.util.Calendar.MINUTE))
                         "Son las $h:$m 🕐"
                     }
-                    LocalIntentProcessor.InfoType.DATE -> {
+                    InfoType.DATE -> {
                         val now = java.util.Calendar.getInstance()
                         val months = listOf("enero","febrero","marzo","abril","mayo","junio",
                             "julio","agosto","septiembre","octubre","noviembre","diciembre")
@@ -455,7 +458,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         val dow  = dias[now.get(java.util.Calendar.DAY_OF_WEEK) - 1]
                         "Hoy es $dow ${now.get(java.util.Calendar.DAY_OF_MONTH)} de ${months[now.get(java.util.Calendar.MONTH)]} de ${now.get(java.util.Calendar.YEAR)} 📅"
                     }
-                    LocalIntentProcessor.InfoType.BATTERY -> {
+                    InfoType.BATTERY -> {
                         val bm = app.getSystemService(android.content.Context.BATTERY_SERVICE) as android.os.BatteryManager
                         val level   = bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
                         val charging = bm.isCharging
@@ -466,21 +469,21 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         }
                         "$emoji Batería al $level%${if (charging) " — cargando ⚡" else ""}"
                     }
-                    LocalIntentProcessor.InfoType.STORAGE -> {
+                    InfoType.STORAGE -> {
                         val stat = android.os.StatFs(android.os.Environment.getExternalStorageDirectory().path)
                         val free = stat.availableBlocksLong * stat.blockSizeLong / (1024 * 1024)
                         val total = stat.blockCountLong * stat.blockSizeLong / (1024 * 1024)
                         "💾 Tienes ${free}MB libres de ${total}MB en total"
                     }
-                    LocalIntentProcessor.InfoType.WIFI_STATUS -> {
+                    InfoType.WIFI_STATUS -> {
                         val wm = app.applicationContext.getSystemService(android.content.Context.WIFI_SERVICE) as android.net.wifi.WifiManager
                         if (wm.isWifiEnabled) "📶 El WiFi está activado" else "📵 El WiFi está desactivado"
                     }
-                    LocalIntentProcessor.InfoType.BT_STATUS -> {
+                    InfoType.BT_STATUS -> {
                         val ba = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
                         if (ba?.isEnabled == true) "🔷 Bluetooth activado" else "🔕 Bluetooth desactivado"
                     }
-                    LocalIntentProcessor.InfoType.RAM_USAGE -> {
+                    InfoType.RAM_USAGE -> {
                         val mi = android.app.ActivityManager.MemoryInfo()
                         val am = app.getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager
                         am.getMemoryInfo(mi)
@@ -488,16 +491,16 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                         val total = mi.totalMem / (1024 * 1024)
                         "🧠 RAM: ${total - available}MB usados de ${total}MB totales. Tienes ${available}MB libres"
                     }
-                    LocalIntentProcessor.InfoType.CPU_TEMP -> {
+                    InfoType.CPU_TEMP -> {
                         "🌡️ La temperatura del sistema es normal. No detecto sobrecalentamiento"
                     }
-                    LocalIntentProcessor.InfoType.UPTIME -> {
+                    InfoType.UPTIME -> {
                         val uptime = android.os.SystemClock.elapsedRealtime() / 1000
                         val hours = uptime / 3600
                         val minutes = (uptime % 3600) / 60
                         "⏱️ El dispositivo lleva encendido $hours horas y $minutes minutos"
                     }
-                    LocalIntentProcessor.InfoType.NETWORK_SPEED -> {
+                    InfoType.NETWORK_SPEED -> {
                         val tm = app.getSystemService(android.content.Context.TELEPHONY_SERVICE) as? android.telephony.TelephonyManager
                         val wifi = app.getSystemService(android.content.Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
                         val wifiInfo = wifi?.connectionInfo
@@ -518,7 +521,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                             "📡 Conectado por datos móviles ($typeName)"
                         }
                     }
-                    LocalIntentProcessor.InfoType.IP_ADDRESS -> {
+                    InfoType.IP_ADDRESS -> {
                         val wifi = app.getSystemService(android.content.Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
                         val ipInt = wifi?.connectionInfo?.ipAddress ?: 0
                         if (ipInt != 0) {
@@ -532,7 +535,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Navegación del Sistema ──────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.GoHome -> {
+                is LocalAction.GoHome -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
                         addCategory(android.content.Intent.CATEGORY_HOME)
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -541,23 +544,23 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "🏠 Yendo a la pantalla de inicio"
                 }
 
-                is LocalIntentProcessor.LocalAction.BackButton -> {
+                is LocalAction.BackButton -> {
                     DoeyAccessibilityService.instance?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
                     "⬅️ Atrás"
                 }
 
-                is LocalIntentProcessor.LocalAction.ShowRecentApps -> {
+                is LocalAction.ShowRecentApps -> {
                     DoeyAccessibilityService.instance?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
                     "📱 Mostrando aplicaciones recientes"
                 }
 
                 // ── Mantenimiento ───────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.ClearNotifications -> {
+                is LocalAction.ClearNotifications -> {
                     DoeyAccessibilityService.instance?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
                     "🔔 Abriendo panel de notificaciones"
                 }
 
-                is LocalIntentProcessor.LocalAction.TogglePowerSave -> {
+                is LocalAction.TogglePowerSave -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
@@ -565,7 +568,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "🔋 Abriendo ajustes de ahorro de energía"
                 }
 
-                is LocalIntentProcessor.LocalAction.SetScreenTimeout -> {
+                is LocalAction.SetScreenTimeout -> {
                     try {
                         android.provider.Settings.System.putInt(app.contentResolver, android.provider.Settings.System.SCREEN_OFF_TIMEOUT, action.seconds * 1000)
                         "⏱️ Tiempo de espera de pantalla ajustado a ${action.seconds} segundos"
@@ -579,141 +582,141 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Accesos Directos a Ajustes ──────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.OpenSettings -> {
+                is LocalAction.OpenSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "⚙️ Abriendo Ajustes"
                 }
-                is LocalIntentProcessor.LocalAction.OpenWifiSettings -> {
+                is LocalAction.OpenWifiSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_WIFI_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "📶 Abriendo ajustes de WiFi"
                 }
-                is LocalIntentProcessor.LocalAction.OpenBluetoothSettings -> {
+                is LocalAction.OpenBluetoothSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🔵 Abriendo ajustes de Bluetooth"
                 }
-                is LocalIntentProcessor.LocalAction.OpenBatterySettings -> {
+                is LocalAction.OpenBatterySettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🔋 Abriendo ajustes de Batería"
                 }
-                is LocalIntentProcessor.LocalAction.OpenDisplaySettings -> {
+                is LocalAction.OpenDisplaySettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "📺 Abriendo ajustes de Pantalla"
                 }
-                is LocalIntentProcessor.LocalAction.OpenSoundSettings -> {
+                is LocalAction.OpenSoundSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_SOUND_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🔊 Abriendo ajustes de Sonido"
                 }
-                is LocalIntentProcessor.LocalAction.OpenStorageSettings -> {
+                is LocalAction.OpenStorageSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_INTERNAL_STORAGE_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "💾 Abriendo ajustes de Almacenamiento"
                 }
-                is LocalIntentProcessor.LocalAction.OpenLocationSettings -> {
+                is LocalAction.OpenLocationSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "📍 Abriendo ajustes de Ubicación"
                 }
-                is LocalIntentProcessor.LocalAction.OpenSecuritySettings -> {
+                is LocalAction.OpenSecuritySettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🛡️ Abriendo ajustes de Seguridad"
                 }
-                is LocalIntentProcessor.LocalAction.OpenAppsSettings -> {
+                is LocalAction.OpenAppsSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "📱 Abriendo ajustes de Aplicaciones"
                 }
-                is LocalIntentProcessor.LocalAction.OpenDateSettings -> {
+                is LocalAction.OpenDateSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_DATE_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "📅 Abriendo ajustes de Fecha y Hora"
                 }
-                is LocalIntentProcessor.LocalAction.OpenLanguageSettings -> {
+                is LocalAction.OpenLanguageSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_LOCALE_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🌐 Abriendo ajustes de Idioma"
                 }
-                is LocalIntentProcessor.LocalAction.OpenAccountSettings -> {
+                is LocalAction.OpenAccountSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_SYNC_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "👤 Abriendo ajustes de Cuentas"
                 }
-                is LocalIntentProcessor.LocalAction.OpenPrivacySettings -> {
+                is LocalAction.OpenPrivacySettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_PRIVACY_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🔒 Abriendo ajustes de Privacidad"
                 }
-                is LocalIntentProcessor.LocalAction.OpenNotificationSettings -> {
+                is LocalAction.OpenNotificationSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🔔 Abriendo ajustes de Notificaciones"
                 }
-                is LocalIntentProcessor.LocalAction.OpenSearchSettings -> {
+                is LocalAction.OpenSearchSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_SEARCH_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🔍 Abriendo ajustes de Búsqueda"
                 }
-                is LocalIntentProcessor.LocalAction.OpenPrintSettings -> {
+                is LocalAction.OpenPrintSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_PRINT_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🖨️ Abriendo ajustes de Impresión"
                 }
-                is LocalIntentProcessor.LocalAction.OpenCastSettings -> {
+                is LocalAction.OpenCastSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_CAST_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "📺 Abriendo ajustes de Transmisión"
                 }
-                is LocalIntentProcessor.LocalAction.OpenNfcSettings -> {
+                is LocalAction.OpenNfcSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_NFC_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "📡 Abriendo ajustes de NFC"
                 }
-                is LocalIntentProcessor.LocalAction.OpenDataUsageSettings -> {
+                is LocalAction.OpenDataUsageSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "📊 Abriendo ajustes de Uso de datos"
                 }
-                is LocalIntentProcessor.LocalAction.OpenVpnSettings -> {
+                is LocalAction.OpenVpnSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_VPN_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🛡️ Abriendo ajustes de VPN"
                 }
-                is LocalIntentProcessor.LocalAction.OpenApnSettings -> {
+                is LocalAction.OpenApnSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_APN_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🌐 Abriendo ajustes de APN"
                 }
-                is LocalIntentProcessor.LocalAction.OpenUserDictionarySettings -> {
+                is LocalAction.OpenUserDictionarySettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_USER_DICTIONARY_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "📖 Abriendo Diccionario de usuario"
                 }
-                is LocalIntentProcessor.LocalAction.OpenSyncSettings -> {
+                is LocalAction.OpenSyncSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_SYNC_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🔄 Abriendo ajustes de Sincronización"
                 }
-                is LocalIntentProcessor.LocalAction.OpenInputMethodSettings -> {
+                is LocalAction.OpenInputMethodSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "⌨️ Abriendo ajustes de Teclado"
                 }
-                is LocalIntentProcessor.LocalAction.OpenCaptioningSettings -> {
+                is LocalAction.OpenCaptioningSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_CAPTIONING_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "💬 Abriendo ajustes de Subtítulos"
                 }
-                is LocalIntentProcessor.LocalAction.OpenDreamSettings -> {
+                is LocalAction.OpenDreamSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_DREAM_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🌙 Abriendo ajustes de Protector de pantalla"
                 }
-                is LocalIntentProcessor.LocalAction.OpenZenModeSettings -> {
+                is LocalAction.OpenZenModeSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_ZEN_MODE_PRIORITY_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🤫 Abriendo ajustes de No molestar"
                 }
-                is LocalIntentProcessor.LocalAction.OpenUsageAccessSettings -> {
+                is LocalAction.OpenUsageAccessSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "📊 Abriendo acceso a Uso"
                 }
-                is LocalIntentProcessor.LocalAction.OpenOverlaySettings -> {
+                is LocalAction.OpenOverlaySettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🖼️ Abriendo ajustes de Superposición"
                 }
-                is LocalIntentProcessor.LocalAction.OpenWriteSettings -> {
+                is LocalAction.OpenWriteSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "✍️ Abriendo ajustes de Escritura"
                 }
-                is LocalIntentProcessor.LocalAction.OpenAccessibilitySettings -> {
+                is LocalAction.OpenAccessibilitySettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "♿ Abriendo ajustes de Accesibilidad"
                 }
-                is LocalIntentProcessor.LocalAction.OpenDeveloperSettings -> {
+                is LocalAction.OpenDeveloperSettings -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     app.startActivity(intent); "🛠️ Abriendo ajustes de Desarrollador"
                 }
 
                 // ── Linterna ─────────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.ToggleFlashlight -> {
+                is LocalAction.ToggleFlashlight -> {
                     val cm = app.getSystemService(android.content.Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
                     val cameraId = cm.cameraIdList.firstOrNull() ?: return ""
                     cm.setTorchMode(cameraId, action.enable)
@@ -721,7 +724,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Volumen exacto ────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.SetVolume -> {
+                is LocalAction.SetVolume -> {
                     val am  = app.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
                     val max = am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
                     val nv  = (max * action.level / 100.0).toInt().coerceIn(0, max)
@@ -730,7 +733,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Volumen paso arriba/abajo ─────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.VolumeStep -> {
+                is LocalAction.VolumeStep -> {
                     val am  = app.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
                     val dir = if (action.up) android.media.AudioManager.ADJUST_RAISE else android.media.AudioManager.ADJUST_LOWER
                     am.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, dir, android.media.AudioManager.FLAG_SHOW_UI)
@@ -738,7 +741,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Silencio / Vibración / Normal ─────────────────────────────────
-                is LocalIntentProcessor.LocalAction.SetSilentMode -> {
+                is LocalAction.SetSilentMode -> {
                     val am = app.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
                     when (action.mode) {
                         LocalIntentProcessor.SilentMode.SILENT  -> {
@@ -757,7 +760,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Brillo exacto ─────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.SetBrightness -> {
+                is LocalAction.SetBrightness -> {
                     if (android.provider.Settings.System.canWrite(app)) {
                         val value = (action.level * 255 / 100).coerceIn(0, 255)
                         android.provider.Settings.System.putInt(app.contentResolver,
@@ -774,7 +777,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Brillo paso arriba/abajo ──────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.BrightnessStep -> {
+                is LocalAction.BrightnessStep -> {
                     if (android.provider.Settings.System.canWrite(app)) {
                         val current = android.provider.Settings.System.getInt(app.contentResolver,
                             android.provider.Settings.System.SCREEN_BRIGHTNESS, 128)
@@ -787,7 +790,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Auto-brillo ───────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.ToggleAutoBrightness -> {
+                is LocalAction.ToggleAutoBrightness -> {
                     if (android.provider.Settings.System.canWrite(app)) {
                         val mode = if (action.enable) android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC
                                    else android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL
@@ -798,7 +801,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── WiFi ──────────────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.ToggleWifi -> {
+                is LocalAction.ToggleWifi -> {
                     // En Android 10+ no se puede cambiar WiFi programáticamente sin root
                     val intent = android.content.Intent(android.provider.Settings.ACTION_WIFI_SETTINGS).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -808,7 +811,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Bluetooth ─────────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.ToggleBluetooth -> {
+                is LocalAction.ToggleBluetooth -> {
                     @Suppress("DEPRECATION")
                     val adapter = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                         (app.getSystemService(android.content.Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter
@@ -838,7 +841,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Modo avión ────────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.ToggleAirplane -> {
+                is LocalAction.ToggleAirplane -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_AIRPLANE_MODE_SETTINGS).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
@@ -847,7 +850,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── No molestar ───────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.ToggleDoNotDisturb -> {
+                is LocalAction.ToggleDoNotDisturb -> {
                     val nm = app.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
                     if (nm.isNotificationPolicyAccessGranted) {
                         val filter = if (action.enable) android.app.NotificationManager.INTERRUPTION_FILTER_NONE
@@ -864,7 +867,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Captura de pantalla ───────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.TakeScreenshot -> {
+                is LocalAction.TakeScreenshot -> {
                     val intent = android.content.Intent("com.doey.ACTION_TAKE_SCREENSHOT").apply {
                         setPackage(app.packageName)
                     }
@@ -873,14 +876,14 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Bloquear pantalla ─────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.LockScreen -> {
+                is LocalAction.LockScreen -> {
                     val dpm = app.getSystemService(android.content.Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
                     dpm.lockNow()
                     "🔒 Pantalla bloqueada"
                 }
 
                 // ── Respuestas sociales (cero tokens, cero red) ───────────────────
-                is LocalIntentProcessor.LocalAction.Greeting -> {
+                is LocalAction.Greeting -> {
                     val responses = listOf(
                         "¡Hola! 👋 Aquí estoy, ¿en qué te ayudo?",
                         "¡Hola! Todo bien por acá. ¿Qué necesitas?",
@@ -896,7 +899,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     responses[(System.currentTimeMillis() % responses.size).toInt()]
                 }
 
-                is LocalIntentProcessor.LocalAction.Farewell -> {
+                is LocalAction.Farewell -> {
                     val responses = listOf(
                         "¡Hasta luego! 👋 Aquí estaré cuando me necesites.",
                         "¡Cuídate mucho! 😊",
@@ -909,7 +912,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     responses[(System.currentTimeMillis() % responses.size).toInt()]
                 }
 
-                is LocalIntentProcessor.LocalAction.Gratitude -> {
+                is LocalAction.Gratitude -> {
                     val responses = listOf(
                         "¡De nada! 😊 Para eso estoy.",
                         "¡Con gusto! ¿Algo más?",
@@ -922,7 +925,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     responses[(System.currentTimeMillis() % responses.size).toInt()]
                 }
 
-                is LocalIntentProcessor.LocalAction.Affirmation -> {
+                is LocalAction.Affirmation -> {
                     val responses = listOf(
                         "👍 ¡Listo!",
                         "¡Perfecto! ¿Algo más?",
@@ -935,7 +938,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Consulta de memorias ──────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.QueryMemory -> {
+                is LocalAction.QueryMemory -> {
                     val mem = settings.getPersonalMemory()
                     if (mem.isBlank()) {
                         "No tengo memorias guardadas tuyas todavía. Puedes agregarlas en Ajustes → Memorias."
@@ -952,7 +955,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Alarma nativa (AlarmManager — sin abrir app de reloj) ─────────
-                is LocalIntentProcessor.LocalAction.SetAlarmNative -> {
+                is LocalAction.SetAlarmNative -> {
                     // Igual que SetAlarm (IA): usar ACTION_SET_ALARM para que aparezca en la app de Reloj
                     val label = action.label.ifBlank { "Alarma Doey" }
                     val intent = android.content.Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
@@ -989,7 +992,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Alarma ────────────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.SetAlarm -> {
+                is LocalAction.SetAlarm -> {
                     val intent = android.content.Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
                         putExtra(android.provider.AlarmClock.EXTRA_HOUR, action.hour)
                         putExtra(android.provider.AlarmClock.EXTRA_MINUTES, action.minute)
@@ -1004,7 +1007,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Cancelar alarma ───────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.CancelAlarm -> {
+                is LocalAction.CancelAlarm -> {
                     val intent = android.content.Intent(android.provider.AlarmClock.ACTION_DISMISS_ALARM).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
@@ -1013,7 +1016,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Temporizador ──────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.SetTimer -> {
+                is LocalAction.SetTimer -> {
                     val intent = android.content.Intent(android.provider.AlarmClock.ACTION_SET_TIMER).apply {
                         putExtra(android.provider.AlarmClock.EXTRA_LENGTH, action.seconds.toInt())
                         putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, true)
@@ -1032,7 +1035,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Cancelar temporizador ─────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.CancelTimer -> {
+                is LocalAction.CancelTimer -> {
                     val intent = android.content.Intent(android.provider.AlarmClock.ACTION_DISMISS_TIMER).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
@@ -1041,7 +1044,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Llamada de emergencia ─────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.CallEmergency -> {
+                is LocalAction.CallEmergency -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_CALL,
                         android.net.Uri.parse("tel:${action.number}")).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1051,7 +1054,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Llamada normal ────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.Call -> {
+                is LocalAction.Call -> {
                     val number = LocalIntentProcessor.resolveContactNumber(app, action.contact)
                     if (number != null) {
                         val intent = android.content.Intent(android.content.Intent.ACTION_CALL,
@@ -1071,7 +1074,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── SMS ───────────────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.SendSms -> {
+                is LocalAction.SendSms -> {
                     val number = LocalIntentProcessor.resolveContactNumber(app, action.contact) ?: action.contact
                     val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO,
                         android.net.Uri.parse("smsto:$number")).apply {
@@ -1083,7 +1086,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── WhatsApp mensaje ──────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.SendWhatsApp -> {
+                is LocalAction.SendWhatsApp -> {
                     // 1. Intentar resolver el contacto desde la agenda
                     var number = LocalIntentProcessor.resolveContactNumber(app, action.contact)
                     // 2. Si no está en la agenda, buscar en las memorias del usuario
@@ -1124,7 +1127,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Abrir chat de WhatsApp ────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.OpenWhatsAppChat -> {
+                is LocalAction.OpenWhatsAppChat -> {
                     val number = LocalIntentProcessor.resolveContactNumber(app, action.contact)
                     val uri = if (number != null) "https://wa.me/${number.replace(Regex("[^\\d+]"),"")}"
                               else "whatsapp://send"
@@ -1138,7 +1141,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Telegram mensaje ──────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.SendTelegram -> {
+                is LocalAction.SendTelegram -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
                         android.net.Uri.parse("tg://msg?to=${android.net.Uri.encode(action.contact)}&text=${android.net.Uri.encode(action.message)}")).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1157,7 +1160,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Navegación GPS ────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.Navigate -> {
+                is LocalAction.Navigate -> {
                     val uri = android.net.Uri.parse("google.navigation:q=${android.net.Uri.encode(action.destination)}")
                     val navIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri).apply {
                         setPackage("com.google.android.apps.maps")
@@ -1176,7 +1179,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Búsqueda web ──────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.SearchWeb -> {
+                is LocalAction.SearchWeb -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
                         android.net.Uri.parse("https://www.google.com/search?q=${android.net.Uri.encode(action.query)}")).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1186,7 +1189,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Búsqueda Maps ─────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.SearchMaps -> {
+                is LocalAction.SearchMaps -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
                         android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(action.query)}")).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1196,7 +1199,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Abrir URL ─────────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.OpenUrl -> {
+                is LocalAction.OpenUrl -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
                         android.net.Uri.parse(action.url)).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1206,7 +1209,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Música / Video ────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.PlayMusic -> {
+                is LocalAction.PlayMusic -> {
                     when (action.app) {
                         // ── YouTube ───────────────────────────────────────────────────
                         "youtube" -> {
@@ -1343,7 +1346,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Controles de reproducción ─────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.PauseMusic -> {
+                is LocalAction.PauseMusic -> {
                     val ke = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
                     val mediaIntent = android.content.Intent(android.content.Intent.ACTION_MEDIA_BUTTON).apply {
                         putExtra(android.content.Intent.EXTRA_KEY_EVENT, ke)
@@ -1352,7 +1355,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "⏸ Música pausada"
                 }
 
-                is LocalIntentProcessor.LocalAction.ResumeMusic -> {
+                is LocalAction.ResumeMusic -> {
                     val ke = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
                     val mediaIntent = android.content.Intent(android.content.Intent.ACTION_MEDIA_BUTTON).apply {
                         putExtra(android.content.Intent.EXTRA_KEY_EVENT, ke)
@@ -1361,7 +1364,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "▶️ Música reanudada"
                 }
 
-                is LocalIntentProcessor.LocalAction.NextTrack -> {
+                is LocalAction.NextTrack -> {
                     val ke = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_NEXT)
                     val mediaIntent = android.content.Intent(android.content.Intent.ACTION_MEDIA_BUTTON).apply {
                         putExtra(android.content.Intent.EXTRA_KEY_EVENT, ke)
@@ -1370,7 +1373,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "⏭ Siguiente canción"
                 }
 
-                is LocalIntentProcessor.LocalAction.PrevTrack -> {
+                is LocalAction.PrevTrack -> {
                     val ke = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS)
                     val mediaIntent = android.content.Intent(android.content.Intent.ACTION_MEDIA_BUTTON).apply {
                         putExtra(android.content.Intent.EXTRA_KEY_EVENT, ke)
@@ -1380,7 +1383,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Abrir app ─────────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.OpenApp -> {
+                is LocalAction.OpenApp -> {
                     val pm   = app.packageManager
                     val apps = pm.getInstalledApplications(android.content.pm.PackageManager.GET_META_DATA)
                     val q    = action.query.lowercase()
@@ -1400,7 +1403,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     }
                 }
                 // ── NFC ──────────────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.ToggleNfc -> {
+                is LocalAction.ToggleNfc -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_NFC_SETTINGS).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
@@ -1409,7 +1412,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Modo oscuro ──────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.ToggleDarkMode -> {
+                is LocalAction.ToggleDarkMode -> {
                     val mode = if (action.enable)
                         android.app.UiModeManager.MODE_NIGHT_YES
                     else
@@ -1420,7 +1423,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Hotspot ──────────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.ToggleHotspot -> {
+                is LocalAction.ToggleHotspot -> {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
@@ -1429,7 +1432,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Cronómetro ──────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.StartStopwatch -> {
+                is LocalAction.StartStopwatch -> {
                     val intent = android.content.Intent(android.provider.AlarmClock.ACTION_SET_TIMER).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
@@ -1443,21 +1446,21 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "⏱️ Abriendo el cronómetro"
                 }
 
-                is LocalIntentProcessor.LocalAction.StopStopwatch -> {
+                is LocalAction.StopStopwatch -> {
                     "⏹️ Para el cronómetro en la app del reloj"
                 }
 
                 // ── Shuffle / Repeat ─────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.ShuffleMusic -> {
+                is LocalAction.ShuffleMusic -> {
                     "🔀 Activa el modo aleatorio en tu app de música"
                 }
 
-                is LocalIntentProcessor.LocalAction.RepeatToggle -> {
+                is LocalAction.RepeatToggle -> {
                     "🔁 Activa el modo repetición en tu app de música"
                 }
 
                 // ── Apps rápidas ─────────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.OpenCamera -> {
+                is LocalAction.OpenCamera -> {
                     val intent = android.content.Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
@@ -1465,7 +1468,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "📷 Abriendo la cámara"
                 }
 
-                is LocalIntentProcessor.LocalAction.OpenGallery -> {
+                is LocalAction.OpenGallery -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                         type = "image/*"
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1474,7 +1477,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "🖼️ Abriendo la galería"
                 }
 
-                is LocalIntentProcessor.LocalAction.OpenContacts -> {
+                is LocalAction.OpenContacts -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                         data = android.provider.ContactsContract.Contacts.CONTENT_URI
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1483,7 +1486,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "👥 Abriendo contactos"
                 }
 
-                is LocalIntentProcessor.LocalAction.OpenDialer -> {
+                is LocalAction.OpenDialer -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_DIAL).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
@@ -1491,7 +1494,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "📞 Abriendo el marcador"
                 }
 
-                is LocalIntentProcessor.LocalAction.OpenCalculator -> {
+                is LocalAction.OpenCalculator -> {
                     val intent = app.packageManager.getLaunchIntentForPackage("com.google.android.calculator")
                         ?: android.content.Intent().apply {
                             setClassName("com.android.calculator2", "com.android.calculator2.Calculator")
@@ -1502,7 +1505,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "🧮 Abriendo la calculadora"
                 }
 
-                is LocalIntentProcessor.LocalAction.OpenCalendar -> {
+                is LocalAction.OpenCalendar -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                         data = android.net.Uri.parse("content://com.android.calendar/time")
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1511,7 +1514,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "📅 Abriendo el calendario"
                 }
 
-                is LocalIntentProcessor.LocalAction.OpenMaps -> {
+                is LocalAction.OpenMaps -> {
                     val intent = app.packageManager.getLaunchIntentForPackage("com.google.android.apps.maps")
                         ?: android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("geo:0,0")).apply {
                             addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1521,7 +1524,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "🗺️ Abriendo Maps"
                 }
 
-                is LocalIntentProcessor.LocalAction.OpenBrowser -> {
+                is LocalAction.OpenBrowser -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com")).apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
@@ -1529,7 +1532,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "🌐 Abriendo el navegador"
                 }
 
-                is LocalIntentProcessor.LocalAction.OpenFiles -> {
+                is LocalAction.OpenFiles -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                         type = "*/*"
                         addCategory(android.content.Intent.CATEGORY_OPENABLE)
@@ -1547,7 +1550,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "📁 Abriendo el explorador de archivos"
                 }
 
-                is LocalIntentProcessor.LocalAction.OpenClock -> {
+                is LocalAction.OpenClock -> {
                     val intent = app.packageManager.getLaunchIntentForPackage("com.google.android.deskclock")
                         ?: android.content.Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS).apply {
                             addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1557,7 +1560,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "🕐 Abriendo el reloj"
                 }
 
-                is LocalIntentProcessor.LocalAction.SetRingtoneVolume -> {
+                is LocalAction.SetRingtoneVolume -> {
                     val am = app.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
                     val max = am.getStreamMaxVolume(android.media.AudioManager.STREAM_RING)
                     val level = (action.level * max / 100).coerceIn(0, max)
@@ -1565,7 +1568,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "🔔 Volumen del timbre al ${action.level}%"
                 }
 
-                is LocalIntentProcessor.LocalAction.SetAlarmVolume -> {
+                is LocalAction.SetAlarmVolume -> {
                     val am = app.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
                     val max = am.getStreamMaxVolume(android.media.AudioManager.STREAM_ALARM)
                     val level = (action.level * max / 100).coerceIn(0, max)
@@ -1573,7 +1576,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "⏰ Volumen de alarma al ${action.level}%"
                 }
 
-                is LocalIntentProcessor.LocalAction.ShareText -> {
+                is LocalAction.ShareText -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(android.content.Intent.EXTRA_TEXT, action.text)
@@ -1586,7 +1589,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Lista de compras ──────────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.AddShoppingItem -> {
+                is LocalAction.AddShoppingItem -> {
                     val prefs = app.getSharedPreferences("doey_shopping_list", 0)
                     val items = try { org.json.JSONArray(prefs.getString("items", "[]") ?: "[]") } catch (_: Exception) { org.json.JSONArray() }
                     items.put(org.json.JSONObject().apply {
@@ -1598,13 +1601,13 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "🛒 \"${action.item}\" agregado a la lista de compras"
                 }
 
-                is LocalIntentProcessor.LocalAction.ClearShoppingList -> {
+                is LocalAction.ClearShoppingList -> {
                     app.getSharedPreferences("doey_shopping_list", 0).edit().putString("items", "[]").apply()
                     "🛒 Lista de compras limpia"
                 }
 
                 // ── Calculadora offline ──────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.Calculate -> {
+                is LocalAction.Calculate -> {
                     try {
                         val expr = action.expression
                             .replace("por",   "*").replace(Regex("\bx\b"), "*")
@@ -1616,12 +1619,12 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
 
                 // ── Conversión de unidades offline ────────────────────────────────
-                is LocalIntentProcessor.LocalAction.Convert -> {
+                is LocalAction.Convert -> {
                     convertUnits(action.value, action.from, action.to) ?: ""
                 }
 
                 // ── Notas rápidas offline ─────────────────────────────────────────
-                is LocalIntentProcessor.LocalAction.QuickNote -> {
+                is LocalAction.QuickNote -> {
                     val prefs = app.getSharedPreferences("doey_iris_notes", android.content.Context.MODE_PRIVATE)
                     val existing = prefs.getString("notes", "") ?: ""
                     val ts = java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
@@ -1630,14 +1633,14 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     "📝 Anotado: ${action.content}"
                 }
 
-                is LocalIntentProcessor.LocalAction.ReadNotes -> {
+                is LocalAction.ReadNotes -> {
                     val prefs = app.getSharedPreferences("doey_iris_notes", android.content.Context.MODE_PRIVATE)
                     val notes = prefs.getString("notes", "") ?: ""
                     if (notes.isBlank()) "📝 No tienes notas guardadas aún." else "📝 Tus notas:\n$notes"
                 }
 
                 // ── Recordatorio rápido offline ───────────────────────────────────
-                is LocalIntentProcessor.LocalAction.QuickReminder -> {
+                is LocalAction.QuickReminder -> {
                     try {
                         val alarmMgr = app.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
                         val intent = android.content.Intent(app, AlarmReceiver::class.java).apply {
@@ -1655,7 +1658,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
                 // ── Buscar y reproducir primer resultado en Spotify ────────────────
                 // Delegar a la IA con instrucción compacta de accesibilidad
-                is LocalIntentProcessor.LocalAction.SearchAndPlaySpotify -> {
+                is LocalAction.SearchAndPlaySpotify -> {
                     // Retornar blank aquí para que el pipeline lo procese con
                     // la instrucción compacta de accesibilidad
                     ""

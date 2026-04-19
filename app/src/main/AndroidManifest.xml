@@ -112,7 +112,7 @@
 
         <!-- FriendlyModeService: barra inferior modo Friendly (Tau) -->
         <service
-            android:name=".servicios.basico.FriendlyModeService"
+            android:name=".VEIL.FriendlyModeService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="specialUse">
@@ -123,7 +123,7 @@
 
         <!-- Servicio de overlay/burbuja flotante -->
         <service
-            android:name=".servicios.basico.DoeyOverlayService"
+            android:name=".VEIL.DoeyOverlayService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="specialUse">
@@ -134,38 +134,38 @@
 
         <!-- Wake Word Foreground Service -->
         <service
-            android:name=".servicios.comun.WakeWordService"
+            android:name=".ECHO.WakeWordService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
         <!-- Scheduler: AlarmManager broadcast + background execution -->
         <receiver
-            android:name=".servicios.comun.SchedulerReceiver"
+            android:name=".ECHO.SchedulerReceiver"
             android:enabled="true"
             android:exported="false" />
 
         <service
-            android:name=".servicios.comun.SchedulerJobService"
+            android:name=".ECHO.SchedulerJobService"
             android:enabled="true"
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <!-- Timer: AlarmManager broadcast -->
         <receiver
-            android:name=".servicios.comun.TimerReceiver"
+            android:name=".ECHO.TimerReceiver"
             android:enabled="true"
             android:exported="false" />
 
         <!-- New Alarm System: AlarmManager broadcast -->
         <receiver
-            android:name=".servicios.comun.AlarmReceiver"
+            android:name=".ECHO.AlarmReceiver"
             android:enabled="true"
             android:exported="false" />
 
         <!-- Boot receiver: re-schedule alarms after reboot -->
         <receiver
-            android:name=".servicios.comun.BootReceiver"
+            android:name=".ECHO.BootReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
@@ -176,7 +176,7 @@
 
         <!-- Notification Listener Service -->
         <service
-            android:name=".servicios.basico.DoeyNotificationListenerService"
+            android:name=".VEIL.DoeyNotificationListenerService"
             android:enabled="true"
             android:exported="true"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
@@ -187,7 +187,7 @@
 
         <!-- Fix #1: Servicio raíz de asistente (VoiceInteractionService) -->
         <service
-            android:name=".servicios.basico.DoeyVoiceInteractionService"
+            android:name=".VEIL.DoeyVoiceInteractionService"
             android:enabled="true"
             android:exported="true"
             android:permission="android.permission.BIND_VOICE_INTERACTION">
@@ -201,14 +201,14 @@
 
         <!-- Fix #1: Sesión del asistente (VoiceInteractionSessionService) -->
         <service
-            android:name=".services.DoeyAssistantService"
+            android:name=".VEIL.DoeyAssistantService"
             android:enabled="true"
             android:exported="true"
             android:permission="android.permission.BIND_VOICE_INTERACTION" />
 
         <!-- Accessibility Service -->
         <service
-            android:name=".servicios.basico.DoeyAccessibilityService"
+            android:name=".VEIL.DoeyAccessibilityService"
             android:enabled="true"
             android:exported="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
